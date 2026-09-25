@@ -1,6 +1,8 @@
 import { AppProviders } from './app/providers/AppProviders'
 import { AppRouter } from './app/router/AppRouter'
 
+export type { AppState, NavigationOptions, ScreenName } from './types'
+
 export default function App() {
   return (
     <AppProviders>
