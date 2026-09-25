@@ -38,6 +38,23 @@ function renderProtectedRouteWithLockedSession(initialEntry: string) {
   )
 }
 
+function renderCustomerSessionAt(initialEntry: string) {
+  const database = createDemoSeed()
+  window.localStorage.setItem(
+    DEMO_STORAGE_KEY,
+    JSON.stringify({
+      ...database,
+      session: { userId: 'usr-customer-01', persistent: true },
+    }),
+  )
+  router = createMemoryRouter(appRoutes, { initialEntries: [initialEntry] })
+  render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  )
+}
+
 async function loginWith(email: string, password: string) {
   const user = userEvent.setup()
 
@@ -66,6 +83,16 @@ describe('Auth flow', () => {
 
     await waitFor(() => expect(currentPath()).toBe('/admin'))
     expect(await screen.findByRole('heading', { name: 'Khu vực quản trị' })).toBeInTheDocument()
+  })
+
+  it('logs out the current customer from the header and returns to login', async () => {
+    const user = userEvent.setup()
+    renderCustomerSessionAt('/shop')
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng xuất' }))
+
+    await waitFor(() => expect(currentPath()).toBe('/login'))
+    expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeInTheDocument()
   })
 
   it('clears a session for a locked user and returns to login', async () => {

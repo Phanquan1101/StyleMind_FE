@@ -1,9 +1,10 @@
-import { Bell, Search, ShoppingBag, UserRound } from 'lucide-react'
+import { Bell, LogOut, Search, ShoppingBag, UserRound } from 'lucide-react'
 import { FormEvent, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
+import { useAuth } from '@/features/auth'
 
 const navItems = [
   { to: ROUTES.home, label: 'Trang chủ' },
@@ -15,6 +16,7 @@ const navItems = [
 export function CustomerHeader() {
   const navigate = useNavigate()
   const { state } = useDemoStore()
+  const { currentUser, logout } = useAuth()
   const [query, setQuery] = useState('')
   const cartCount = state.cartLines.reduce((total, line) => total + line.quantity, 0)
   const currentUserId = state.session?.userId ?? 'usr-customer-01'
@@ -25,6 +27,11 @@ export function CustomerHeader() {
     const trimmed = query.trim()
     navigate(trimmed ? `${ROUTES.shop}?q=${encodeURIComponent(trimmed)}` : ROUTES.shop)
     setQuery('')
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate(ROUTES.login, { replace: true })
   }
 
   return (
@@ -73,7 +80,17 @@ export function CustomerHeader() {
           <HeaderIconLink to={ROUTES.account} label="Tài khoản">
             <UserRound size={18} aria-hidden="true" />
           </HeaderIconLink>
+          {currentUser && (
+            <HeaderIconButton label="Đăng xuất" onClick={handleLogout}>
+              <LogOut size={18} aria-hidden="true" />
+            </HeaderIconButton>
+          )}
         </div>
+        {currentUser && (
+          <HeaderIconButton label="Đăng xuất khỏi tài khoản" className="ml-auto lg:hidden" onClick={handleLogout}>
+            <LogOut size={18} aria-hidden="true" />
+          </HeaderIconButton>
+        )}
       </div>
     </header>
   )
@@ -93,5 +110,29 @@ function HeaderIconLink({ to, label, count, children }: { to: string; label: str
         </span>
       )}
     </Link>
+  )
+}
+
+function HeaderIconButton({
+  label,
+  className = '',
+  children,
+  onClick,
+}: {
+  label: string
+  className?: string
+  children: ReactNode
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={`relative inline-grid h-10 w-10 place-items-center rounded-lg text-[#3A3632] transition hover:bg-[#EEE8E1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] ${className}`}
+      onClick={onClick}
+    >
+      {children}
+    </button>
   )
 }

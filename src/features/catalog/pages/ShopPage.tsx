@@ -130,7 +130,7 @@ export function ShopPage() {
         <div className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-10 md:px-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.55fr)] lg:items-end">
           <div>
             <p className="text-sm font-semibold text-[#684B5A]">Cửa hàng StyleMind</p>
-            <h1 className="mt-3 max-w-3xl font-display text-4xl font-semibold leading-tight text-[#222222] md:text-6xl">
+            <h1 className="mt-3 max-w-3xl break-words font-display text-3xl font-semibold leading-tight text-[#222222] sm:text-4xl md:text-6xl">
               Chọn món dễ mặc cho tủ đồ hằng ngày
             </h1>
           </div>
