@@ -1,0 +1,134 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { describe, expect, it } from 'vitest'
+
+import { createDemoSeed } from '@/app/data/demoSeed'
+import { AppProviders } from '@/app/providers/AppProviders'
+import { appRoutes } from '@/app/router/AppRouter'
+import { demoReducer } from '@/app/store/demoReducer'
+import type { DemoAction, DemoDatabase } from '@/app/store/types'
+import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
+
+import { CHECKOUT_QR_SESSION_KEY, confirmQrPayment, type QrSession } from './data/checkoutRepository'
+
+let router: ReturnType<typeof createMemoryRouter>
+
+function databaseWithCustomerAndCart(overrides: Partial<DemoDatabase> = {}): DemoDatabase {
+  const database = createDemoSeed()
+
+  return {
+    ...database,
+    session: { userId: 'usr-customer-01', persistent: true },
+    cartLines: [
+      {
+        id: 'cart-test-line',
+        productId: 'prd-blouse-01',
+        variantId: 'var-blouse-white-m',
+        quantity: 1,
+        source: 'shop',
+      },
+    ],
+    ...overrides,
+  }
+}
+
+function persistDatabase(database: DemoDatabase) {
+  window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(database))
+}
+
+function getDatabase() {
+  const raw = window.localStorage.getItem(DEMO_STORAGE_KEY)
+  if (!raw) throw new Error('Expected demo database in localStorage')
+  return JSON.parse(raw) as DemoDatabase
+}
+
+function renderAt(initialEntry: string, database: DemoDatabase) {
+  window.localStorage.clear()
+  window.sessionStorage.clear()
+  persistDatabase(database)
+  mount(initialEntry)
+}
+
+function mount(initialEntry: string) {
+  router = createMemoryRouter(appRoutes, { initialEntries: [initialEntry] })
+  render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  )
+}
+
+function renderCheckoutWithCustomerAndCart() {
+  renderAt('/checkout', databaseWithCustomerAndCart())
+}
+
+function currentPath() {
+  return router.state.location.pathname
+}
+
+function createActiveQrSession(overrides: Partial<QrSession> = {}): QrSession {
+  return {
+    id: 'qr-idempotent-01',
+    amount: 650_000,
+    transferContent: 'STYLEMIND QR qr-idempotent-01',
+    expiresAt: '2099-09-25T06:10:00.000Z',
+    orderId: null,
+    ...overrides,
+  }
+}
+
+function renderExpiredQrSession() {
+  window.localStorage.clear()
+  window.sessionStorage.clear()
+  persistDatabase(databaseWithCustomerAndCart())
+  window.sessionStorage.setItem(
+    CHECKOUT_QR_SESSION_KEY,
+    JSON.stringify(createActiveQrSession({ id: 'qr-expired-01', expiresAt: '2000-01-01T00:00:00.000Z' })),
+  )
+  mount('/checkout/qr')
+}
+
+describe('Checkout flow', () => {
+  it('redirects an empty cart from checkout to cart', async () => {
+    renderAt('/checkout', databaseWithCustomerAndCart({ cartLines: [] }))
+
+    expect(await screen.findByText('Giỏ hàng của bạn đang trống')).toBeInTheDocument()
+    expect(currentPath()).toBe('/cart')
+  })
+
+  it('places one COD order and clears purchased cart lines', async () => {
+    const user = userEvent.setup()
+    renderCheckoutWithCustomerAndCart()
+
+    await user.click(screen.getByLabelText('Thanh toán khi nhận hàng'))
+    await user.click(screen.getByRole('button', { name: 'Đặt hàng' }))
+
+    expect(await screen.findByText('Đặt hàng thành công')).toBeInTheDocument()
+    await waitFor(() => expect(getDatabase().orders).toHaveLength(1))
+    expect(getDatabase().cartLines).toHaveLength(0)
+  })
+
+  it('does not create an order when an expired QR is confirmed', () => {
+    renderExpiredQrSession()
+
+    expect(screen.getByText('Thanh toán đã hết hạn')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tôi đã thanh toán' })).not.toBeInTheDocument()
+    expect(getDatabase().orders).toHaveLength(0)
+  })
+
+  it('creates only one order when the same QR session is confirmed twice', async () => {
+    const session = createActiveQrSession()
+    let database = databaseWithCustomerAndCart()
+    const dispatch = (action: DemoAction) => {
+      database = demoReducer(database, action)
+    }
+
+    const first = await confirmQrPayment(session, database)
+    dispatch({ type: 'order/placed', payload: first })
+    const second = await confirmQrPayment(session, database)
+    dispatch({ type: 'order/placed', payload: second })
+
+    expect(database.orders.filter(order => order.paymentReference === session.id)).toHaveLength(1)
+  })
+})

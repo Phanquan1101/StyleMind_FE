@@ -13,6 +13,7 @@ import {
 } from '@/features/auth'
 import { CartPage } from '@/features/cart'
 import { ShopPage } from '@/features/catalog'
+import { CheckoutPage, OrderSuccessPage, QrPaymentPage } from '@/features/checkout'
 import { HomePage } from '@/features/home'
 import { ProductDetailPage } from '@/features/product-detail'
 import { DeferredWardrobePage } from '@/features/wardrobe'
@@ -50,9 +51,9 @@ export const appRoutes: RouteObject[] = [
       { path: 'shop', element: <ShopPage /> },
       { path: 'products/:productId', element: <ProductDetailPage /> },
       { path: 'cart', element: <CartPage /> },
-      { path: 'checkout', element: <AuthGuard><PlaceholderPage title="Thanh toán" /></AuthGuard> },
-      { path: 'checkout/qr', element: <AuthGuard><PlaceholderPage title="Thanh toán VietQR" /></AuthGuard> },
-      { path: 'order-success/:orderId', element: <AuthGuard><PlaceholderPage title="Đặt hàng thành công" /></AuthGuard> },
+      { path: 'checkout', element: <AuthGuard><CheckoutPage /></AuthGuard> },
+      { path: 'checkout/qr', element: <AuthGuard><QrPaymentPage /></AuthGuard> },
+      { path: 'order-success/:orderId', element: <AuthGuard><OrderSuccessPage /></AuthGuard> },
       { path: 'orders', element: <AuthGuard><PlaceholderPage title="Đơn hàng của tôi" /></AuthGuard> },
       { path: 'notifications', element: <AuthGuard><PlaceholderPage title="Thông báo" /></AuthGuard> },
       { path: 'account', element: <AuthGuard><PlaceholderPage title="Tài khoản" /></AuthGuard> },

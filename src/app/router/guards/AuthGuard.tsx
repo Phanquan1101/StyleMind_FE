@@ -8,9 +8,10 @@ import type { UserRole } from '@/entities/user/model/types'
 interface AuthGuardProps {
   children: ReactNode
   roles?: UserRole[]
+  requireCart?: boolean
 }
 
-export function AuthGuard({ children, roles }: AuthGuardProps) {
+export function AuthGuard({ children, roles, requireCart = false }: AuthGuardProps) {
   const location = useLocation()
   const { state, dispatch } = useDemoStore()
   const currentUser = state.users.find(user => user.id === state.session?.userId && user.status === 'active') ?? null
@@ -23,6 +24,10 @@ export function AuthGuard({ children, roles }: AuthGuardProps) {
 
   if (roles && !roles.includes(currentUser.role)) {
     return <Navigate to={currentUser.role === 'admin' ? ROUTES.admin : ROUTES.shop} replace />
+  }
+
+  if (requireCart && state.cartLines.length === 0) {
+    return <Navigate to={ROUTES.cart} replace />
   }
 
   return children
