@@ -1,62 +1,64 @@
-# StyleMind Non-Wardrobe Demo Design
+# Thiết kế bản demo StyleMind ngoài phạm vi Tủ đồ AI
 
-**Date:** 2026-09-25  
-**Status:** Approved in conversation; pending written-spec review  
-**Scope:** Frontend demo with mock data for all customer and admin features outside the AI Wardrobe domain
+**Ngày:** 2026-09-25
 
-## 1. Objective
+**Trạng thái:** Đã xác nhận trong trao đổi, đang chờ duyệt tài liệu hoàn chỉnh
 
-Build a complete, interactive StyleMind frontend demo using mock data. The demo must support realistic customer and admin workflows, persist changes across page reloads, and reorganize the repository into a feature-first structure.
+**Phạm vi:** Bản demo frontend sử dụng dữ liệu giả lập cho toàn bộ chức năng Customer và Admin ngoài miền nghiệp vụ AI Wardrobe
 
-The AI Wardrobe, outfit generation, and wardrobe-aware AI Stylist behavior are explicitly deferred. Existing wardrobe-related screens may be moved to the new structure to keep routing operational, but their behavior must not be expanded during this phase.
+## 1. Mục tiêu
 
-All source-code identifiers, file names, folder names, routes, model values, storage keys, and developer documentation remain in English. All user-facing content is Vietnamese, including labels, navigation, validation, notifications, statuses, mock content, dates, and currency formatting.
+Xây dựng một bản demo frontend StyleMind hoàn chỉnh và có thể tương tác bằng dữ liệu giả lập. Bản demo phải hỗ trợ các quy trình thực tế của Customer và Admin, giữ dữ liệu sau khi tải lại trang, đồng thời tổ chức lại repository theo cấu trúc feature-first.
 
-## 2. Product Scope
+Các chức năng AI Wardrobe, tạo outfit và AI Stylist hiểu ngữ cảnh tủ đồ được tạm hoãn. Những màn hình liên quan đến tủ đồ hiện có có thể được chuyển vào cấu trúc mới để routing tiếp tục hoạt động, nhưng không được mở rộng nghiệp vụ trong giai đoạn này.
 
-### Included customer features
+Tên file, thư mục, component, type, interface, biến, hàm, action, route, giá trị model và storage key đều dùng tiếng Anh. Tất cả nội dung người dùng nhìn thấy phải dùng tiếng Việt, bao gồm nhãn, navigation, validation, thông báo, trạng thái, dữ liệu mẫu, ngày tháng và định dạng tiền tệ.
 
-- Authentication: login, registration, OTP verification, forgot password, and reset password.
-- Home page with shopping and AI Wardrobe positioning.
-- Product search, sorting, desktop filters, and mobile filter sheet.
-- Product detail with color-specific galleries, size, quantity, add-to-cart, and buy-now actions.
-- Cart with quantity controls, removal confirmation, discount, shipping, totals, and empty state.
-- Checkout with address selection, address creation, order review, COD, VietQR, and order creation.
-- QR payment with countdown, pending, expired, verification, and success states.
-- Order list, order detail, timeline, cancellation request, return request, and refund tracking.
-- Profile, address management, notifications, password change, logout, and demo-data reset.
-- Responsive desktop, tablet, and mobile layouts.
+## 2. Phạm vi sản phẩm
 
-### Included admin features
+### Chức năng Customer được triển khai
 
-- Admin dashboard and AI analytics dashboard.
-- User management.
-- Category management.
-- Product, variant, inventory, and color-specific image management.
-- Order management.
-- Cancellation request processing.
-- Return and refund processing.
-- AI fashion metadata and compatibility-rule management.
-- Demo-data reset with destructive confirmation.
+- Xác thực: đăng nhập, đăng ký, xác thực OTP, quên mật khẩu và đặt lại mật khẩu.
+- Trang chủ giới thiệu mua sắm thời trang và AI Wardrobe.
+- Tìm kiếm, sắp xếp, bộ lọc desktop và bảng lọc mobile.
+- Chi tiết sản phẩm với gallery riêng theo màu, lựa chọn size, số lượng, thêm vào giỏ và mua ngay.
+- Giỏ hàng với điều chỉnh số lượng, xác nhận xóa, giảm giá, vận chuyển, tổng tiền và trạng thái trống.
+- Checkout với chọn địa chỉ, thêm địa chỉ, kiểm tra đơn hàng, COD, VietQR và tạo đơn.
+- Thanh toán QR với đếm ngược, chờ thanh toán, hết hạn, xác minh và thành công.
+- Danh sách đơn hàng, chi tiết, timeline, yêu cầu hủy, yêu cầu trả hàng và theo dõi hoàn tiền.
+- Hồ sơ, quản lý địa chỉ, thông báo, đổi mật khẩu, đăng xuất và đặt lại dữ liệu demo.
+- Giao diện responsive cho desktop, tablet và mobile.
 
-### Deferred features
+### Chức năng Admin được triển khai
 
-- Creating, editing, deleting, regenerating, or restyling wardrobes.
-- Generating outfits from wardrobes.
-- Wardrobe-context AI Stylist behavior.
-- Buying products directly from generated wardrobes or outfits.
+- Dashboard quản trị và dashboard phân tích AI.
+- Quản lý người dùng.
+- Quản lý danh mục.
+- Quản lý sản phẩm, biến thể, tồn kho và ảnh theo màu.
+- Quản lý đơn hàng.
+- Xử lý yêu cầu hủy đơn.
+- Xử lý yêu cầu trả hàng và hoàn tiền.
+- Quản lý metadata thời trang và quy tắc tương thích cho AI.
+- Đặt lại dữ liệu demo với hộp thoại xác nhận hành động nguy hiểm.
 
-### Removed from the active application
+### Chức năng tạm hoãn
+
+- Tạo, chỉnh sửa, xóa, tạo lại hoặc đổi phong cách tủ đồ.
+- Tạo outfit từ tủ đồ.
+- AI Stylist hiểu ngữ cảnh của tủ đồ.
+- Mua sản phẩm trực tiếp từ tủ đồ hoặc outfit do AI tạo.
+
+### Chức năng bị loại khỏi ứng dụng đang hoạt động
 
 - Travel Planner.
 - Visual Studio.
-- Shoes, bags, jewelry, hats, and other accessories.
+- Giày, túi, trang sức, mũ và các phụ kiện thời trang khác.
 
-Travel Planner and Visual Studio source files may remain temporarily under `src/legacy`, but they must have no active route or navigation entry.
+Source của Travel Planner và Visual Studio có thể tạm thời được giữ trong `src/legacy`, nhưng không được có route hoặc mục navigation đang hoạt động.
 
-## 3. Architecture
+## 3. Kiến trúc
 
-Use a pragmatic feature-first architecture. React Router provides URL routing and route guards. React Context plus typed reducers provides application state without introducing a general-purpose state library. Mock repositories isolate persistence and asynchronous behavior from UI components.
+Sử dụng kiến trúc feature-first theo hướng thực dụng. React Router phụ trách URL routing và route guard. React Context kết hợp typed reducer quản lý application state mà không cần thêm thư viện state tổng quát. Mock repository tách biệt persistence và hành vi bất đồng bộ khỏi component giao diện.
 
 ```text
 src/
@@ -98,7 +100,7 @@ src/
     visual-studio/
 ```
 
-Each feature follows this shape when the directories are needed:
+Mỗi feature sử dụng cấu trúc sau khi các thư mục tương ứng thực sự cần thiết:
 
 ```text
 features/catalog/
@@ -110,20 +112,20 @@ features/catalog/
   index.ts
 ```
 
-- `pages` contains route-level composition.
-- `components` contains UI private to the feature.
-- `model` contains reducers, actions, selectors, hooks, and domain rules.
-- `data` contains mock repositories and feature seed data.
-- `entities` contains reusable domain types and domain-focused UI.
-- `shared` contains generic UI, hooks, formatters, storage utilities, constants, and shared types.
-- Each feature exposes a public API through `index.ts`; consumers must not rely on internal deep imports.
-- Internal imports use the existing `@/` alias.
+- `pages` chứa phần kết hợp ở cấp route.
+- `components` chứa UI chỉ thuộc feature đó.
+- `model` chứa reducer, action, selector, hook và quy tắc nghiệp vụ.
+- `data` chứa mock repository và dữ liệu seed của feature.
+- `entities` chứa domain type và UI theo nghiệp vụ được tái sử dụng.
+- `shared` chứa UI tổng quát, hook, formatter, storage utility, constant và shared type.
+- Mỗi feature cung cấp public API qua `index.ts`; bên ngoài không được import sâu vào nội bộ feature.
+- Import nội bộ sử dụng alias `@/` hiện có.
 
-`App.tsx` becomes a small application entry that mounts providers and the router. Navigation, data mutation, and domain behavior must not remain centralized in `App.tsx`.
+`App.tsx` trở thành điểm vào nhỏ gọn, chỉ mount provider và router. Navigation, thay đổi dữ liệu và nghiệp vụ không được tiếp tục tập trung trong `App.tsx`.
 
-## 4. Routing and Access Control
+## 4. Routing và phân quyền
 
-Routes use stable English paths while rendered labels remain Vietnamese.
+Route dùng đường dẫn tiếng Anh ổn định, trong khi nhãn hiển thị sử dụng tiếng Việt.
 
 ```text
 /
@@ -147,214 +149,213 @@ Routes use stable English paths while rendered labels remain Vietnamese.
 └── /admin/*
 ```
 
-- Public routes include home, authentication, shop, product detail, and cart.
-- `AuthGuard` protects checkout, orders, account, and notifications.
-- `AdminGuard` protects every `/admin/*` route.
-- Customer and admin use the same login page. Successful login redirects by role.
-- Signed-in users who visit an authentication page are redirected to their appropriate home area.
-- Unknown routes render a Vietnamese 404 page with a clear route back.
-- The customer header has no direct Admin shortcut. Admin access is determined by the authenticated role.
+- Route công khai gồm trang chủ, xác thực, cửa hàng, chi tiết sản phẩm và giỏ hàng.
+- `AuthGuard` bảo vệ checkout, đơn hàng, tài khoản và thông báo.
+- `AdminGuard` bảo vệ toàn bộ route `/admin/*`.
+- Customer và Admin dùng chung trang đăng nhập. Đăng nhập thành công sẽ điều hướng theo role.
+- Người đã đăng nhập truy cập trang xác thực sẽ được chuyển đến khu vực phù hợp với role.
+- Route không tồn tại hiển thị trang 404 tiếng Việt và cung cấp đường quay lại rõ ràng.
+- Header Customer không có shortcut Admin. Quyền truy cập Admin được xác định bằng role đã đăng nhập.
 
-## 5. State, Persistence, and Mock Repositories
+## 5. State, persistence và mock repository
 
-`DemoStoreProvider` owns a typed, normalized demo database and dispatches domain actions through reducers. UI-only state such as open modals, active filters, form drafts, and loading indicators remains local to the relevant feature.
+`DemoStoreProvider` sở hữu cơ sở dữ liệu demo có kiểu dữ liệu rõ ràng, được chuẩn hóa và thực thi domain action qua reducer. State chỉ phục vụ UI như modal đang mở, filter đang chọn, bản nháp form và loading được giữ cục bộ trong feature liên quan.
 
-Persisted data includes:
+Dữ liệu được lưu gồm:
 
-- Users, credentials for demo accounts, roles, and user statuses.
-- Current authenticated session and remember-me preference.
-- Products, categories, variants, inventory, and images by color.
-- Cart lines and discount state.
-- Addresses and default-address selection.
-- Orders, cancellation requests, return requests, and refund states.
-- Notifications and read state.
-- Admin-managed fashion metadata and compatibility rules.
-- AI analytics seed values required by the admin dashboard.
+- Người dùng, thông tin đăng nhập của tài khoản demo, role và trạng thái tài khoản.
+- Phiên đăng nhập hiện tại và lựa chọn ghi nhớ đăng nhập.
+- Sản phẩm, danh mục, biến thể, tồn kho và ảnh theo màu.
+- Các dòng trong giỏ hàng và trạng thái mã giảm giá.
+- Địa chỉ và lựa chọn địa chỉ mặc định.
+- Đơn hàng, yêu cầu hủy, yêu cầu trả hàng và trạng thái hoàn tiền.
+- Thông báo và trạng thái đã đọc.
+- Metadata thời trang và quy tắc tương thích do Admin quản lý.
+- Dữ liệu seed phục vụ dashboard phân tích AI.
 
-The local database uses an English storage key and explicit `schemaVersion`. Startup behavior is:
+Cơ sở dữ liệu local sử dụng storage key tiếng Anh và có `schemaVersion` rõ ràng. Quy trình khởi động:
 
-1. Read the stored database.
-2. Validate its version and required top-level shape.
-3. Migrate supported older versions.
-4. Replace invalid or unsupported data with the current seed.
-5. Notify the user when recovery changed their stored demo data.
+1. Đọc cơ sở dữ liệu đã lưu.
+2. Kiểm tra version và cấu trúc cấp cao bắt buộc.
+3. Chuyển đổi các phiên bản cũ được hỗ trợ.
+4. Thay dữ liệu không hợp lệ hoặc không được hỗ trợ bằng seed hiện tại.
+5. Thông báo cho người dùng khi quá trình khôi phục đã thay đổi dữ liệu demo của họ.
 
-Mock repositories return promises with short deterministic latency so skeletons and pending states are observable. They must not inject random failures during demos. Expected failures come from validation and invalid state transitions.
+Mock repository trả về Promise với độ trễ ngắn, cố định để có thể quan sát skeleton và trạng thái đang xử lý. Không tạo lỗi ngẫu nhiên trong lúc demo. Các lỗi dự kiến đến từ validation hoặc chuyển trạng thái không hợp lệ.
 
-Cross-feature actions operate on the same store. For example, approving a cancellation in Admin updates the customer order and creates a customer notification. Placing an order clears purchased cart lines and creates the order, timeline, and confirmation notification atomically.
+Action liên feature tác động lên cùng một store. Ví dụ, Admin duyệt yêu cầu hủy sẽ cập nhật đơn hàng của Customer và tạo thông báo cho Customer. Khi đặt hàng, hệ thống xóa các dòng giỏ hàng đã mua, tạo đơn, timeline và thông báo xác nhận trong cùng một thao tác nguyên tử.
 
-The reset action requires confirmation, replaces all persisted data with the current seed, and restores the appropriate login state.
+Chức năng reset yêu cầu xác nhận, thay toàn bộ dữ liệu đã lưu bằng seed hiện tại và khôi phục trạng thái đăng nhập phù hợp.
 
-## 6. Customer Experience
+## 6. Trải nghiệm Customer
 
-### Authentication
+### Xác thực
 
-- Login supports email, password, show/hide password, remember me, and role-based redirect.
-- Registration collects full name, email, password, and confirmation, then enters OTP verification.
-- OTP and password-recovery flows use deterministic demo codes displayed in a discreet demo-helper panel.
-- Validation is inline and uses Vietnamese copy.
-- Session state persists according to remember-me behavior.
+- Đăng nhập hỗ trợ email, mật khẩu, hiện/ẩn mật khẩu, ghi nhớ đăng nhập và điều hướng theo role.
+- Đăng ký thu thập họ tên, email, mật khẩu và xác nhận mật khẩu, sau đó chuyển đến xác thực OTP.
+- Luồng OTP và khôi phục mật khẩu sử dụng mã demo cố định, hiển thị trong khung hỗ trợ demo kín đáo.
+- Validation hiển thị trực tiếp tại trường nhập và dùng nội dung tiếng Việt.
+- Phiên đăng nhập được lưu theo lựa chọn ghi nhớ đăng nhập.
 
-### Home and navigation
+### Trang chủ và navigation
 
-- The desktop navigation contains `Trang chủ`, `Cửa hàng`, `AI Wardrobe`, and `Tủ đồ của tôi`.
-- Search, notifications, cart, and account remain easy to access.
-- Mobile navigation prioritizes Home, Shop, AI Wardrobe, Wardrobes, and Cart/Account according to available space.
-- Home introduces both fashion shopping and AI Wardrobe. Wardrobe calls to action lead to the existing deferred experience.
+- Navigation desktop gồm `Trang chủ`, `Cửa hàng`, `AI Wardrobe` và `Tủ đồ của tôi`.
+- Tìm kiếm, thông báo, giỏ hàng và tài khoản luôn dễ truy cập.
+- Navigation mobile ưu tiên Trang chủ, Cửa hàng, AI Wardrobe, Tủ đồ và Giỏ hàng/Tài khoản tùy không gian khả dụng.
+- Trang chủ giới thiệu cả mua sắm thời trang và AI Wardrobe. CTA về tủ đồ dẫn đến trải nghiệm hiện có đang được tạm hoãn.
 
-### Catalog and product detail
+### Catalog và chi tiết sản phẩm
 
-- The active categories are tops, pants, skirts, dresses, and outerwear.
-- Search covers product name, category, style, occasion, material, and tags.
-- Filters include category, price, color, size, style, and occasion.
-- Desktop uses a filter sidebar; mobile uses a bottom sheet with apply and clear actions.
-- Product cards show image, Vietnamese name, price, colors, and optional category/style context.
-- Product detail shows metadata, color-specific image galleries, size, quantity, stock feedback, add to cart, and buy now.
-- Buy now creates or updates the selected cart line and takes the user directly to checkout.
+- Danh mục đang hoạt động gồm áo, quần, chân váy, đầm và áo khoác.
+- Tìm kiếm theo tên sản phẩm, danh mục, phong cách, dịp sử dụng, chất liệu và tag.
+- Bộ lọc gồm danh mục, giá, màu, size, phong cách và dịp sử dụng.
+- Desktop dùng sidebar filter; mobile dùng bottom sheet có thao tác áp dụng và xóa bộ lọc.
+- Product card hiển thị ảnh, tên tiếng Việt, giá, màu và thông tin danh mục/phong cách khi cần.
+- Chi tiết sản phẩm hiển thị metadata, gallery riêng theo màu, size, số lượng, thông tin tồn kho, thêm vào giỏ và mua ngay.
+- Mua ngay tạo hoặc cập nhật dòng giỏ hàng đã chọn rồi đưa người dùng thẳng đến checkout.
 
-### Cart and checkout
+### Giỏ hàng và checkout
 
-- Cart supports quantity changes, removal confirmation, discounts, shipping, totals, and an empty state.
-- Checkout displays the selected address, order lines, payment method, discounts, and totals.
-- Users can select an existing address or add a valid address without leaving checkout.
-- COD creates the order immediately.
-- VietQR opens the QR flow with amount, transfer content, instructions, and countdown.
-- `Tôi đã thanh toán` enters a deterministic verification state before success.
-- Expired QR sessions can be regenerated without duplicating an order.
-- Order success displays order ID, total, payment method, view-order, and continue-shopping actions.
+- Giỏ hàng hỗ trợ thay đổi số lượng, xác nhận xóa, giảm giá, phí vận chuyển, tổng tiền và trạng thái trống.
+- Checkout hiển thị địa chỉ đã chọn, sản phẩm, phương thức thanh toán, giảm giá và tổng tiền.
+- Người dùng có thể chọn địa chỉ hiện có hoặc thêm địa chỉ hợp lệ mà không rời checkout.
+- COD tạo đơn ngay lập tức.
+- VietQR mở luồng QR với số tiền, nội dung chuyển khoản, hướng dẫn và thời gian đếm ngược.
+- Nút `Tôi đã thanh toán` chuyển sang trạng thái xác minh cố định trước khi thành công.
+- Phiên QR hết hạn có thể được tạo lại mà không tạo trùng đơn hàng.
+- Trang đặt hàng thành công hiển thị mã đơn, tổng tiền, phương thức thanh toán, xem đơn và tiếp tục mua sắm.
 
-### Orders and service requests
+### Đơn hàng và yêu cầu hỗ trợ
 
-- Order list supports empty and populated states.
-- Order detail shows status, payment status, products, variants, address, totals, and timeline.
-- Allowed status transitions are defined in the order model rather than duplicated in UI components.
-- Eligible orders can submit a cancellation reason. The resulting request is visible to Admin.
-- Completed eligible orders can submit return requests for selected products and quantities.
-- Return evidence files are previewed in memory. Persistence stores only safe metadata such as file name and type, not binary contents or object URLs.
-- Customer-visible request statuses include submitted, reviewing, approved, rejected, and refunded.
+- Danh sách đơn hàng hỗ trợ cả trạng thái trống và có dữ liệu.
+- Chi tiết đơn hiển thị trạng thái, trạng thái thanh toán, sản phẩm, biến thể, địa chỉ, tổng tiền và timeline.
+- Quy tắc chuyển trạng thái hợp lệ được định nghĩa trong order model, không lặp lại ở các UI component.
+- Đơn đủ điều kiện có thể gửi lý do yêu cầu hủy. Yêu cầu sẽ xuất hiện trong Admin.
+- Đơn đã hoàn thành và đủ điều kiện có thể yêu cầu trả lại sản phẩm với số lượng cụ thể.
+- File minh chứng trả hàng được preview trong memory. Persistence chỉ lưu metadata an toàn như tên và loại file, không lưu binary hoặc object URL.
+- Trạng thái yêu cầu hiển thị cho Customer gồm đã gửi, đang xem xét, đã duyệt, bị từ chối và đã hoàn tiền.
 
-### Account and notifications
+### Tài khoản và thông báo
 
-- Account areas include profile, addresses, orders, notifications, password change, logout, and reset demo data.
-- Address management supports add, edit, delete, set default, validation, and destructive confirmation.
-- Notification bell shows unread count and a compact dropdown.
-- The notification page supports read-one and read-all behavior, timestamps, types, and empty state.
+- Khu vực tài khoản gồm hồ sơ, địa chỉ, đơn hàng, thông báo, đổi mật khẩu, đăng xuất và reset dữ liệu demo.
+- Quản lý địa chỉ hỗ trợ thêm, sửa, xóa, đặt mặc định, validation và xác nhận hành động nguy hiểm.
+- Chuông thông báo hiển thị số chưa đọc và dropdown tóm tắt.
+- Trang thông báo hỗ trợ đọc từng mục, đánh dấu tất cả đã đọc, thời gian, loại thông báo và trạng thái trống.
 
-## 7. Admin Experience
+## 7. Trải nghiệm Admin
 
-Admin uses a work-focused layout with a dedicated sidebar, top bar, search where useful, notifications, and administrator profile.
+Admin sử dụng layout tập trung cho công việc với sidebar riêng, top bar, tìm kiếm tại nơi phù hợp, thông báo và hồ sơ quản trị viên.
 
-### Dashboard and analytics
+### Dashboard và analytics
 
-- Dashboard KPIs show total users, products, orders, and revenue.
-- Charts summarize order volume, revenue, order statuses, payment methods, and returns/refunds.
-- AI analytics shows seeded totals for wardrobes, generated outfits, popular styles, AI cart additions, and AI-attributed orders.
-- Analytics values derive from current demo data when possible; metrics that depend on deferred wardrobe behavior use clearly defined seed fields.
+- KPI Dashboard hiển thị tổng người dùng, sản phẩm, đơn hàng và doanh thu.
+- Biểu đồ tóm tắt số lượng đơn, doanh thu, trạng thái đơn, phương thức thanh toán và trả hàng/hoàn tiền.
+- AI Analytics hiển thị dữ liệu seed về tổng tủ đồ, outfit được tạo, phong cách phổ biến, sản phẩm AI thêm vào giỏ và đơn hàng từ AI.
+- Chỉ số được tính từ dữ liệu demo hiện tại khi có thể; chỉ số phụ thuộc chức năng tủ đồ đang hoãn dùng trường seed được định nghĩa rõ ràng.
 
-### Users and categories
+### Người dùng và danh mục
 
-- User management supports search, role/status filtering, detail view, and account lock/unlock.
-- The signed-in administrator cannot lock their own account.
-- Category management uses a clothing-only tree/table and supports add, edit, activate, and deactivate.
-- Category deactivation does not silently delete products.
+- Quản lý người dùng hỗ trợ tìm kiếm, lọc role/trạng thái, xem chi tiết và khóa/mở khóa tài khoản.
+- Quản trị viên đang đăng nhập không thể tự khóa tài khoản của mình.
+- Quản lý danh mục sử dụng tree/table chỉ dành cho quần áo và hỗ trợ thêm, sửa, kích hoạt, ngừng hoạt động.
+- Ngừng hoạt động danh mục không âm thầm xóa sản phẩm.
 
-### Products, variants, and images
+### Sản phẩm, biến thể và hình ảnh
 
-- Product list supports search, filters, status, view, edit, activate/deactivate, and create.
-- Product forms separate basic information, fashion metadata, variants, inventory, and images.
-- Variants support color, size, optional price override, stock, and status.
-- Each color owns a separate ordered gallery with one main image.
-- Admin can add an image URL, preview a selected local file for the current session, set the main image, remove an image, and reorder images.
-- Persisted local uploads retain metadata only; persistent demo images use URLs.
+- Danh sách sản phẩm hỗ trợ tìm kiếm, lọc, trạng thái, xem, sửa, kích hoạt/ngừng hoạt động và tạo mới.
+- Form sản phẩm tách thông tin cơ bản, metadata thời trang, biến thể, tồn kho và hình ảnh thành các phần rõ ràng.
+- Biến thể hỗ trợ màu, size, giá ghi đè tùy chọn, tồn kho và trạng thái.
+- Mỗi màu sở hữu một gallery có thứ tự riêng và một ảnh chính.
+- Admin có thể thêm URL ảnh, preview file local trong phiên hiện tại, đặt ảnh chính, xóa và thay đổi thứ tự ảnh.
+- File local chỉ lưu metadata; ảnh demo cần tồn tại sau reload sử dụng URL.
 
-### Orders, cancellations, and returns
+### Đơn hàng, hủy đơn và trả hàng
 
-- Order management supports search, filters, detail view, payment state, and valid status changes.
-- Cancellation requests can be approved or rejected with an optional admin note.
-- Approval updates the order, request, and customer notification in one action.
-- Return requests show product, quantity, description, and available evidence metadata.
-- Admin can review, approve, reject, and process a simulated refund when allowed.
+- Quản lý đơn hàng hỗ trợ tìm kiếm, lọc, xem chi tiết, trạng thái thanh toán và chuyển trạng thái hợp lệ.
+- Yêu cầu hủy có thể được duyệt hoặc từ chối kèm ghi chú Admin tùy chọn.
+- Duyệt yêu cầu cập nhật đơn, yêu cầu và thông báo Customer trong một action.
+- Yêu cầu trả hàng hiển thị sản phẩm, số lượng, mô tả và metadata minh chứng hiện có.
+- Admin có thể xem xét, duyệt, từ chối và xử lý hoàn tiền giả lập khi đủ điều kiện.
 
-### AI management
+### Quản lý AI
 
-- Styles and occasions support list, add, edit, activate, and deactivate.
-- Fashion metadata covers pattern, fit, material, and color.
-- Compatibility rules cover clothing type, color, style, and occasion compatibility.
-- These settings are stored for future wardrobe work but do not alter deferred wardrobe behavior in this phase.
+- Phong cách và dịp sử dụng hỗ trợ danh sách, thêm, sửa, kích hoạt và ngừng hoạt động.
+- Metadata thời trang gồm họa tiết, phom dáng, chất liệu và màu sắc.
+- Quy tắc tương thích gồm loại trang phục, màu sắc, phong cách và dịp sử dụng.
+- Các thiết lập được lưu để dùng cho phần tủ đồ sau này nhưng không làm thay đổi hành vi tủ đồ đang hoãn trong giai đoạn này.
 
-## 8. Interaction, Validation, and Error Handling
+## 8. Tương tác, validation và xử lý lỗi
 
-- No feature uses `window.alert()` or `window.confirm()`.
-- Forms show Vietnamese field-level validation and a clear submission-level error when needed.
-- Destructive actions use a consistent confirmation dialog and destructive button style.
-- Successful mutations produce concise toast feedback and update dependent screens immediately.
-- Loading states use layout-matched skeletons instead of generic blocking spinners where practical.
-- Empty states exist for cart, orders, notifications, search results, products, requests, and other list views.
-- Storage corruption and unsupported schema versions recover safely to seed data.
-- Duplicate emails, invalid credentials, unavailable stock, invalid order transitions, and expired payments return deterministic domain errors.
-- Focus management, keyboard navigation, visible focus rings, semantic landmarks, accessible labels, and adequate color contrast are required.
+- Không feature nào sử dụng `window.alert()` hoặc `window.confirm()`.
+- Form hiển thị validation tiếng Việt tại từng trường và lỗi submit tổng quát khi cần.
+- Hành động nguy hiểm sử dụng confirmation dialog thống nhất và destructive button rõ ràng.
+- Mutation thành công hiển thị toast ngắn gọn và cập nhật ngay các màn hình phụ thuộc.
+- Trạng thái loading sử dụng skeleton phù hợp với layout thay vì spinner chặn toàn màn hình khi có thể.
+- Có empty state cho giỏ hàng, đơn hàng, thông báo, kết quả tìm kiếm, sản phẩm, yêu cầu và các danh sách khác.
+- Dữ liệu storage hỏng hoặc sai schema version được khôi phục an toàn về seed.
+- Email trùng, thông tin đăng nhập sai, hết hàng, chuyển trạng thái đơn không hợp lệ và thanh toán hết hạn trả về domain error cố định.
+- Bắt buộc quản lý focus, hỗ trợ bàn phím, focus ring rõ ràng, semantic landmark, accessible label và độ tương phản màu phù hợp.
 
-## 9. Visual and Responsive Direction
+## 9. Định hướng hình ảnh và responsive
 
-- Preserve StyleMind's feminine, premium, youthful identity while improving consistency.
-- Continue using the existing Fraunces and DM Sans pairing unless implementation reveals a technical issue.
-- Product imagery remains the visual priority.
-- Customer screens use generous whitespace and editorial hierarchy.
-- Admin screens use denser, quieter layouts optimized for scanning and repeated actions.
-- Cards use restrained radii and are reserved for products, list records, modals, and framed tools rather than every page section.
-- Desktop, tablet, and mobile layouts are designed intentionally. Mobile filters use a sheet, actions may become sticky, tables become structured lists, and dialogs fit the viewport without clipped controls.
-- UI text must fit controls at supported widths without overlap.
+- Giữ bản sắc nữ tính, cao cấp và trẻ trung của StyleMind, đồng thời cải thiện tính nhất quán.
+- Tiếp tục dùng cặp font Fraunces và DM Sans hiện tại, trừ khi triển khai phát hiện vấn đề kỹ thuật.
+- Hình ảnh sản phẩm giữ vai trò thị giác chính.
+- Màn hình Customer có nhiều khoảng trắng và phân cấp mang tính editorial.
+- Màn hình Admin sử dụng layout gọn, yên tĩnh và ưu tiên quét dữ liệu, thao tác lặp lại.
+- Card có bán kính bo vừa phải và chỉ dùng cho sản phẩm, bản ghi lặp, modal và công cụ thực sự cần khung; không biến mọi section thành card.
+- Desktop, tablet và mobile có cách bố trí có chủ đích. Mobile dùng sheet cho filter, sticky action khi cần, chuyển table thành danh sách có cấu trúc và giữ dialog trong viewport.
+- Nội dung giao diện phải nằm gọn trong control ở mọi kích thước được hỗ trợ, không chồng lấn.
 
-## 10. Implementation Sequence
+## 10. Thứ tự triển khai
 
-1. Add application routing, layouts, providers, route guards, demo store, persistence, and storage recovery.
-2. Move shared UI and domain entities into the new structure and establish feature public APIs.
-3. Implement authentication, home, catalog, product detail, cart, and checkout.
-4. Implement orders, profile, addresses, notifications, cancellation, and return flows.
-5. Implement the complete admin area.
-6. Move existing wardrobe code into its feature boundary without expanding behavior.
-7. Move Travel Planner and Visual Studio to `legacy`, remove active routes, and remove obsolete duplicate screens.
-8. Complete responsive, accessibility, automated, build, and visual verification.
+1. Thêm application routing, layout, provider, route guard, demo store, persistence và phục hồi storage.
+2. Chuyển shared UI và domain entity vào cấu trúc mới, thiết lập public API cho feature.
+3. Triển khai xác thực, trang chủ, catalog, chi tiết sản phẩm, giỏ hàng và checkout.
+4. Triển khai đơn hàng, hồ sơ, địa chỉ, thông báo, hủy đơn và trả hàng.
+5. Triển khai đầy đủ khu vực Admin.
+6. Chuyển code wardrobe hiện tại vào feature boundary mà không mở rộng hành vi.
+7. Chuyển Travel Planner và Visual Studio vào `legacy`, gỡ active route và xóa các screen trùng lặp đã lỗi thời.
+8. Hoàn tất responsive, accessibility, kiểm thử tự động, build và kiểm tra hình ảnh.
 
-Compatibility re-exports may be used temporarily during migration, but final active imports must point to feature public APIs. Existing user changes outside this scope must be preserved.
+Có thể dùng compatibility re-export tạm thời trong quá trình chuyển đổi, nhưng các active import cuối cùng phải trỏ đến public API của feature. Mọi thay đổi hiện có của người dùng ngoài phạm vi phải được giữ nguyên.
 
-## 11. Testing Strategy
+## 11. Chiến lược kiểm thử
 
-Add Vitest and React Testing Library to the project and define a `test` script.
+Thêm Vitest và React Testing Library vào dự án, đồng thời định nghĩa script `test`.
 
-Automated coverage focuses on:
+Phạm vi kiểm thử tự động tập trung vào:
 
-- Storage initialization, schema validation, migration, recovery, persistence, and reset.
-- Authentication and role-based routing.
-- Catalog search/filter behavior and color-specific product galleries.
-- Cart line merging, quantity limits, discounts, shipping, and totals.
-- COD and VietQR checkout transitions, payment expiry, and duplicate-order prevention.
-- Order-status transition rules.
-- Cancellation, return, refund, and notification cross-feature updates.
-- Address validation and default-address invariants.
-- Admin product/category/user mutations and guard rules.
+- Khởi tạo storage, kiểm tra schema, migration, khôi phục, persistence và reset.
+- Xác thực và routing theo role.
+- Tìm kiếm/lọc catalog và gallery sản phẩm theo màu.
+- Gộp dòng giỏ hàng, giới hạn số lượng, giảm giá, vận chuyển và tổng tiền.
+- Chuyển trạng thái checkout COD và VietQR, hết hạn thanh toán và ngăn tạo trùng đơn.
+- Quy tắc chuyển trạng thái đơn hàng.
+- Cập nhật liên feature giữa hủy đơn, trả hàng, hoàn tiền và thông báo.
+- Validation địa chỉ và quy tắc chỉ có một địa chỉ mặc định.
+- Mutation sản phẩm, danh mục, người dùng và guard rule trong Admin.
 
-Verification includes:
+Quá trình xác minh gồm:
 
-- TypeScript checking through the production build.
-- Full automated test suite.
-- Direct navigation and reload checks for all routes.
-- Customer and Admin end-to-end smoke flows using seeded accounts.
-- Visual checks at representative desktop, tablet, and mobile widths.
-- A scan for active English user-facing copy, removed-scope navigation, `alert()` calls, dead routes, and obsolete imports.
+- Kiểm tra TypeScript thông qua production build.
+- Chạy toàn bộ automated test.
+- Mở trực tiếp và reload tất cả route.
+- Smoke test toàn bộ luồng Customer và Admin bằng tài khoản seed.
+- Kiểm tra trực quan tại kích thước desktop, tablet và mobile đại diện.
+- Quét nội dung tiếng Anh còn hiển thị, navigation ngoài phạm vi, lệnh `alert()`, route chết và import lỗi thời.
 
-## 12. Completion Criteria
+## 12. Tiêu chí hoàn thành
 
-The phase is complete when:
+Giai đoạn được xem là hoàn thành khi:
 
-- All active customer and admin UI copy is Vietnamese.
-- Source-code naming and routes remain English.
-- Every in-scope screen has a real URL and survives reload correctly.
-- All in-scope customer and admin controls perform a meaningful demo action.
-- Customer and Admin operate on the same persisted mock database.
-- Travel Planner, Visual Studio, shoes, bags, and accessories are absent from the active app.
-- Wardrobe behavior has not been expanded.
-- Responsive layouts work at desktop, tablet, and mobile widths without overlap.
-- Automated tests and the production build pass.
-- The repository uses the approved feature-first structure and no longer depends on the monolithic `App.tsx` screen switcher.
-
+- Toàn bộ nội dung UI Customer và Admin đang hoạt động đã là tiếng Việt.
+- Tên trong source code và route vẫn dùng tiếng Anh.
+- Mỗi màn hình trong phạm vi có URL thật và reload đúng trạng thái.
+- Mọi control Customer và Admin trong phạm vi đều thực hiện một hành động demo có ý nghĩa.
+- Customer và Admin thao tác trên cùng cơ sở dữ liệu mock được lưu bền vững.
+- Travel Planner, Visual Studio, giày, túi và phụ kiện không xuất hiện trong ứng dụng đang hoạt động.
+- Nghiệp vụ Wardrobe không bị mở rộng.
+- Responsive hoạt động ở desktop, tablet và mobile mà không chồng lấn.
+- Automated test và production build đều thành công.
+- Repository sử dụng cấu trúc feature-first đã duyệt và không còn phụ thuộc vào screen switcher nguyên khối trong `App.tsx`.
