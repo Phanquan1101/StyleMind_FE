@@ -1,0 +1,11 @@
+{
+  "title": "StyleMind",
+  "description": "Bản demo mua sắm thời trang và tủ đồ AI của StyleMind.",
+  "language": "vi",
+  "robots": {
+    "index": true
+  },
+  "accessibility": {
+    "addBypassLinks": true
+  }
+}
