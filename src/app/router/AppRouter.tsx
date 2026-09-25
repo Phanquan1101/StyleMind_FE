@@ -1,5 +1,7 @@
 import { createBrowserRouter, Link, RouterProvider, type RouteObject } from 'react-router-dom'
 
+import { CustomerLayout } from '@/app/layouts/CustomerLayout'
+import { DeferredWardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
 import { ROUTES } from './routes'
@@ -21,23 +23,29 @@ function PlaceholderPage({ title }: { title: string }) {
 }
 
 export const appRoutes: RouteObject[] = [
-  { path: ROUTES.home, element: <PlaceholderPage title="Trang chủ StyleMind" /> },
   { path: ROUTES.login, element: <PlaceholderPage title="Đăng nhập" /> },
   { path: ROUTES.register, element: <PlaceholderPage title="Đăng ký" /> },
   { path: ROUTES.verifyOtp, element: <PlaceholderPage title="Xác thực OTP" /> },
   { path: ROUTES.forgotPassword, element: <PlaceholderPage title="Quên mật khẩu" /> },
   { path: ROUTES.resetPassword, element: <PlaceholderPage title="Đặt lại mật khẩu" /> },
-  { path: ROUTES.shop, element: <PlaceholderPage title="Cửa hàng" /> },
-  { path: ROUTES.product, element: <PlaceholderPage title="Chi tiết sản phẩm" /> },
-  { path: ROUTES.cart, element: <PlaceholderPage title="Giỏ hàng" /> },
-  { path: ROUTES.checkout, element: <PlaceholderPage title="Thanh toán" /> },
-  { path: ROUTES.checkoutQr, element: <PlaceholderPage title="Thanh toán VietQR" /> },
-  { path: ROUTES.orderSuccess, element: <PlaceholderPage title="Đặt hàng thành công" /> },
-  { path: ROUTES.orders, element: <PlaceholderPage title="Đơn hàng của tôi" /> },
-  { path: ROUTES.notifications, element: <PlaceholderPage title="Thông báo" /> },
-  { path: ROUTES.account, element: <PlaceholderPage title="Tài khoản" /> },
-  { path: ROUTES.aiWardrobe, element: <PlaceholderPage title="AI Wardrobe" /> },
-  { path: ROUTES.wardrobes, element: <PlaceholderPage title="Tủ đồ của tôi" /> },
+  {
+    path: ROUTES.home,
+    element: <CustomerLayout />,
+    children: [
+      { index: true, element: <PlaceholderPage title="Trang chủ StyleMind" /> },
+      { path: 'shop', element: <PlaceholderPage title="Cửa hàng" /> },
+      { path: 'products/:productId', element: <PlaceholderPage title="Chi tiết sản phẩm" /> },
+      { path: 'cart', element: <PlaceholderPage title="Giỏ hàng" /> },
+      { path: 'checkout', element: <PlaceholderPage title="Thanh toán" /> },
+      { path: 'checkout/qr', element: <PlaceholderPage title="Thanh toán VietQR" /> },
+      { path: 'order-success/:orderId', element: <PlaceholderPage title="Đặt hàng thành công" /> },
+      { path: 'orders', element: <PlaceholderPage title="Đơn hàng của tôi" /> },
+      { path: 'notifications', element: <PlaceholderPage title="Thông báo" /> },
+      { path: 'account', element: <PlaceholderPage title="Tài khoản" /> },
+      { path: 'ai-wardrobe', element: <DeferredWardrobePage /> },
+      { path: 'wardrobes', element: <DeferredWardrobePage /> },
+    ],
+  },
   { path: ROUTES.admin, element: <PlaceholderPage title="Khu quản trị" /> },
   { path: '*', element: <NotFoundPage /> },
 ]
