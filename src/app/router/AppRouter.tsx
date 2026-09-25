@@ -11,6 +11,7 @@ import {
   ResetPasswordPage,
   VerifyOtpPage,
 } from '@/features/auth'
+import { HomePage } from '@/features/home'
 import { DeferredWardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
@@ -42,7 +43,7 @@ export const appRoutes: RouteObject[] = [
     path: ROUTES.home,
     element: <CustomerLayout />,
     children: [
-      { index: true, element: <PlaceholderPage title="Trang chủ StyleMind" /> },
+      { index: true, element: <HomePage /> },
       { path: 'shop', element: <PlaceholderPage title="Cửa hàng" /> },
       { path: 'products/:productId', element: <PlaceholderPage title="Chi tiết sản phẩm" /> },
       { path: 'cart', element: <PlaceholderPage title="Giỏ hàng" /> },
