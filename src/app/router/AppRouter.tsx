@@ -1,6 +1,16 @@
 import { createBrowserRouter, Link, RouterProvider, type RouteObject } from 'react-router-dom'
 
 import { CustomerLayout } from '@/app/layouts/CustomerLayout'
+import { AuthGuard } from '@/app/router/guards/AuthGuard'
+import { GuestGuard } from '@/app/router/guards/GuestGuard'
+import {
+  AdminAccessPage,
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyOtpPage,
+} from '@/features/auth'
 import { DeferredWardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
@@ -23,11 +33,11 @@ function PlaceholderPage({ title }: { title: string }) {
 }
 
 export const appRoutes: RouteObject[] = [
-  { path: ROUTES.login, element: <PlaceholderPage title="Đăng nhập" /> },
-  { path: ROUTES.register, element: <PlaceholderPage title="Đăng ký" /> },
-  { path: ROUTES.verifyOtp, element: <PlaceholderPage title="Xác thực OTP" /> },
-  { path: ROUTES.forgotPassword, element: <PlaceholderPage title="Quên mật khẩu" /> },
-  { path: ROUTES.resetPassword, element: <PlaceholderPage title="Đặt lại mật khẩu" /> },
+  { path: ROUTES.login, element: <GuestGuard><LoginPage /></GuestGuard> },
+  { path: ROUTES.register, element: <GuestGuard><RegisterPage /></GuestGuard> },
+  { path: ROUTES.verifyOtp, element: <GuestGuard><VerifyOtpPage /></GuestGuard> },
+  { path: ROUTES.forgotPassword, element: <GuestGuard><ForgotPasswordPage /></GuestGuard> },
+  { path: ROUTES.resetPassword, element: <GuestGuard><ResetPasswordPage /></GuestGuard> },
   {
     path: ROUTES.home,
     element: <CustomerLayout />,
@@ -36,17 +46,17 @@ export const appRoutes: RouteObject[] = [
       { path: 'shop', element: <PlaceholderPage title="Cửa hàng" /> },
       { path: 'products/:productId', element: <PlaceholderPage title="Chi tiết sản phẩm" /> },
       { path: 'cart', element: <PlaceholderPage title="Giỏ hàng" /> },
-      { path: 'checkout', element: <PlaceholderPage title="Thanh toán" /> },
-      { path: 'checkout/qr', element: <PlaceholderPage title="Thanh toán VietQR" /> },
-      { path: 'order-success/:orderId', element: <PlaceholderPage title="Đặt hàng thành công" /> },
-      { path: 'orders', element: <PlaceholderPage title="Đơn hàng của tôi" /> },
-      { path: 'notifications', element: <PlaceholderPage title="Thông báo" /> },
-      { path: 'account', element: <PlaceholderPage title="Tài khoản" /> },
+      { path: 'checkout', element: <AuthGuard><PlaceholderPage title="Thanh toán" /></AuthGuard> },
+      { path: 'checkout/qr', element: <AuthGuard><PlaceholderPage title="Thanh toán VietQR" /></AuthGuard> },
+      { path: 'order-success/:orderId', element: <AuthGuard><PlaceholderPage title="Đặt hàng thành công" /></AuthGuard> },
+      { path: 'orders', element: <AuthGuard><PlaceholderPage title="Đơn hàng của tôi" /></AuthGuard> },
+      { path: 'notifications', element: <AuthGuard><PlaceholderPage title="Thông báo" /></AuthGuard> },
+      { path: 'account', element: <AuthGuard><PlaceholderPage title="Tài khoản" /></AuthGuard> },
       { path: 'ai-wardrobe', element: <DeferredWardrobePage /> },
       { path: 'wardrobes', element: <DeferredWardrobePage /> },
     ],
   },
-  { path: ROUTES.admin, element: <PlaceholderPage title="Khu quản trị" /> },
+  { path: ROUTES.admin, element: <AuthGuard roles={['admin']}><AdminAccessPage /></AuthGuard> },
   { path: '*', element: <NotFoundPage /> },
 ]
 
