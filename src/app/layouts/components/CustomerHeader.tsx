@@ -8,7 +8,7 @@ import { useDemoStore } from '@/app/store/DemoStoreProvider'
 const navItems = [
   { to: ROUTES.home, label: 'Trang chủ' },
   { to: ROUTES.shop, label: 'Cửa hàng' },
-  { to: ROUTES.aiWardrobe, label: 'AI Wardrobe' },
+  { to: ROUTES.aiWardrobe, label: 'Tủ đồ AI' },
   { to: ROUTES.wardrobes, label: 'Tủ đồ của tôi' },
 ]
 

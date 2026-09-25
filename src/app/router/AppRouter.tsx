@@ -11,6 +11,7 @@ import {
   ResetPasswordPage,
   VerifyOtpPage,
 } from '@/features/auth'
+import { ShopPage } from '@/features/catalog'
 import { HomePage } from '@/features/home'
 import { DeferredWardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
@@ -44,7 +45,7 @@ export const appRoutes: RouteObject[] = [
     element: <CustomerLayout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'shop', element: <PlaceholderPage title="Cửa hàng" /> },
+      { path: 'shop', element: <ShopPage /> },
       { path: 'products/:productId', element: <PlaceholderPage title="Chi tiết sản phẩm" /> },
       { path: 'cart', element: <PlaceholderPage title="Giỏ hàng" /> },
       { path: 'checkout', element: <AuthGuard><PlaceholderPage title="Thanh toán" /></AuthGuard> },
