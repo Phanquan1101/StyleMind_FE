@@ -11,6 +11,7 @@ import {
   ResetPasswordPage,
   VerifyOtpPage,
 } from '@/features/auth'
+import { CartPage } from '@/features/cart'
 import { ShopPage } from '@/features/catalog'
 import { HomePage } from '@/features/home'
 import { ProductDetailPage } from '@/features/product-detail'
@@ -48,7 +49,7 @@ export const appRoutes: RouteObject[] = [
       { index: true, element: <HomePage /> },
       { path: 'shop', element: <ShopPage /> },
       { path: 'products/:productId', element: <ProductDetailPage /> },
-      { path: 'cart', element: <PlaceholderPage title="Giỏ hàng" /> },
+      { path: 'cart', element: <CartPage /> },
       { path: 'checkout', element: <AuthGuard><PlaceholderPage title="Thanh toán" /></AuthGuard> },
       { path: 'checkout/qr', element: <AuthGuard><PlaceholderPage title="Thanh toán VietQR" /></AuthGuard> },
       { path: 'order-success/:orderId', element: <AuthGuard><PlaceholderPage title="Đặt hàng thành công" /></AuthGuard> },
