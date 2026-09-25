@@ -13,6 +13,7 @@ import {
 } from '@/features/auth'
 import { ShopPage } from '@/features/catalog'
 import { HomePage } from '@/features/home'
+import { ProductDetailPage } from '@/features/product-detail'
 import { DeferredWardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
@@ -46,7 +47,7 @@ export const appRoutes: RouteObject[] = [
     children: [
       { index: true, element: <HomePage /> },
       { path: 'shop', element: <ShopPage /> },
-      { path: 'products/:productId', element: <PlaceholderPage title="Chi tiết sản phẩm" /> },
+      { path: 'products/:productId', element: <ProductDetailPage /> },
       { path: 'cart', element: <PlaceholderPage title="Giỏ hàng" /> },
       { path: 'checkout', element: <AuthGuard><PlaceholderPage title="Thanh toán" /></AuthGuard> },
       { path: 'checkout/qr', element: <AuthGuard><PlaceholderPage title="Thanh toán VietQR" /></AuthGuard> },
