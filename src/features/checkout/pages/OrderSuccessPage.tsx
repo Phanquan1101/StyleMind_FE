@@ -52,10 +52,10 @@ export function OrderSuccessPage() {
         </dl>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            to={ROUTES.orders}
+            to={`/orders/${order.id}`}
             className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#684B5A] px-4 text-sm font-semibold text-white transition hover:bg-[#593f4d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] focus-visible:ring-offset-2"
           >
-            Xem đơn hàng
+            Xem chi tiết đơn hàng
           </Link>
           <Link
             to={ROUTES.shop}

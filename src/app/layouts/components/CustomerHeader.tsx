@@ -5,6 +5,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
+import { selectUnreadNotificationCount } from '@/features/notifications/model/notificationSelectors'
 
 const navItems = [
   { to: ROUTES.home, label: 'Trang chủ' },
@@ -20,7 +21,7 @@ export function CustomerHeader() {
   const [query, setQuery] = useState('')
   const cartCount = state.cartLines.reduce((total, line) => total + line.quantity, 0)
   const currentUserId = state.session?.userId ?? currentUser?.id ?? 'usr-customer-01'
-  const unreadCount = state.notifications.filter(item => item.userId === currentUserId && !item.read).length
+  const unreadCount = selectUnreadNotificationCount(state, currentUserId)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
