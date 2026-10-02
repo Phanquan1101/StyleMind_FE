@@ -43,8 +43,11 @@ function scoreProduct(product: Product, variant: ProductVariant, requirement: Ou
 }
 
 function activeCandidates(database: DemoDatabase, requirement: OutfitRequirement): Candidate[] {
+  const desiredCategories = requirement.desiredCategories ?? []
+
   return database.products
     .filter(product => product.active)
+    .filter(product => desiredCategories.length === 0 || desiredCategories.includes(product.categoryId))
     .flatMap(product =>
       product.variants
         .filter(variant => variant.active)
@@ -79,7 +82,7 @@ export function recommendOutfit(database: DemoDatabase, input: RecommendOutfitIn
         size: candidate.variant.size,
         price,
         imageUrl: image?.url ?? '',
-        reason: index === 0 ? 'Mon chinh phu hop voi yeu cau' : 'Bo sung de outfit can bang hon',
+        reason: index === 0 ? 'Món chính phù hợp với yêu cầu' : 'Bổ sung để outfit cân bằng hơn',
       }
     })
 
@@ -87,6 +90,6 @@ export function recommendOutfit(database: DemoDatabase, input: RecommendOutfitIn
     id: `rec-${input.ownerId}-${Date.now()}`,
     items,
     total: items.reduce((sum, item) => sum + item.price, 0),
-    explanation: 'Goi y nay chi dung san pham dang co trong catalog StyleMind.',
+    explanation: 'Gợi ý này chỉ dùng sản phẩm đang hoạt động trong catalog StyleMind.',
   }
 }

@@ -1,20 +1,101 @@
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
+import type { Outfit } from '@/entities/outfit/model/types'
 import { useAuth } from '@/features/auth'
-import { recommendOutfit } from '@/features/ai-stylist/model/recommendOutfit'
-import { formatCurrency } from '@/shared/lib/formatCurrency'
+
+import { AiChatPanel } from '../components/AiChatPanel'
+import { AiRecommendationPanel } from '../components/AiRecommendationPanel'
+import { BodyInfoCapture } from '../components/BodyInfoCapture'
+import {
+  appendUserMessage,
+  createAssistantReply,
+  createInitialAiConversation,
+} from '../model/aiConversation'
+
+function timestampId(prefix: string, now: string) {
+  const parsedTime = Date.parse(now)
+  const stamp = Number.isFinite(parsedTime) ? parsedTime : Date.now()
+  return `${prefix}-${stamp}`
+}
 
 export function AiStylistCreatePage() {
-  const { state } = useDemoStore()
+  const navigate = useNavigate()
+  const { state, dispatch } = useDemoStore()
   const { currentUser } = useAuth()
-  const recommendation = currentUser
-    ? recommendOutfit(state, {
-        ownerId: currentUser.id,
-        requirement: { occasion: 'weekend', style: 'minimal', desiredCategories: ['tops', 'skirts'] },
-      })
-    : null
+  const ownerId = currentUser?.id ?? ''
+  const [conversation, setConversation] = useState(() => createInitialAiConversation(ownerId))
+  const [message, setMessage] = useState('')
+  const [outfitName, setOutfitName] = useState('')
+  const [saveError, setSaveError] = useState('')
+
+  useEffect(() => {
+    if (!ownerId) return
+    setConversation(previous => (previous.ownerId === ownerId ? previous : createInitialAiConversation(ownerId)))
+  }, [ownerId])
+
+  if (!currentUser) return null
+
+  const saveBodyInfo = (heightCm: number, weightKg: number) => {
+    dispatch({
+      type: 'user/profileUpdated',
+      payload: {
+        userId: currentUser.id,
+        heightCm,
+        weightKg,
+      },
+    })
+  }
+
+  const submitMessage = () => {
+    const trimmed = message.trim()
+    if (!trimmed) return
+
+    const userMessageAt = new Date().toISOString()
+    const assistantReplyAt = new Date(Date.parse(userMessageAt) + 1).toISOString()
+    const withUserMessage = appendUserMessage(conversation, trimmed, userMessageAt)
+    const withAssistantReply = createAssistantReply(state, withUserMessage, assistantReplyAt)
+
+    setConversation(withAssistantReply)
+    dispatch({ type: 'ai/conversationUpserted', payload: withAssistantReply })
+    setMessage('')
+  }
+
+  const saveOutfit = () => {
+    if (!conversation.recommendation) return
+
+    const trimmedName = outfitName.trim()
+    if (!trimmedName) {
+      setSaveError('Vui lòng đặt tên outfit')
+      return
+    }
+
+    const now = new Date().toISOString()
+    const outfit: Outfit = {
+      id: timestampId('outfit-ai', now),
+      ownerId: currentUser.id,
+      name: trimmedName,
+      description: conversation.requirement.additionalNotes
+        ? `AI Stylist tạo từ yêu cầu: ${conversation.requirement.additionalNotes}`
+        : 'AI Stylist tạo outfit từ catalog StyleMind.',
+      source: 'ai',
+      visibility: 'private',
+      items: conversation.recommendation.items.map((item, index) => ({
+        id: `outfit-ai-item-${Date.parse(now)}-${index + 1}`,
+        productId: item.productId,
+        variantId: item.variantId,
+        addedBy: 'ai',
+        note: item.reason,
+      })),
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    dispatch({ type: 'outfit/created', payload: outfit })
+    navigate(`/outfits/${outfit.id}`)
+  }
 
   return (
     <section className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-8 md:px-8 md:py-12">
@@ -25,66 +106,41 @@ export function AiStylistCreatePage() {
           </Link>
           <h1 className="mt-2 font-display text-4xl font-semibold leading-tight text-[#222222]">AI Stylist</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6F6B67]">
-            Gợi ý outfit từ sản phẩm đang hoạt động trong catalog, dựa trên dịp mặc và phong cách mong muốn.
+            Trò chuyện với AI để tạo outfit từ sản phẩm thật đang hoạt động trong catalog StyleMind.
           </p>
         </div>
-        <Link to={ROUTES.outfitNew} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]">
+        <Link
+          to={ROUTES.outfitNew}
+          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222] transition hover:bg-[#E3DAD0] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]/30"
+        >
           Tạo thủ công
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-        <section className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Yêu cầu hiện tại</h2>
-          <dl className="mt-5 grid gap-3 text-sm">
-            <Row label="Dịp mặc" value="Cuối tuần" />
-            <Row label="Phong cách" value="Tối giản" />
-            <Row label="Danh mục" value="Áo, chân váy" />
-          </dl>
-        </section>
+      {(!currentUser.heightCm || !currentUser.weightKg) && (
+        <BodyInfoCapture user={currentUser} onSave={saveBodyInfo} />
+      )}
 
-        <section className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Gợi ý outfit</h2>
-          {recommendation ? (
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {recommendation.items.map(item => {
-                const product = state.products.find(candidate => candidate.id === item.productId)
-                const variant = product?.variants.find(candidate => candidate.id === item.variantId)
-                const image = variant?.images.find(candidate => candidate.isPrimary) ?? variant?.images[0]
-                if (!product || !variant) return null
-
-                return (
-                  <Link
-                    key={`${item.productId}-${item.variantId}`}
-                    to={`/products/${product.id}`}
-                    className="overflow-hidden rounded-lg border border-[#EEE8E1] bg-[#FFFDFC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
-                  >
-                    {image && <img src={image.url} alt={image.alt} className="aspect-[4/5] w-full object-cover" />}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-[#222222]">{product.name}</h3>
-                      <p className="mt-1 text-sm text-[#6F6B67]">
-                        {variant.color} · {variant.size}
-                      </p>
-                      <p className="mt-3 font-semibold text-[#222222]">{formatCurrency(variant.priceOverride ?? product.basePrice)}</p>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="mt-5 text-sm leading-6 text-[#6F6B67]">Đăng nhập để nhận gợi ý outfit.</p>
-          )}
-        </section>
+      <div className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <AiChatPanel
+          conversation={conversation}
+          message={message}
+          hasRecommendation={Boolean(conversation.recommendation)}
+          onMessageChange={setMessage}
+          onSubmit={submitMessage}
+        />
+        <AiRecommendationPanel
+          database={state}
+          recommendation={conversation.recommendation}
+          outfitName={outfitName}
+          error={saveError}
+          onNameChange={value => {
+            setSaveError('')
+            setOutfitName(value)
+          }}
+          onSave={saveOutfit}
+        />
       </div>
     </section>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <dt className="text-[#6F6B67]">{label}</dt>
-      <dd className="font-semibold text-[#222222]">{value}</dd>
-    </div>
   )
 }
