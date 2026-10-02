@@ -28,6 +28,14 @@ function assistantMessage(body: string, now: string): AiMessage {
   }
 }
 
+export function appendAssistantMessage(conversation: AiConversation, body: string, now: string): AiConversation {
+  return {
+    ...conversation,
+    messages: [...conversation.messages, assistantMessage(body, now)],
+    updatedAt: now,
+  }
+}
+
 function userMessage(body: string, now: string): AiMessage {
   return {
     id: timestampId('ai-user-message', now),
@@ -102,18 +110,16 @@ export function createAssistantReply(
     requirement: conversation.requirement,
   })
 
+  const withAssistantReply = appendAssistantMessage(
+    conversation,
+    hadRecommendation
+      ? 'Mình đã tạo lại outfit theo phản hồi của bạn.'
+      : 'Mình đã chọn các món đang hoạt động trong catalog cho bạn.',
+    now,
+  )
+
   return {
-    ...conversation,
+    ...withAssistantReply,
     recommendation,
-    messages: [
-      ...conversation.messages,
-      assistantMessage(
-        hadRecommendation
-          ? 'Mình đã tạo lại outfit theo phản hồi của bạn.'
-          : 'Mình đã chọn các món đang hoạt động trong catalog cho bạn.',
-        now,
-      ),
-    ],
-    updatedAt: now,
   }
 }

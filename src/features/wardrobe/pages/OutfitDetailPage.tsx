@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
+import type { AiConversation } from '@/entities/ai/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
+import { AiEditPanel } from '@/features/ai-stylist/components/AiEditPanel'
 import { useAuth } from '@/features/auth'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
@@ -110,6 +112,14 @@ export function OutfitDetailPage() {
     setMessage('Đã thêm toàn bộ outfit vào giỏ hàng')
   }
 
+  const applyAiOutfit = (outfit: Outfit) => {
+    dispatch({ type: 'outfit/updated', payload: outfit })
+  }
+
+  const saveAiConversation = (conversation: AiConversation) => {
+    dispatch({ type: 'ai/conversationUpserted', payload: conversation })
+  }
+
   return (
     <section className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-8 md:px-8 md:py-12">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -191,6 +201,15 @@ export function OutfitDetailPage() {
               Lưu tên outfit
             </button>
           </section>
+
+          <AiEditPanel
+            database={state}
+            ownerId={currentUser.id}
+            outfit={detail.outfit}
+            items={detail.items}
+            onApply={applyAiOutfit}
+            onConversationUpsert={saveAiConversation}
+          />
 
           <OutfitShareSummary outfit={detail.outfit} shares={state.outfitShares} />
         </aside>
