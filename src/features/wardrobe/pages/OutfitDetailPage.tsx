@@ -1,18 +1,36 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
+import type { Outfit } from '@/entities/outfit/model/types'
 import { useAuth } from '@/features/auth'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 
-import { selectOutfitDetail } from '../model/outfitSelectors'
+import { OutfitItemCard } from '../components/OutfitItemCard'
+import { OutfitShareSummary } from '../components/OutfitShareSummary'
+import { selectOutfitDetail, type OutfitItemDetail } from '../model/outfitSelectors'
+
+function updatedOutfit(outfit: Outfit, patch: Partial<Outfit>): Outfit {
+  return {
+    ...outfit,
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  }
+}
 
 export function OutfitDetailPage() {
   const { outfitId } = useParams()
-  const { state } = useDemoStore()
+  const { state, dispatch } = useDemoStore()
   const { currentUser } = useAuth()
   const detail = outfitId ? selectOutfitDetail(state, outfitId) : null
+  const [nameDraft, setNameDraft] = useState('')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (detail?.outfit.name) setNameDraft(detail.outfit.name)
+  }, [detail?.outfit.name])
 
   if (!currentUser) return null
 
@@ -28,6 +46,68 @@ export function OutfitDetailPage() {
         </p>
       </section>
     )
+  }
+
+  const cartSource = detail.outfit.source === 'ai' ? 'ai' : 'shop'
+
+  const saveName = () => {
+    const trimmed = nameDraft.trim()
+    if (!trimmed) return
+
+    dispatch({
+      type: 'outfit/updated',
+      payload: updatedOutfit(detail.outfit, { name: trimmed }),
+    })
+    setMessage('Đã đổi tên outfit')
+  }
+
+  const removeItem = (itemId: string) => {
+    dispatch({ type: 'outfit/itemRemoved', payload: { outfitId: detail.outfit.id, itemId } })
+    setMessage('Đã xóa món khỏi outfit')
+  }
+
+  const changeVariant = (itemId: string, variantId: string) => {
+    const item = detail.items.find(candidate => candidate.item.id === itemId)
+    const activeVariant = item?.product.variants.find(variant => variant.id === variantId && variant.active)
+    if (!item || !activeVariant) return
+
+    dispatch({
+      type: 'outfit/itemUpdated',
+      payload: {
+        outfitId: detail.outfit.id,
+        itemId,
+        item: { variantId },
+      },
+    })
+    setMessage('Đã cập nhật phiên bản')
+  }
+
+  const addItemToCart = (item: OutfitItemDetail) => {
+    dispatch({
+      type: 'cart/lineAdded',
+      payload: {
+        productId: item.product.id,
+        variantId: item.variant.id,
+        quantity: 1,
+        source: cartSource,
+      },
+    })
+    setMessage('Đã thêm món vào giỏ hàng')
+  }
+
+  const addOutfitToCart = () => {
+    detail.items.forEach(item => {
+      dispatch({
+        type: 'cart/lineAdded',
+        payload: {
+          productId: item.product.id,
+          variantId: item.variant.id,
+          quantity: 1,
+          source: cartSource,
+        },
+      })
+    })
+    setMessage('Đã thêm toàn bộ outfit vào giỏ hàng')
   }
 
   return (
@@ -46,42 +126,73 @@ export function OutfitDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      {message && (
+        <p className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#2F7D4E]">
+          {message}
+        </p>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="grid gap-4 md:grid-cols-2">
           {detail.items.map(item => (
-            <Link
+            <OutfitItemCard
               key={item.item.id}
-              to={`/products/${item.product.id}`}
-              className="overflow-hidden rounded-lg border border-[#E3DAD0] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
-            >
-              {item.image && <img src={item.image.url} alt={item.image.alt} className="aspect-[4/5] w-full object-cover" />}
-              <div className="p-4">
-                <h2 className="font-semibold text-[#222222]">{item.product.name}</h2>
-                <p className="mt-1 text-sm text-[#6F6B67]">
-                  {item.variant.color} · {item.variant.size}
-                </p>
-                <p className="mt-3 font-semibold text-[#222222]">{formatCurrency(item.price)}</p>
-              </div>
-            </Link>
+              database={state}
+              item={item}
+              onVariantChange={changeVariant}
+              onRemove={removeItem}
+              onAddToCart={addItemToCart}
+            />
           ))}
         </section>
 
-        <aside className="h-fit rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Tóm tắt outfit</h2>
-          <dl className="mt-5 grid gap-3 text-sm">
-            <div className="flex items-center justify-between gap-4">
-              <dt className="text-[#6F6B67]">Số món</dt>
-              <dd className="font-semibold text-[#222222]">{detail.items.length}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <dt className="text-[#6F6B67]">Nguồn</dt>
-              <dd className="font-semibold text-[#222222]">{detail.outfit.source === 'ai' ? 'AI Stylist' : 'Thủ công'}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <dt className="text-[#6F6B67]">Tổng giá</dt>
-              <dd className="font-semibold text-[#222222]">{formatCurrency(detail.total)}</dd>
-            </div>
-          </dl>
+        <aside className="grid h-fit gap-4">
+          <section className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
+            <h2 className="font-display text-2xl font-semibold text-[#222222]">Tóm tắt outfit</h2>
+            <dl className="mt-5 grid gap-3 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-[#6F6B67]">Số món</dt>
+                <dd className="font-semibold text-[#222222]">{detail.items.length}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-[#6F6B67]">Nguồn</dt>
+                <dd className="font-semibold text-[#222222]">{detail.outfit.source === 'ai' ? 'AI Stylist' : 'Thủ công'}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-[#6F6B67]">Tổng giá</dt>
+                <dd className="font-semibold text-[#222222]">{formatCurrency(detail.total)}</dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#684B5A] px-4 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={detail.items.length === 0}
+              onClick={addOutfitToCart}
+            >
+              Thêm toàn bộ outfit vào giỏ
+            </button>
+          </section>
+
+          <section className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
+            <h2 className="font-display text-2xl font-semibold text-[#222222]">Chỉnh tên</h2>
+            <label className="mt-4 grid gap-2 text-sm font-semibold text-[#3A3632]">
+              Tên outfit
+              <input
+                value={nameDraft}
+                onChange={event => setNameDraft(event.target.value)}
+                className="min-h-11 rounded-lg border border-[#D8D0C6] bg-white px-3 text-sm font-medium text-[#222222] outline-none focus:border-[#684B5A] focus:ring-2 focus:ring-[#684B5A]/20"
+              />
+            </label>
+            <button
+              type="button"
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]"
+              onClick={saveName}
+            >
+              Lưu tên outfit
+            </button>
+          </section>
+
+          <OutfitShareSummary outfit={detail.outfit} shares={state.outfitShares} />
         </aside>
       </div>
     </section>
