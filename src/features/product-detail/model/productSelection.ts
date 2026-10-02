@@ -45,7 +45,7 @@ function uniqueColorOptions(variants: ProductVariant[]): ProductColorOption[] {
     options.set(variant.color, {
       color: variant.color,
       colorHex: variant.colorHex,
-      available: Boolean(current?.available || variant.stock > 0),
+      available: Boolean(current?.available || variant.active),
     })
   })
 
@@ -66,7 +66,7 @@ function sizeOptions(variants: ProductVariant[]): ProductSizeOption[] {
     options.set(variant.size, {
       size: variant.size,
       stock: Math.max(current?.stock ?? 0, variant.stock),
-      available: Boolean(current?.available || variant.stock > 0),
+      available: Boolean(current?.available || variant.active),
     })
   })
 
@@ -79,15 +79,15 @@ function variantPrice(product: Product, variant: ProductVariant | null) {
 
 export function getProductSelection(product: Product, selection: ProductSelectionInput = {}): ProductSelection {
   const variants = activeVariants(product)
-  const fallbackVariant = variants.find(variant => variant.stock > 0) ?? variants[0] ?? null
+  const fallbackVariant = variants[0] ?? null
   const selectedColor = selection.color ?? fallbackVariant?.color ?? ''
   const variantsByColor = variants.filter(variant => variant.color === selectedColor)
   const requestedVariant = selection.size
     ? variantsByColor.find(variant => variant.size === selection.size) ?? null
     : null
-  const displayVariant = requestedVariant ?? variantsByColor.find(variant => variant.stock > 0) ?? variantsByColor[0] ?? fallbackVariant
+  const displayVariant = requestedVariant ?? variantsByColor[0] ?? fallbackVariant
   const images = colorImages(variantsByColor.length ? variantsByColor : variants)
-  const canPurchase = Boolean(requestedVariant && requestedVariant.stock > 0)
+  const canPurchase = Boolean(requestedVariant?.active)
 
   return {
     selectedColor,
@@ -98,7 +98,7 @@ export function getProductSelection(product: Product, selection: ProductSelectio
     price: variantPrice(product, displayVariant),
     stock: requestedVariant?.stock ?? displayVariant?.stock ?? 0,
     canPurchase,
-    error: selection.size && !canPurchase ? 'Kích thước này hiện đã hết hàng' : undefined,
+    error: selection.size && !canPurchase ? 'Phiên bản này hiện chưa thể mua' : undefined,
     colorOptions: uniqueColorOptions(variants),
     sizeOptions: sizeOptions(variantsByColor),
   }

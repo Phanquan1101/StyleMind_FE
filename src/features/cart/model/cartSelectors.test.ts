@@ -32,9 +32,9 @@ describe('cart selectors', () => {
     expect(totals.total).toBe(totals.subtotal - totals.discount + totals.shipping)
   })
 
-  it('never returns a purchasable quantity above stock', () => {
+  it('keeps requested quantities for active variants without stock caps', () => {
     const detail = selectCartDetails(databaseWithCart(99)).find(line => line.variant.id === 'var-blouse-white-m')
 
-    expect(detail?.quantity).toBeLessThanOrEqual(detail?.variant.stock ?? 0)
+    expect(detail?.quantity).toBe(99)
   })
 })

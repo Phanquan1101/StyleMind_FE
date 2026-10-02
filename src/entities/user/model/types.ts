@@ -9,6 +9,9 @@ export interface User {
   email: string
   password: string
   phone?: string
+  heightCm?: number
+  weightKg?: number
+  avatarUrl?: string
   avatarInitials: string
   createdAt: string
 }

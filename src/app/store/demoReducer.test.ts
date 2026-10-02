@@ -5,14 +5,14 @@ import { createDemoSeed } from '@/app/data/demoSeed'
 import { demoReducer, normalizeDemoDatabase } from './demoReducer'
 
 describe('demoReducer', () => {
-  it('caps cart quantity at variant stock', () => {
+  it('keeps cart quantity when product and variant are active', () => {
     const state = createDemoSeed()
     const next = demoReducer(state, {
       type: 'cart/lineAdded',
       payload: { productId: 'prd-blouse-01', variantId: 'var-blouse-white-m', quantity: 999, source: 'shop' },
     })
 
-    expect(next.cartLines[0]?.quantity).toBe(8)
+    expect(next.cartLines[0]?.quantity).toBe(999)
   })
 
   it('clears a session whose user no longer exists', () => {

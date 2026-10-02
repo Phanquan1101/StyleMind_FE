@@ -42,7 +42,7 @@ export function selectCartDetails(database: DemoDatabase): CartLineDetail[] {
       const result = findProductAndVariant(database, line)
       if (!result) return null
 
-      const quantity = Math.min(line.quantity, result.variant.stock)
+      const quantity = line.quantity
       if (quantity <= 0) return null
 
       const unitPrice = result.variant.priceOverride ?? result.product.basePrice

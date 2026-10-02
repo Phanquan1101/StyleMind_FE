@@ -1,5 +1,8 @@
 import type { DemoDatabase } from '@/app/store/types'
+import type { AiConversation } from '@/entities/ai/model/types'
+import type { Outfit } from '@/entities/outfit/model/types'
 import type { Product, ProductImage, ProductSize, ProductVariant } from '@/entities/product/model/types'
+import type { OutfitShare } from '@/entities/share/model/types'
 import { DEMO_ADMIN, DEMO_CUSTOMER } from '@/shared/constants/demoAccounts'
 
 const PRODUCT_IMAGE_BASE = 'https://images.unsplash.com'
@@ -330,6 +333,62 @@ const clothingProducts: Product[] = [
   }),
 ]
 
+const seededOutfits: Outfit[] = [
+  {
+    id: 'outfit-work-minimal',
+    ownerId: 'usr-customer-01',
+    name: 'Di lam toi gian',
+    description: 'Set do cong so gon gang voi blouse va quan ong suong.',
+    source: 'manual',
+    visibility: 'private',
+    createdAt: '2026-09-21T09:00:00.000Z',
+    updatedAt: '2026-09-24T09:00:00.000Z',
+    items: [
+      { id: 'outfit-item-blouse-white', productId: 'prd-blouse-01', variantId: 'var-blouse-white-m', addedBy: 'owner' },
+      { id: 'outfit-item-trousers-black', productId: 'prd-trousers-01', variantId: 'var-trousers-01-black-m', addedBy: 'owner' },
+      { id: 'outfit-item-blazer-oat', productId: 'prd-linen-blazer-01', variantId: 'var-linen-blazer-01-oat-m', addedBy: 'owner' },
+    ],
+  },
+  {
+    id: 'outfit-ai-cafe',
+    ownerId: 'usr-customer-01',
+    name: 'Cafe cuoi tuan',
+    description: 'Outfit AI goi y cho buoi cafe nhe nhaang.',
+    source: 'ai',
+    visibility: 'public',
+    publicToken: 'pub-cafe-cuoi-tuan',
+    createdAt: '2026-09-22T09:00:00.000Z',
+    updatedAt: '2026-09-25T09:00:00.000Z',
+    items: [
+      { id: 'outfit-item-knit-ivory', productId: 'prd-knit-top-02', variantId: 'var-knit-top-02-ivory-m', addedBy: 'ai' },
+      { id: 'outfit-item-skirt-camel', productId: 'prd-midi-skirt-01', variantId: 'var-midi-skirt-01-camel-m', addedBy: 'ai' },
+    ],
+  },
+]
+
+const seededOutfitShares: OutfitShare[] = [
+  {
+    id: 'share-cafe-friend',
+    outfitId: 'outfit-ai-cafe',
+    ownerId: 'usr-customer-01',
+    viewerEmail: 'friend@stylemind.vn',
+    permission: 'view',
+    active: true,
+    createdAt: '2026-09-25T09:10:00.000Z',
+  },
+  {
+    id: 'share-work-old',
+    outfitId: 'outfit-work-minimal',
+    ownerId: 'usr-customer-01',
+    viewerEmail: 'old-friend@stylemind.vn',
+    permission: 'view',
+    active: false,
+    createdAt: '2026-09-23T09:10:00.000Z',
+  },
+]
+
+const seededAiConversations: AiConversation[] = []
+
 export function createDemoSeed(): DemoDatabase {
   return {
     schemaVersion: 1,
@@ -342,6 +401,8 @@ export function createDemoSeed(): DemoDatabase {
         email: DEMO_CUSTOMER.email,
         password: DEMO_CUSTOMER.password,
         phone: '0912345678',
+        heightCm: 160,
+        weightKg: 52,
         avatarInitials: 'TA',
         createdAt: '2026-09-01T08:00:00.000Z',
       },
@@ -403,7 +464,31 @@ export function createDemoSeed(): DemoDatabase {
         createdAt: '2026-09-25T06:00:00.000Z',
         link: '/shop',
       },
+      {
+        id: 'noti-wardrobe-01',
+        userId: 'usr-customer-01',
+        type: 'wardrobe',
+        title: 'Outfit AI da duoc luu',
+        body: 'Outfit Cafe cuoi tuan da nam trong My Wardrobe cua ban.',
+        read: true,
+        readAt: '2026-09-25T06:30:00.000Z',
+        createdAt: '2026-09-25T06:20:00.000Z',
+        link: '/outfits/outfit-ai-cafe',
+      },
+      {
+        id: 'noti-share-01',
+        userId: 'usr-customer-01',
+        type: 'share',
+        title: 'Lien ket chia se dang bat',
+        body: 'Outfit Cafe cuoi tuan co public link rieng.',
+        read: false,
+        createdAt: '2026-09-25T06:40:00.000Z',
+        link: '/outfits/outfit-ai-cafe',
+      },
     ],
+    outfits: seededOutfits,
+    outfitShares: seededOutfitShares,
+    aiConversations: seededAiConversations,
     cancellationRequests: [],
     returnRequests: [],
     fashionMetadata: {

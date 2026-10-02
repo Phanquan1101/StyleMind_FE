@@ -10,16 +10,24 @@ if (!product) throw new Error('Expected blouse seed product to exist')
 
 describe('getProductSelection', () => {
   it('switches the visible gallery when color changes', () => {
-    const white = getProductSelection(product, { color: 'Trắng', size: 'M' })
-    const black = getProductSelection(product, { color: 'Đen', size: 'M' })
+    const [firstColor, secondColor] = Array.from(new Set(product.variants.map(variant => variant.color)))
+    const white = getProductSelection(product, { color: firstColor, size: 'M' })
+    const black = getProductSelection(product, { color: secondColor, size: 'M' })
 
     expect(white.images[0]?.url).not.toBe(black.images[0]?.url)
   })
 
-  it('marks an out-of-stock size as unavailable', () => {
-    const result = getProductSelection(product, { color: 'Đen', size: 'XL' })
+  it('treats an active variant as purchasable without stock checks', () => {
+    const zeroStockVariant = product.variants.find(variant => variant.active && variant.stock === 0)
 
-    expect(result.canPurchase).toBe(false)
-    expect(result.error).toBe('Kích thước này hiện đã hết hàng')
+    expect(zeroStockVariant).toBeDefined()
+
+    const result = getProductSelection(product, {
+      color: zeroStockVariant!.color,
+      size: zeroStockVariant!.size,
+    })
+
+    expect(result.canPurchase).toBe(true)
+    expect(result.error).toBeUndefined()
   })
 })
