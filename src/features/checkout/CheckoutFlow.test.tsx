@@ -131,4 +131,37 @@ describe('Checkout flow', () => {
 
     expect(database.orders.filter(order => order.paymentReference === session.id)).toHaveLength(1)
   })
+
+  it('stores the selected shipping address snapshot on the order', async () => {
+    const user = userEvent.setup()
+    renderCheckoutWithCustomerAndCart()
+
+    expect(screen.getByRole('link', { name: 'Quản lý địa chỉ' })).toHaveAttribute('href', '/account/addresses')
+
+    await user.selectOptions(screen.getByLabelText('Chọn địa chỉ'), 'adr-customer-office')
+    await user.click(screen.getByLabelText('Thanh toán khi nhận hàng'))
+    await user.click(screen.getByRole('button', { name: 'Đặt hàng' }))
+
+    await waitFor(() => expect(getDatabase().orders).toHaveLength(1))
+
+    const placedDatabase = getDatabase()
+    const order = placedDatabase.orders[0]
+    expect(order.shippingAddress).toMatchObject({
+      id: 'adr-customer-office',
+      line1: '18 Lê Thánh Tôn',
+      district: 'Quận 1',
+    })
+    expect('userId' in order.shippingAddress).toBe(false)
+    expect('isDefault' in order.shippingAddress).toBe(false)
+
+    const officeAddress = placedDatabase.addresses.find(address => address.id === 'adr-customer-office')
+    if (!officeAddress) throw new Error('Expected office address')
+
+    const nextDatabase = demoReducer(placedDatabase, {
+      type: 'address/upserted',
+      payload: { ...officeAddress, line1: 'Địa chỉ đã thay đổi' },
+    })
+
+    expect(nextDatabase.orders[0].shippingAddress.line1).toBe('18 Lê Thánh Tôn')
+  })
 })

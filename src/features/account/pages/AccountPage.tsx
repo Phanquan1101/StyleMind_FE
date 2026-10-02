@@ -1,12 +1,38 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 
+import { BodyInfoForm } from '../components/BodyInfoForm'
+import { ProfileForm } from '../components/ProfileForm'
+import { hasErrors, validateProfileInput, type FieldErrors, type ProfileInput } from '../model/validators'
+
+function profileDraftFromUser(user: NonNullable<ReturnType<typeof useAuth>['currentUser']>): ProfileInput {
+  return {
+    fullName: user.fullName,
+    phone: user.phone ?? '',
+    heightCm: user.heightCm ? String(user.heightCm) : '',
+    weightKg: user.weightKg ? String(user.weightKg) : '',
+  }
+}
+
 export function AccountPage() {
-  const { state } = useDemoStore()
+  const { state, dispatch } = useDemoStore()
   const { currentUser } = useAuth()
+  const [savedMessage, setSavedMessage] = useState('')
+  const [errors, setErrors] = useState<FieldErrors<ProfileInput>>({})
+  const [draft, setDraft] = useState<ProfileInput>(() =>
+    currentUser
+      ? profileDraftFromUser(currentUser)
+      : {
+          fullName: '',
+          phone: '',
+          heightCm: '',
+          weightKg: '',
+        },
+  )
 
   if (!currentUser) return null
 
@@ -14,6 +40,24 @@ export function AccountPage() {
   const orders = state.orders.filter(order => order.userId === currentUser.id)
   const outfits = state.outfits.filter(outfit => outfit.ownerId === currentUser.id)
   const unreadCount = state.notifications.filter(item => item.userId === currentUser.id && !item.read).length
+
+  const handleSave = () => {
+    const nextErrors = validateProfileInput(draft)
+    setErrors(nextErrors)
+    if (hasErrors(nextErrors)) return
+
+    dispatch({
+      type: 'user/profileUpdated',
+      payload: {
+        userId: currentUser.id,
+        fullName: draft.fullName.trim(),
+        phone: draft.phone.trim(),
+        heightCm: draft.heightCm ? Number(draft.heightCm) : undefined,
+        weightKg: draft.weightKg ? Number(draft.weightKg) : undefined,
+      },
+    })
+    setSavedMessage('Đã cập nhật tài khoản')
+  }
 
   return (
     <section className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-8 md:px-8 md:py-12">
@@ -33,25 +77,25 @@ export function AccountPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Hồ sơ cá nhân</h2>
-          <div className="mt-5 grid gap-4 text-sm text-[#3A3632] sm:grid-cols-2">
-            <Info label="Họ tên" value={currentUser.fullName} />
-            <Info label="Email" value={currentUser.email} />
-            <Info label="Số điện thoại" value={currentUser.phone ?? 'Chưa cập nhật'} />
-            <Info label="Vai trò" value={currentUser.role === 'admin' ? 'Quản trị' : 'Khách hàng'} />
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Thông tin vóc dáng</h2>
-          <div className="mt-5 grid grid-cols-2 gap-4">
-            <Metric label="Chiều cao" value={currentUser.heightCm ? `${currentUser.heightCm} cm` : 'Chưa có'} />
-            <Metric label="Cân nặng" value={currentUser.weightKg ? `${currentUser.weightKg} kg` : 'Chưa có'} />
-          </div>
-        </section>
-      </div>
+      <form
+        className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]"
+        onSubmit={event => {
+          event.preventDefault()
+          handleSave()
+        }}
+      >
+        <ProfileForm value={draft} errors={errors} onChange={setDraft} />
+        <BodyInfoForm value={draft} errors={errors} onChange={setDraft} />
+        <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
+          <button
+            type="submit"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#684B5A] px-4 text-sm font-semibold text-white"
+          >
+            Lưu hồ sơ
+          </button>
+          {savedMessage && <p className="text-sm font-semibold text-[#2F7D4E]">{savedMessage}</p>}
+        </div>
+      </form>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Shortcut label="Địa chỉ" value={`${addresses.length} địa chỉ`} to={ROUTES.addresses} />
@@ -60,24 +104,6 @@ export function AccountPage() {
         <Shortcut label="Tủ đồ" value={`${outfits.length} outfit`} to={ROUTES.wardrobes} />
       </section>
     </section>
-  )
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#9D9894]">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-[#F7F1EC] p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8A8179]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-[#222222]">{value}</p>
-    </div>
   )
 }
 

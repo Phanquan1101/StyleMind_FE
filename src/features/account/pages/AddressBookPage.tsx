@@ -1,16 +1,49 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
+import type { Address } from '@/entities/address/model/types'
 import { useAuth } from '@/features/auth'
 
+import { AddressCard } from '../components/AddressCard'
+import { AddressForm } from '../components/AddressForm'
+
 export function AddressBookPage() {
-  const { state } = useDemoStore()
+  const { state, dispatch } = useDemoStore()
   const { currentUser } = useAuth()
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [message, setMessage] = useState('')
 
   if (!currentUser) return null
 
-  const addresses = state.addresses.filter(address => address.userId === currentUser.id)
+  const addresses = state.addresses
+    .filter(address => address.userId === currentUser.id)
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+  const showForm = creating || editingAddress
+
+  const handleSubmit = (address: Address) => {
+    dispatch({ type: 'address/upserted', payload: address })
+    setMessage('Đã lưu địa chỉ')
+    setCreating(false)
+    setEditingAddress(null)
+  }
+
+  const handleDelete = (address: Address) => {
+    if (addresses.length <= 1) {
+      setMessage('Cần ít nhất một địa chỉ để thanh toán.')
+      return
+    }
+
+    dispatch({ type: 'address/deleted', payload: { addressId: address.id } })
+    setMessage('Đã xóa địa chỉ')
+  }
+
+  const handleSetDefault = (address: Address) => {
+    dispatch({ type: 'address/defaultChanged', payload: { addressId: address.id } })
+    setMessage('Đã cập nhật địa chỉ mặc định')
+  }
 
   return (
     <section className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-8 md:px-8 md:py-12">
@@ -27,30 +60,49 @@ export function AddressBookPage() {
         <button
           type="button"
           className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]"
+          onClick={() => {
+            setCreating(true)
+            setEditingAddress(null)
+            setMessage('')
+          }}
         >
           Thêm địa chỉ
         </button>
       </div>
 
+      {message && (
+        <p className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#3A3632]">
+          {message}
+        </p>
+      )}
+
+      {showForm && (
+        <AddressForm
+          initialAddress={editingAddress ?? undefined}
+          userId={currentUser.id}
+          makeDefault={addresses.length === 0}
+          onSubmit={handleSubmit}
+          onCancel={() => {
+            setCreating(false)
+            setEditingAddress(null)
+          }}
+        />
+      )}
+
       {addresses.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2">
           {addresses.map(address => (
-            <article key={address.id} className="rounded-lg border border-[#E3DAD0] bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#222222]">{address.recipientName}</h2>
-                  <p className="mt-1 text-sm text-[#6F6B67]">{address.phone}</p>
-                </div>
-                {address.isDefault && (
-                  <span className="rounded-full bg-[#F4E7E8] px-3 py-1 text-xs font-semibold text-[#684B5A]">
-                    Mặc định
-                  </span>
-                )}
-              </div>
-              <p className="mt-4 text-sm leading-6 text-[#3A3632]">
-                {address.line1}, {address.ward}, {address.district}, {address.province}
-              </p>
-            </article>
+            <AddressCard
+              key={address.id}
+              address={address}
+              onEdit={addressToEdit => {
+                setEditingAddress(addressToEdit)
+                setCreating(false)
+                setMessage('')
+              }}
+              onDelete={handleDelete}
+              onSetDefault={handleSetDefault}
+            />
           ))}
         </div>
       ) : (
