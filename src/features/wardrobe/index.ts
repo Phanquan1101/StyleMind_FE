@@ -1,1 +1,2 @@
-export { DeferredWardrobePage } from './pages/DeferredWardrobePage'
+export { OutfitDetailPage } from './pages/OutfitDetailPage'
+export { WardrobePage } from './pages/WardrobePage'

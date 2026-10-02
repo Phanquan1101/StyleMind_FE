@@ -1,8 +1,10 @@
-import { createBrowserRouter, Link, RouterProvider, type RouteObject } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, type RouteObject } from 'react-router-dom'
 
 import { CustomerLayout } from '@/app/layouts/CustomerLayout'
 import { AuthGuard } from '@/app/router/guards/AuthGuard'
 import { GuestGuard } from '@/app/router/guards/GuestGuard'
+import { AccountPage, AddressBookPage } from '@/features/account'
+import { AiStylistCreatePage } from '@/features/ai-stylist'
 import {
   AdminAccessPage,
   ForgotPasswordPage,
@@ -15,27 +17,15 @@ import { CartPage } from '@/features/cart'
 import { ShopPage } from '@/features/catalog'
 import { CheckoutPage, OrderSuccessPage, QrPaymentPage } from '@/features/checkout'
 import { HomePage } from '@/features/home'
+import { NotificationsPage } from '@/features/notifications'
+import { ManualOutfitBuilderPage } from '@/features/outfit-builder'
+import { OrderDetailPage, OrdersPage } from '@/features/orders'
 import { ProductDetailPage } from '@/features/product-detail'
-import { DeferredWardrobePage } from '@/features/wardrobe'
+import { PublicOutfitPage, SharedWithMePage } from '@/features/sharing'
+import { OutfitDetailPage, WardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
 import { ROUTES } from './routes'
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <main className="min-h-screen bg-[#FAF8F5] px-6 py-16 text-[#222222]">
-      <div className="mx-auto max-w-3xl">
-        <Link to={ROUTES.home} className="text-sm font-semibold text-[#684B5A] hover:underline">
-          StyleMind
-        </Link>
-        <h1 className="mt-6 font-display text-4xl font-semibold leading-tight">{title}</h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-[#6F6B67]">
-          Màn hình này đang được nối vào route thật và sẽ được hoàn thiện trong các bước tiếp theo của bản demo.
-        </p>
-      </div>
-    </main>
-  )
-}
 
 export const appRoutes: RouteObject[] = [
   { path: ROUTES.login, element: <GuestGuard><LoginPage /></GuestGuard> },
@@ -54,11 +44,18 @@ export const appRoutes: RouteObject[] = [
       { path: 'checkout', element: <AuthGuard><CheckoutPage /></AuthGuard> },
       { path: 'checkout/qr', element: <AuthGuard><QrPaymentPage /></AuthGuard> },
       { path: 'order-success/:orderId', element: <AuthGuard><OrderSuccessPage /></AuthGuard> },
-      { path: 'orders', element: <AuthGuard><PlaceholderPage title="Đơn hàng của tôi" /></AuthGuard> },
-      { path: 'notifications', element: <AuthGuard><PlaceholderPage title="Thông báo" /></AuthGuard> },
-      { path: 'account', element: <AuthGuard><PlaceholderPage title="Tài khoản" /></AuthGuard> },
-      { path: 'ai-wardrobe', element: <DeferredWardrobePage /> },
-      { path: 'wardrobes', element: <DeferredWardrobePage /> },
+      { path: 'orders', element: <AuthGuard><OrdersPage /></AuthGuard> },
+      { path: 'orders/:orderId', element: <AuthGuard><OrderDetailPage /></AuthGuard> },
+      { path: 'notifications', element: <AuthGuard><NotificationsPage /></AuthGuard> },
+      { path: 'account', element: <AuthGuard><AccountPage /></AuthGuard> },
+      { path: 'account/addresses', element: <AuthGuard><AddressBookPage /></AuthGuard> },
+      { path: 'ai-wardrobe', element: <AuthGuard><AiStylistCreatePage /></AuthGuard> },
+      { path: 'wardrobes', element: <AuthGuard><WardrobePage /></AuthGuard> },
+      { path: 'wardrobes/new', element: <AuthGuard><ManualOutfitBuilderPage /></AuthGuard> },
+      { path: 'wardrobes/new/ai', element: <AuthGuard><AiStylistCreatePage /></AuthGuard> },
+      { path: 'outfits/:outfitId', element: <AuthGuard><OutfitDetailPage /></AuthGuard> },
+      { path: 'shared-with-me', element: <AuthGuard><SharedWithMePage /></AuthGuard> },
+      { path: 'shared/outfits/:token', element: <PublicOutfitPage /> },
     ],
   },
   { path: ROUTES.admin, element: <AuthGuard roles={['admin']}><AdminAccessPage /></AuthGuard> },

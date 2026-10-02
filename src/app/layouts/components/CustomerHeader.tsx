@@ -9,8 +9,8 @@ import { useAuth } from '@/features/auth'
 const navItems = [
   { to: ROUTES.home, label: 'Trang chủ' },
   { to: ROUTES.shop, label: 'Cửa hàng' },
-  { to: ROUTES.aiWardrobe, label: 'Tủ đồ AI' },
-  { to: ROUTES.wardrobes, label: 'Tủ đồ của tôi' },
+  { to: ROUTES.wardrobes, label: 'Tủ đồ' },
+  { to: ROUTES.orders, label: 'Đơn hàng' },
 ]
 
 export function CustomerHeader() {
@@ -19,7 +19,7 @@ export function CustomerHeader() {
   const { currentUser, logout } = useAuth()
   const [query, setQuery] = useState('')
   const cartCount = state.cartLines.reduce((total, line) => total + line.quantity, 0)
-  const currentUserId = state.session?.userId ?? 'usr-customer-01'
+  const currentUserId = state.session?.userId ?? currentUser?.id ?? 'usr-customer-01'
   const unreadCount = state.notifications.filter(item => item.userId === currentUserId && !item.read).length
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
