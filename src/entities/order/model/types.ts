@@ -54,6 +54,9 @@ export interface CancellationRequest {
   reason: string
   status: 'submitted' | 'approved' | 'rejected'
   createdAt: string
+  reviewedBy?: string
+  reviewedAt?: string
+  adminNote?: string
 }
 
 export interface ReturnRequest {
@@ -64,4 +67,7 @@ export interface ReturnRequest {
   items: Pick<OrderItemSnapshot, 'productId' | 'variantId' | 'quantity'>[]
   status: 'submitted' | 'reviewing' | 'approved' | 'rejected' | 'refunded'
   createdAt: string
+  reviewedBy?: string
+  reviewedAt?: string
+  adminNote?: string
 }

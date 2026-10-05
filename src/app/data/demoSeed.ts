@@ -1,5 +1,6 @@
 import type { DemoDatabase } from '@/app/store/types'
 import type { AiConversation } from '@/entities/ai/model/types'
+import type { Order, OrderItemSnapshot } from '@/entities/order/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
 import type { Product, ProductImage, ProductSize, ProductVariant } from '@/entities/product/model/types'
 import type { OutfitShare } from '@/entities/share/model/types'
@@ -389,6 +390,82 @@ const seededOutfitShares: OutfitShare[] = [
 
 const seededAiConversations: AiConversation[] = []
 
+function orderItem(productId: string, variantId: string, quantity: number): OrderItemSnapshot {
+  const product = clothingProducts.find(item => item.id === productId)
+  const variant = product?.variants.find(item => item.id === variantId)
+  const image = variant?.images.find(item => item.isPrimary) ?? variant?.images[0]
+  if (!product || !variant || !image) throw new Error(`Missing seeded order item ${productId}/${variantId}`)
+
+  return {
+    productId: product.id,
+    variantId: variant.id,
+    name: product.name,
+    brand: product.brand,
+    color: variant.color,
+    size: variant.size,
+    quantity,
+    unitPrice: variant.priceOverride ?? product.basePrice,
+    imageUrl: image.url,
+  }
+}
+
+const seededOrders: Order[] = [
+  {
+    id: 'ORD-DEMO-1001',
+    userId: 'usr-customer-01',
+    status: 'pending',
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
+    paymentReference: null,
+    items: [orderItem('prd-blouse-01', 'var-blouse-white-m', 1)],
+    shippingAddress: {
+      id: 'adr-customer-home',
+      recipientName: 'Nguyễn Thiên An',
+      phone: '0912345678',
+      line1: '72 Nguyễn Thị Minh Khai',
+      ward: 'Phường Võ Thị Sáu',
+      district: 'Quận 3',
+      province: 'TP. Hồ Chí Minh',
+    },
+    subtotal: 620_000,
+    discount: 0,
+    shipping: 30_000,
+    total: 650_000,
+    createdAt: '2026-09-27T09:00:00.000Z',
+    timeline: [{ id: 'timeline-demo-1001-created', label: 'Đã tạo đơn COD', at: '2026-09-27T09:00:00.000Z' }],
+  },
+  {
+    id: 'ORD-DEMO-1002',
+    userId: 'usr-customer-01',
+    status: 'shipped',
+    paymentMethod: 'vietqr',
+    paymentStatus: 'paid',
+    paymentReference: 'QR-DEMO-1002',
+    items: [
+      orderItem('prd-midi-skirt-01', 'var-midi-skirt-01-camel-m', 1),
+      orderItem('prd-linen-blazer-01', 'var-linen-blazer-01-oat-m', 1),
+    ],
+    shippingAddress: {
+      id: 'adr-customer-office',
+      recipientName: 'Nguyễn Thiên An',
+      phone: '0912345678',
+      line1: '18 Lê Thánh Tôn',
+      ward: 'Phường Bến Nghé',
+      district: 'Quận 1',
+      province: 'TP. Hồ Chí Minh',
+    },
+    subtotal: 2_590_000,
+    discount: 120_000,
+    shipping: 0,
+    total: 2_470_000,
+    createdAt: '2026-09-24T09:00:00.000Z',
+    timeline: [
+      { id: 'timeline-demo-1002-created', label: 'Đã tạo đơn VietQR', at: '2026-09-24T09:00:00.000Z' },
+      { id: 'timeline-demo-1002-shipped', label: 'Đơn đang được giao', at: '2026-09-25T09:00:00.000Z' },
+    ],
+  },
+]
+
 export function createDemoSeed(): DemoDatabase {
   return {
     schemaVersion: 1,
@@ -452,7 +529,7 @@ export function createDemoSeed(): DemoDatabase {
         isDefault: false,
       },
     ],
-    orders: [],
+    orders: seededOrders,
     notifications: [
       {
         id: 'noti-welcome-01',
@@ -489,8 +566,27 @@ export function createDemoSeed(): DemoDatabase {
     outfits: seededOutfits,
     outfitShares: seededOutfitShares,
     aiConversations: seededAiConversations,
-    cancellationRequests: [],
-    returnRequests: [],
+    cancellationRequests: [
+      {
+        id: 'cancel-demo-1001',
+        orderId: 'ORD-DEMO-1001',
+        userId: 'usr-customer-01',
+        reason: 'Tôi đặt nhầm size và muốn hủy trước khi xử lý',
+        status: 'submitted',
+        createdAt: '2026-09-27T09:30:00.000Z',
+      },
+    ],
+    returnRequests: [
+      {
+        id: 'return-demo-1002',
+        orderId: 'ORD-DEMO-1002',
+        userId: 'usr-customer-01',
+        reason: 'Chân váy không vừa như mong muốn',
+        items: [{ productId: 'prd-midi-skirt-01', variantId: 'var-midi-skirt-01-camel-m', quantity: 1 }],
+        status: 'submitted',
+        createdAt: '2026-09-26T10:15:00.000Z',
+      },
+    ],
     fashionMetadata: {
       styles: [
         { id: 'minimal', label: 'Tối giản', active: true },

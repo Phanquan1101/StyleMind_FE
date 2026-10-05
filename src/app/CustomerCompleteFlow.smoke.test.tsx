@@ -13,6 +13,9 @@ function databaseWithCustomer(overrides: Partial<DemoDatabase> = {}): DemoDataba
   return {
     ...createDemoSeed(),
     session: { userId: 'usr-customer-01', persistent: true },
+    orders: [],
+    cancellationRequests: [],
+    returnRequests: [],
     ...overrides,
   }
 }

@@ -1,5 +1,6 @@
 import type { Address } from '@/entities/address/model/types'
 import type { CartLine } from '@/entities/cart/model/types'
+import type { Notification } from '@/entities/notification/model/types'
 import type { Order } from '@/entities/order/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
 import type { OutfitShare } from '@/entities/share/model/types'
@@ -54,6 +55,33 @@ function upsertShare(shares: OutfitShare[], share: OutfitShare) {
     item => !(item.outfitId === share.outfitId && item.viewerEmail.toLowerCase() === share.viewerEmail.toLowerCase()),
   )
   return [...withoutDuplicate, share]
+}
+
+function orderNotification(input: {
+  id: string
+  userId: string
+  orderId: string
+  title: string
+  body: string
+  createdAt: string
+}): Notification {
+  return {
+    id: input.id,
+    userId: input.userId,
+    type: 'order',
+    title: input.title,
+    body: input.body,
+    read: false,
+    createdAt: input.createdAt,
+    link: `/orders/${input.orderId}`,
+  }
+}
+
+function appendOrderTimeline(order: Order, label: string, at: string): Order {
+  return {
+    ...order,
+    timeline: [...order.timeline, { id: `timeline-${order.id}-${Date.parse(at) || Date.now()}`, label, at }],
+  }
 }
 
 export function normalizeDemoDatabase(database: DemoDatabase): DemoDatabase {
@@ -269,6 +297,189 @@ export function demoReducer(state: DemoDatabase, action: DemoAction): DemoDataba
           ...state.aiConversations.filter(conversation => conversation.id !== action.payload.id),
           action.payload,
         ],
+      }
+    case 'admin/userStatusChanged':
+      if (action.payload.userId === action.payload.actorId && action.payload.status === 'locked') return state
+      return normalizeDemoDatabase({
+        ...state,
+        users: state.users.map(user =>
+          user.id === action.payload.userId ? { ...user, status: action.payload.status } : user,
+        ),
+      })
+    case 'admin/categoryUpserted':
+      return {
+        ...state,
+        categories: [
+          ...state.categories.filter(category => category.id !== action.payload.id),
+          action.payload,
+        ].sort((a, b) => a.order - b.order),
+      }
+    case 'admin/categoryStatusChanged':
+      return {
+        ...state,
+        categories: state.categories.map(category =>
+          category.id === action.payload.categoryId ? { ...category, active: action.payload.active } : category,
+        ),
+      }
+    case 'admin/productUpserted':
+      return normalizeDemoDatabase({
+        ...state,
+        products: [
+          ...state.products.filter(product => product.id !== action.payload.id),
+          action.payload,
+        ],
+      })
+    case 'admin/productStatusChanged':
+      return normalizeDemoDatabase({
+        ...state,
+        products: state.products.map(product =>
+          product.id === action.payload.productId ? { ...product, active: action.payload.active } : product,
+        ),
+      })
+    case 'admin/variantStatusChanged':
+      return normalizeDemoDatabase({
+        ...state,
+        products: state.products.map(product =>
+          product.id === action.payload.productId
+            ? {
+                ...product,
+                variants: product.variants.map(variant =>
+                  variant.id === action.payload.variantId ? { ...variant, active: action.payload.active } : variant,
+                ),
+              }
+            : product,
+        ),
+      })
+    case 'admin/orderStatusChanged':
+      return {
+        ...state,
+        orders: state.orders.map(order =>
+          order.id === action.payload.orderId
+            ? appendOrderTimeline(
+                { ...order, status: action.payload.status },
+                `Admin chuyển trạng thái đơn sang ${action.payload.status}`,
+                action.payload.at,
+              )
+            : order,
+        ),
+      }
+    case 'admin/cancellationReviewed': {
+      const request = state.cancellationRequests.find(item => item.id === action.payload.requestId)
+      if (!request) return state
+      const approved = action.payload.decision === 'approved'
+      const title = approved ? 'Yêu cầu hủy đơn đã được duyệt' : 'Yêu cầu hủy đơn bị từ chối'
+      const body = approved
+        ? `Đơn ${request.orderId} đã được hủy theo yêu cầu của bạn.`
+        : `Yêu cầu hủy đơn ${request.orderId} chưa đủ điều kiện xử lý.`
+
+      return {
+        ...state,
+        cancellationRequests: state.cancellationRequests.map(item =>
+          item.id === request.id
+            ? {
+                ...item,
+                status: action.payload.decision,
+                reviewedBy: action.payload.reviewerId,
+                reviewedAt: action.payload.reviewedAt,
+                adminNote: action.payload.note,
+              }
+            : item,
+        ),
+        orders: state.orders.map(order =>
+          order.id === request.orderId && approved
+            ? appendOrderTimeline({ ...order, status: 'cancelled' }, 'Admin đã duyệt yêu cầu hủy đơn', action.payload.reviewedAt)
+            : order,
+        ),
+        notifications: [
+          ...state.notifications,
+          orderNotification({
+            id: `noti-${request.id}-${action.payload.decision}`,
+            userId: request.userId,
+            orderId: request.orderId,
+            title,
+            body: action.payload.note ? `${body} Ghi chú: ${action.payload.note}` : body,
+            createdAt: action.payload.reviewedAt,
+          }),
+        ],
+      }
+    }
+    case 'admin/returnReviewed': {
+      const request = state.returnRequests.find(item => item.id === action.payload.requestId)
+      if (!request) return state
+      const title =
+        action.payload.decision === 'refunded'
+          ? 'Yêu cầu hoàn tiền đã xử lý'
+          : action.payload.decision === 'approved'
+            ? 'Yêu cầu đổi/trả đã được duyệt'
+            : 'Yêu cầu đổi/trả bị từ chối'
+      const body =
+        action.payload.decision === 'refunded'
+          ? `Đơn ${request.orderId} đã được xử lý hoàn tiền.`
+          : action.payload.decision === 'approved'
+            ? `Yêu cầu đổi/trả cho đơn ${request.orderId} đã được duyệt.`
+            : `Yêu cầu đổi/trả cho đơn ${request.orderId} chưa đủ điều kiện xử lý.`
+
+      return {
+        ...state,
+        returnRequests: state.returnRequests.map(item =>
+          item.id === request.id
+            ? {
+                ...item,
+                status: action.payload.decision,
+                reviewedBy: action.payload.reviewerId,
+                reviewedAt: action.payload.reviewedAt,
+                adminNote: action.payload.note,
+              }
+            : item,
+        ),
+        notifications: [
+          ...state.notifications,
+          orderNotification({
+            id: `noti-${request.id}-${action.payload.decision}`,
+            userId: request.userId,
+            orderId: request.orderId,
+            title,
+            body: action.payload.note ? `${body} Ghi chú: ${action.payload.note}` : body,
+            createdAt: action.payload.reviewedAt,
+          }),
+        ],
+      }
+    }
+    case 'admin/fashionMetadataOptionUpserted':
+      return {
+        ...state,
+        fashionMetadata: {
+          ...state.fashionMetadata,
+          [action.payload.group]: [
+            ...state.fashionMetadata[action.payload.group].filter(option => option.id !== action.payload.option.id),
+            action.payload.option,
+          ],
+        },
+      }
+    case 'admin/fashionMetadataOptionStatusChanged':
+      return {
+        ...state,
+        fashionMetadata: {
+          ...state.fashionMetadata,
+          [action.payload.group]: state.fashionMetadata[action.payload.group].map(option =>
+            option.id === action.payload.optionId ? { ...option, active: action.payload.active } : option,
+          ),
+        },
+      }
+    case 'admin/compatibilityRuleUpserted':
+      return {
+        ...state,
+        compatibilityRules: [
+          ...state.compatibilityRules.filter(rule => rule.id !== action.payload.id),
+          action.payload,
+        ],
+      }
+    case 'admin/compatibilityRuleStatusChanged':
+      return {
+        ...state,
+        compatibilityRules: state.compatibilityRules.map(rule =>
+          rule.id === action.payload.ruleId ? { ...rule, active: action.payload.active } : rule,
+        ),
       }
     default:
       return state

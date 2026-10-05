@@ -20,6 +20,9 @@ function databaseWithCustomerAndCart(overrides: Partial<DemoDatabase> = {}): Dem
   return {
     ...database,
     session: { userId: 'usr-customer-01', persistent: true },
+    orders: [],
+    cancellationRequests: [],
+    returnRequests: [],
     cartLines: [
       {
         id: 'cart-test-line',

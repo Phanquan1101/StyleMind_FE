@@ -2,16 +2,17 @@ import type { Address } from '@/entities/address/model/types'
 import type { AiConversation } from '@/entities/ai/model/types'
 import type { AddCartLineInput, CartLine } from '@/entities/cart/model/types'
 import type { Notification } from '@/entities/notification/model/types'
-import type { CancellationRequest, Order, ReturnRequest } from '@/entities/order/model/types'
+import type { CancellationRequest, Order, OrderStatus, ReturnRequest } from '@/entities/order/model/types'
 import type { Outfit, OutfitItem } from '@/entities/outfit/model/types'
 import type {
   CompatibilityRule,
   FashionMetadata,
+  FashionMetadataOption,
   Product,
   ProductCategory,
 } from '@/entities/product/model/types'
 import type { OutfitShare } from '@/entities/share/model/types'
-import type { DemoSession, User } from '@/entities/user/model/types'
+import type { DemoSession, User, UserStatus } from '@/entities/user/model/types'
 
 export interface AiMetrics {
   wardrobeCount: number
@@ -69,3 +70,16 @@ export type DemoAction =
   | { type: 'cancellation/submitted'; payload: CancellationRequest }
   | { type: 'return/submitted'; payload: ReturnRequest }
   | { type: 'ai/conversationUpserted'; payload: AiConversation }
+  | { type: 'admin/userStatusChanged'; payload: { userId: string; status: UserStatus; actorId: string } }
+  | { type: 'admin/categoryUpserted'; payload: ProductCategory }
+  | { type: 'admin/categoryStatusChanged'; payload: { categoryId: string; active: boolean } }
+  | { type: 'admin/productUpserted'; payload: Product }
+  | { type: 'admin/productStatusChanged'; payload: { productId: string; active: boolean } }
+  | { type: 'admin/variantStatusChanged'; payload: { productId: string; variantId: string; active: boolean } }
+  | { type: 'admin/orderStatusChanged'; payload: { orderId: string; status: OrderStatus; at: string } }
+  | { type: 'admin/cancellationReviewed'; payload: { requestId: string; decision: 'approved' | 'rejected'; reviewerId: string; reviewedAt: string; note?: string } }
+  | { type: 'admin/returnReviewed'; payload: { requestId: string; decision: 'approved' | 'rejected' | 'refunded'; reviewerId: string; reviewedAt: string; note?: string } }
+  | { type: 'admin/fashionMetadataOptionUpserted'; payload: { group: keyof FashionMetadata; option: FashionMetadataOption } }
+  | { type: 'admin/fashionMetadataOptionStatusChanged'; payload: { group: keyof FashionMetadata; optionId: string; active: boolean } }
+  | { type: 'admin/compatibilityRuleUpserted'; payload: CompatibilityRule }
+  | { type: 'admin/compatibilityRuleStatusChanged'; payload: { ruleId: string; active: boolean } }
