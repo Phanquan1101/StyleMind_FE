@@ -21,6 +21,11 @@ function timestampId(prefix: string, now: string) {
   return `${prefix}-${stamp}`
 }
 
+function withoutRecommendation(conversation: ReturnType<typeof createInitialAiConversation>): ReturnType<typeof createInitialAiConversation> {
+  const { recommendation: _recommendation, ...draftConversation } = conversation
+  return draftConversation
+}
+
 export function AiStylistCreatePage() {
   const navigate = useNavigate()
   const { state, dispatch } = useDemoStore()
@@ -59,7 +64,7 @@ export function AiStylistCreatePage() {
     const withAssistantReply = createAssistantReply(state, withUserMessage, assistantReplyAt)
 
     setConversation(withAssistantReply)
-    dispatch({ type: 'ai/conversationUpserted', payload: withAssistantReply })
+    dispatch({ type: 'ai/conversationUpserted', payload: withoutRecommendation(withAssistantReply) })
     setMessage('')
   }
 
@@ -94,6 +99,7 @@ export function AiStylistCreatePage() {
     }
 
     dispatch({ type: 'outfit/created', payload: outfit })
+    dispatch({ type: 'ai/conversationUpserted', payload: conversation })
     navigate(`/outfits/${outfit.id}`)
   }
 

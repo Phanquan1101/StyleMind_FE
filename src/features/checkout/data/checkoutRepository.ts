@@ -39,7 +39,10 @@ function findAddress(database: DemoDatabase, userId: string, addressId: string) 
   return database.addresses.find(address => address.id === addressId && address.userId === userId)
 }
 
-function createOrder(input: PlaceOrderInput, payment: { method: PaymentMethod; status: PaymentStatus; reference: string | null }): Order {
+function createOrder(
+  input: PlaceOrderInput,
+  payment: { method: PaymentMethod; status: PaymentStatus; reference: string | null; orderStatus?: Order['status'] },
+): Order {
   const now = input.now ?? new Date().toISOString()
   const address = findAddress(input.database, input.userId, input.addressId)
   const details = selectCartDetails(input.database)
@@ -51,7 +54,7 @@ function createOrder(input: PlaceOrderInput, payment: { method: PaymentMethod; s
   return {
     id: nextOrderId(input.database, now),
     userId: input.userId,
-    status: payment.method === 'vietqr' ? 'paid' : 'pending',
+    status: payment.orderStatus ?? (payment.method === 'vietqr' ? 'paid' : 'pending'),
     paymentMethod: payment.method,
     paymentStatus: payment.status,
     paymentReference: payment.reference,
@@ -75,7 +78,7 @@ function createOrder(input: PlaceOrderInput, payment: { method: PaymentMethod; s
     timeline: [
       {
         id: `timeline-${payment.method}-${now}`,
-        label: payment.method === 'vietqr' ? 'Đã thanh toán VietQR' : 'Đã tạo đơn COD',
+        label: payment.method === 'vietqr' ? 'Đang chờ thanh toán VietQR' : 'Đã tạo đơn COD',
         at: now,
       },
     ],
@@ -91,6 +94,12 @@ export async function createQrSession(input: CreateQrInput): Promise<QrSession> 
   const totals = selectCartTotals(input.database, { discountCode: input.discountCode })
   const id = `qr-${now.getTime().toString(36)}-${Math.random().toString(16).slice(2, 8)}`
   const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString()
+  const pendingOrder = createOrder(input, {
+    method: 'vietqr',
+    status: 'pending',
+    reference: id,
+    orderStatus: 'payment_pending',
+  })
 
   return {
     id,
@@ -98,12 +107,30 @@ export async function createQrSession(input: CreateQrInput): Promise<QrSession> 
     transferContent: `STYLEMIND ${id}`,
     expiresAt,
     orderId: null,
+    pendingOrder,
   }
 }
 
 export async function confirmQrPayment(session: QrSession, database: DemoDatabase): Promise<Order> {
   const existingOrder = database.orders.find(order => order.paymentReference === session.id)
   if (existingOrder) return existingOrder
+
+  if (session.pendingOrder) {
+    const now = new Date().toISOString()
+    return {
+      ...session.pendingOrder,
+      status: 'paid',
+      paymentStatus: 'paid',
+      timeline: [
+        ...session.pendingOrder.timeline,
+        {
+          id: `timeline-vietqr-confirmed-${now}`,
+          label: 'Đã thanh toán VietQR',
+          at: now,
+        },
+      ],
+    }
+  }
 
   const userId = database.session?.userId
   const address = userId ? database.addresses.find(item => item.userId === userId && item.isDefault) : null

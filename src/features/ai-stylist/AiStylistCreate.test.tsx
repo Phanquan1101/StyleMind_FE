@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -49,16 +49,31 @@ async function requestRecommendation(message: string) {
   return user
 }
 
-function expectRecommendationUsesActiveCatalog(database: DemoDatabase) {
-  const conversation = database.aiConversations.at(-1)
-  expect(conversation?.recommendation?.items.length).toBeGreaterThan(0)
+function latestCreateConversation(database: DemoDatabase) {
+  return database.aiConversations.filter(conversation => conversation.mode === 'create').at(-1)
+}
 
-  conversation?.recommendation?.items.forEach(item => {
-    const product = database.products.find(candidate => candidate.id === item.productId)
-    const variant = product?.variants.find(candidate => candidate.id === item.variantId)
+function expectRecommendationLinksUseActiveCatalog(region: HTMLElement, database: DemoDatabase) {
+  const links = within(region).getAllByRole('link')
+  expect(links.length).toBeGreaterThan(0)
+
+  links.forEach(link => {
+    const productId = link.getAttribute('href')?.replace('/products/', '')
+    const product = database.products.find(candidate => candidate.id === productId)
     expect(product?.active).toBe(true)
-    expect(variant?.active).toBe(true)
+    expect(product?.variants.some(variant => variant.active)).toBe(true)
   })
+}
+
+function expectRecommendationLinksIncludeCategory(region: HTMLElement, database: DemoDatabase, categoryId: string) {
+  const links = within(region).getAllByRole('link')
+  expect(
+    links.some(link => {
+      const productId = link.getAttribute('href')?.replace('/products/', '')
+      const product = database.products.find(candidate => candidate.id === productId)
+      return product?.categoryId === categoryId
+    }),
+  ).toBe(true)
 }
 
 describe('AI stylist create flow', () => {
@@ -96,9 +111,9 @@ describe('AI stylist create flow', () => {
 
     await requestRecommendation('Tôi cần outfit đi làm tối giản có áo và chân váy')
 
-    await waitFor(() => {
-      expectRecommendationUsesActiveCatalog(getDatabase())
-    })
+    const region = await screen.findByRole('region', { name: 'Gợi ý outfit từ AI' })
+    expectRecommendationLinksUseActiveCatalog(region, getDatabase())
+    expect(latestCreateConversation(getDatabase())?.recommendation).toBeUndefined()
   })
 
   it('does not save a recommendation until the customer confirms and names it', async () => {
@@ -110,6 +125,7 @@ describe('AI stylist create flow', () => {
     await user.click(screen.getByRole('button', { name: 'Lưu outfit AI' }))
     expect(await screen.findByText('Vui lòng đặt tên outfit')).toBeInTheDocument()
     expect(getDatabase().outfits.filter(outfit => outfit.source === 'ai')).toHaveLength(initialAiOutfitCount)
+    expect(latestCreateConversation(getDatabase())?.recommendation).toBeUndefined()
 
     await user.type(screen.getByLabelText('Tên outfit AI'), 'Outfit AI đi chơi')
     await user.click(screen.getByRole('button', { name: 'Lưu outfit AI' }))
@@ -124,6 +140,7 @@ describe('AI stylist create flow', () => {
         visibility: 'private',
       })
       expect(created?.items.every(item => item.addedBy === 'ai')).toBe(true)
+      expect(latestCreateConversation(getDatabase())?.recommendation).toBeDefined()
     })
   })
 
@@ -132,31 +149,21 @@ describe('AI stylist create flow', () => {
 
     const user = await requestRecommendation('Tôi cần outfit đi làm tối giản với áo và quần')
 
-    await waitFor(() => {
-      const database = getDatabase()
-      const recommendation = database.aiConversations.at(-1)?.recommendation
-      expect(
-        recommendation?.items.some(item => {
-          const product = database.products.find(candidate => candidate.id === item.productId)
-          return product?.categoryId === 'pants'
-        }),
-      ).toBe(true)
-    })
+    expectRecommendationLinksIncludeCategory(
+      await screen.findByRole('region', { name: 'Gợi ý outfit từ AI' }),
+      getDatabase(),
+      'pants',
+    )
 
     await user.clear(screen.getByLabelText('Tin nhắn cho AI Stylist'))
     await user.type(screen.getByLabelText('Tin nhắn cho AI Stylist'), 'Đổi sang chân váy nhẹ hơn')
     await user.click(screen.getByRole('button', { name: 'Tạo lại gợi ý' }))
 
     expect(await screen.findByText('Mình đã tạo lại outfit theo phản hồi của bạn.')).toBeInTheDocument()
-    await waitFor(() => {
-      const database = getDatabase()
-      const recommendation = database.aiConversations.at(-1)?.recommendation
-      expect(
-        recommendation?.items.some(item => {
-          const product = database.products.find(candidate => candidate.id === item.productId)
-          return product?.categoryId === 'skirts'
-        }),
-      ).toBe(true)
-    })
+    expectRecommendationLinksIncludeCategory(
+      await screen.findByRole('region', { name: 'Gợi ý outfit từ AI' }),
+      getDatabase(),
+      'skirts',
+    )
   })
 })

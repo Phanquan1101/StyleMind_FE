@@ -12,7 +12,8 @@ import { OrderTimeline } from '../components/OrderTimeline'
 import { ReturnRequestForm } from '../components/ReturnRequestForm'
 import { selectOrderDetail } from '../model/orderSelectors'
 
-const cancellableStatuses = new Set(['pending', 'confirmed', 'processing'])
+const cancellableStatuses = new Set(['pending', 'payment_pending', 'paid', 'confirmed'])
+const returnableStatuses = new Set(['shipped', 'completed'])
 
 export function OrderDetailPage() {
   const { orderId } = useParams()
@@ -39,7 +40,7 @@ export function OrderDetailPage() {
 
   const { order } = detail
   const canCancel = cancellableStatuses.has(order.status)
-  const canReturn = order.status === 'completed'
+  const canReturn = returnableStatuses.has(order.status)
 
   const submitCancellation = (reason: string) => {
     dispatch({
@@ -55,7 +56,7 @@ export function OrderDetailPage() {
     })
   }
 
-  const submitReturn = (reason: string) => {
+  const submitReturn = (reason: string, selectedVariantIds: string[]) => {
     dispatch({
       type: 'return/submitted',
       payload: {
@@ -63,6 +64,13 @@ export function OrderDetailPage() {
         orderId: order.id,
         userId: currentUser.id,
         reason,
+        items: order.items
+          .filter(item => selectedVariantIds.includes(item.variantId))
+          .map(item => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
         status: 'submitted',
         createdAt: new Date().toISOString(),
       },

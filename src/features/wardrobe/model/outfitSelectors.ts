@@ -10,9 +10,18 @@ export interface OutfitItemDetail {
   price: number
 }
 
+export interface UnavailableOutfitItemDetail {
+  item: OutfitItem
+  product: Product | null
+  variant: ProductVariant | null
+  name: string
+  reason: string
+}
+
 export interface OutfitDetail {
   outfit: Outfit
   items: OutfitItemDetail[]
+  unavailableItems: UnavailableOutfitItemDetail[]
   total: number
 }
 
@@ -32,8 +41,9 @@ export function selectOutfitDetail(database: DemoDatabase, outfitId: string): Ou
 
   const items = outfit.items
     .map(item => {
-      const product = database.products.find(candidate => candidate.id === item.productId && candidate.active)
-      const variant = product?.variants.find(candidate => candidate.id === item.variantId && candidate.active)
+      const product = database.products.find(candidate => candidate.id === item.productId)
+      const variant = product?.variants.find(candidate => candidate.id === item.variantId)
+      if (!product?.active || !variant?.active) return null
       if (!product || !variant) return null
 
       return {
@@ -45,10 +55,31 @@ export function selectOutfitDetail(database: DemoDatabase, outfitId: string): Ou
       }
     })
     .filter(Boolean) as OutfitItemDetail[]
+  const unavailableItems = outfit.items
+    .map(item => {
+      const product = database.products.find(candidate => candidate.id === item.productId) ?? null
+      const variant = product?.variants.find(candidate => candidate.id === item.variantId) ?? null
+      if (product?.active && variant?.active) return null
+
+      const name = product?.name ?? item.productId
+      const reason = !product || !product.active
+        ? 'Sản phẩm này hiện không thể thêm vào giỏ'
+        : 'Phiên bản này hiện không thể thêm vào giỏ'
+
+      return {
+        item,
+        product,
+        variant,
+        name,
+        reason,
+      }
+    })
+    .filter(Boolean) as UnavailableOutfitItemDetail[]
 
   return {
     outfit,
     items,
+    unavailableItems,
     total: items.reduce((sum, item) => sum + item.price, 0),
   }
 }

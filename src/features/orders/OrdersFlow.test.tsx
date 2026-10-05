@@ -122,9 +122,22 @@ describe('Orders flow', () => {
     })
   })
 
+  it('allows cancellation for paid orders', async () => {
+    renderAt('/orders/ORD-TEST-001', databaseWithOrders('paid'))
+
+    expect(await screen.findByLabelText('Lý do hủy đơn')).toBeInTheDocument()
+  })
+
+  it('does not allow cancellation for processing orders', async () => {
+    renderAt('/orders/ORD-TEST-001', databaseWithOrders('processing'))
+
+    expect(await screen.findByRole('heading', { name: 'Đơn ORD-TEST-001' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Lý do hủy đơn')).not.toBeInTheDocument()
+  })
+
   it('submits a return request for selected order items', async () => {
     const user = userEvent.setup()
-    renderAt('/orders/ORD-TEST-001', databaseWithOrders('completed'))
+    renderAt('/orders/ORD-TEST-001', databaseWithOrders('shipped'))
 
     await user.click(screen.getByLabelText(/Áo blouse cổ vuông/))
     await user.type(screen.getByLabelText('Lý do trả hàng'), 'Sản phẩm không vừa')
@@ -137,6 +150,13 @@ describe('Orders flow', () => {
       userId: 'usr-customer-01',
       reason: 'Sản phẩm không vừa',
       status: 'submitted',
+      items: [
+        {
+          productId: 'prd-blouse-01',
+          variantId: 'var-blouse-white-m',
+          quantity: 1,
+        },
+      ],
     })
   })
 

@@ -13,7 +13,12 @@ import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 
 import { OutfitItemCard } from '../components/OutfitItemCard'
-import { selectOutfitDetail, type OutfitDetail, type OutfitItemDetail } from '../model/outfitSelectors'
+import {
+  selectOutfitDetail,
+  type OutfitDetail,
+  type OutfitItemDetail,
+  type UnavailableOutfitItemDetail,
+} from '../model/outfitSelectors'
 
 function updatedOutfit(outfit: Outfit, patch: Partial<Outfit>): Outfit {
   return {
@@ -58,6 +63,27 @@ function ReadOnlySharedOutfit({ detail }: { detail: OutfitDetail }) {
         ))}
       </section>
     </section>
+  )
+}
+
+function UnavailableOutfitItemRow({ item }: { item: UnavailableOutfitItemDetail }) {
+  return (
+    <article className="rounded-lg border border-dashed border-[#D8D0C6] bg-white p-4 shadow-sm">
+      <h2 className="font-semibold text-[#222222]">{item.name}</h2>
+      {item.variant && (
+        <p className="mt-1 text-sm text-[#6F6B67]">
+          {item.variant.color} · {item.variant.size}
+        </p>
+      )}
+      <p className="mt-3 text-sm font-semibold text-[#A94B4B]">{item.reason}</p>
+      <button
+        type="button"
+        disabled
+        className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#EEE8E1] px-3 text-sm font-semibold text-[#6F6B67] opacity-70"
+      >
+        Không thể thêm vào giỏ
+      </button>
+    </article>
   )
 }
 
@@ -156,6 +182,12 @@ export function OutfitDetailPage() {
         },
       })
     })
+
+    if (detail.unavailableItems.length > 0) {
+      setMessage(`Đã thêm các món còn khả dụng vào giỏ. Bỏ qua ${detail.unavailableItems.map(item => item.name).join(', ')}.`)
+      return
+    }
+
     setMessage('Đã thêm toàn bộ outfit vào giỏ hàng')
   }
 
@@ -231,6 +263,9 @@ export function OutfitDetailPage() {
               onAddToCart={addItemToCart}
             />
           ))}
+          {detail.unavailableItems.map(item => (
+            <UnavailableOutfitItemRow key={item.item.id} item={item} />
+          ))}
         </section>
 
         <aside className="grid h-fit gap-4">
@@ -239,7 +274,7 @@ export function OutfitDetailPage() {
             <dl className="mt-5 grid gap-3 text-sm">
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-[#6F6B67]">Số món</dt>
-                <dd className="font-semibold text-[#222222]">{detail.items.length}</dd>
+                <dd className="font-semibold text-[#222222]">{detail.outfit.items.length}</dd>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-[#6F6B67]">Nguồn</dt>

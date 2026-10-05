@@ -125,6 +125,31 @@ describe('Wardrobe flow', () => {
     await waitFor(() => expect(getDatabase().cartLines.reduce((total, line) => total + line.quantity, 0)).toBe(3))
   })
 
+  it('shows unavailable outfit items and skips them when adding the entire outfit to cart', async () => {
+    const user = userEvent.setup()
+    const database = databaseWithCustomer()
+    const inactiveDatabase = {
+      ...database,
+      products: database.products.map(product =>
+        product.id === 'prd-trousers-01' ? { ...product, active: false } : product,
+      ),
+    }
+    renderAt('/outfits/outfit-work-minimal', inactiveDatabase)
+
+    expect(await screen.findByText('Quần tây ống suông')).toBeInTheDocument()
+    expect(screen.getByText('Sản phẩm này hiện không thể thêm vào giỏ')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Thêm toàn bộ outfit vào giỏ' }))
+
+    expect(await screen.findByText(/Đã thêm các món còn khả dụng vào giỏ/)).toBeInTheDocument()
+    expect(screen.getByText(/Bỏ qua Quần tây ống suông/)).toBeInTheDocument()
+    await waitFor(() => {
+      const cartLines = getDatabase().cartLines
+      expect(cartLines).toHaveLength(2)
+      expect(cartLines.some(line => line.productId === 'prd-trousers-01')).toBe(false)
+    })
+  })
+
   it('shows a no-access state for a private outfit owned by someone else', async () => {
     const database = databaseWithCustomer()
     const privateOutfit: Outfit = {

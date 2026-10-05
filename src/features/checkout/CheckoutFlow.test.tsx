@@ -10,7 +10,7 @@ import { demoReducer } from '@/app/store/demoReducer'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
 import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
 
-import { CHECKOUT_QR_SESSION_KEY, confirmQrPayment, type QrSession } from './data/checkoutRepository'
+import { CHECKOUT_QR_SESSION_KEY, createQrSession, confirmQrPayment, type QrSession } from './data/checkoutRepository'
 
 let router: ReturnType<typeof createMemoryRouter>
 
@@ -130,6 +130,38 @@ describe('Checkout flow', () => {
     dispatch({ type: 'order/placed', payload: second })
 
     expect(database.orders.filter(order => order.paymentReference === session.id)).toHaveLength(1)
+  })
+
+  it('confirms a QR order from the selected checkout snapshot', async () => {
+    const database = databaseWithCustomerAndCart()
+    const session = await createQrSession({
+      database,
+      userId: 'usr-customer-01',
+      addressId: 'adr-customer-office',
+      discountCode: 'STYLE10',
+      now: '2026-09-25T06:00:00.000Z',
+    })
+    const changedDatabase = {
+      ...database,
+      cartLines: [],
+      addresses: database.addresses.map(address => ({
+        ...address,
+        isDefault: address.id === 'adr-customer-home',
+        line1: address.id === 'adr-customer-office' ? 'Địa chỉ văn phòng đã đổi' : address.line1,
+      })),
+    }
+
+    const order = await confirmQrPayment(session, changedDatabase)
+
+    expect(order.shippingAddress).toMatchObject({
+      id: 'adr-customer-office',
+      line1: '18 Lê Thánh Tôn',
+      district: 'Quận 1',
+    })
+    expect(order.items).toHaveLength(1)
+    expect(order.discount).toBe(62_000)
+    expect(order.total).toBe(session.amount)
+    expect(order.paymentReference).toBe(session.id)
   })
 
   it('stores the selected shipping address snapshot on the order', async () => {

@@ -61,6 +61,7 @@ export interface ReturnRequest {
   orderId: string
   userId: string
   reason: string
+  items: Pick<OrderItemSnapshot, 'productId' | 'variantId' | 'quantity'>[]
   status: 'submitted' | 'reviewing' | 'approved' | 'rejected' | 'refunded'
   createdAt: string
 }

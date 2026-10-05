@@ -1,3 +1,5 @@
+import type { Order } from '@/entities/order/model/types'
+
 export type CheckoutStatus =
   | 'editing'
   | 'placing'
@@ -13,6 +15,7 @@ export interface QrSession {
   transferContent: string
   expiresAt: string
   orderId: string | null
+  pendingOrder?: Order
 }
 
 export interface CheckoutState {
