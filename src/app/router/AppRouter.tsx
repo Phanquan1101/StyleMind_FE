@@ -4,9 +4,9 @@ import { CustomerLayout } from '@/app/layouts/CustomerLayout'
 import { AuthGuard } from '@/app/router/guards/AuthGuard'
 import { GuestGuard } from '@/app/router/guards/GuestGuard'
 import { AccountPage, AddressBookPage } from '@/features/account'
+import { AdminPage } from '@/features/admin'
 import { AiStylistCreatePage } from '@/features/ai-stylist'
 import {
-  AdminAccessPage,
   ForgotPasswordPage,
   LoginPage,
   RegisterPage,
@@ -58,7 +58,7 @@ export const appRoutes: RouteObject[] = [
       { path: 'shared-with-me', element: <AuthGuard><SharedWithMePage /></AuthGuard> },
     ],
   },
-  { path: ROUTES.admin, element: <AuthGuard roles={['admin']}><AdminAccessPage /></AuthGuard> },
+  { path: ROUTES.admin, element: <AuthGuard roles={['admin']}><AdminPage /></AuthGuard> },
   { path: '*', element: <NotFoundPage /> },
 ]
 

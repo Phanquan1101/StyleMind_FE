@@ -82,7 +82,7 @@ describe('Auth flow', () => {
     await loginWith('admin@stylemind.vn', 'Admin123!')
 
     await waitFor(() => expect(currentPath()).toBe('/admin'))
-    expect(await screen.findByRole('heading', { name: 'Khu vực quản trị' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tổng quan quản trị' })).toBeInTheDocument()
   })
 
   it('logs out the current customer from the header and returns to login', async () => {
