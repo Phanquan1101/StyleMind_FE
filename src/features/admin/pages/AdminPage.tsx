@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
+import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
 import { AdminOverviewPanel } from '@/features/admin/components/AdminOverviewPanel'
+import { AdminProductsPanel } from '@/features/admin/components/AdminProductsPanel'
 import { AdminShell } from '@/features/admin/components/AdminShell'
 import type { AdminSection } from '@/features/admin/model/adminTypes'
 
@@ -40,14 +42,16 @@ function sectionPlaceholder(section: AdminSection) {
 export function AdminPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { state } = useDemoStore()
+  const { state, dispatch } = useDemoStore()
   const { currentUser, logout } = useAuth()
   const activeSection = resolveSection(searchParams.get('section'))
 
   const content = useMemo(() => {
     if (activeSection === 'overview') return <AdminOverviewPanel database={state} />
+    if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
+    if (activeSection === 'categories') return <AdminCategoriesPanel database={state} dispatch={dispatch} />
     return sectionPlaceholder(activeSection)
-  }, [activeSection, state])
+  }, [activeSection, dispatch, state])
 
   if (!currentUser) return null
 

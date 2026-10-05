@@ -68,7 +68,7 @@ export function selectAdminProducts(database: DemoDatabase, filters: AdminProduc
   const categoryLabels = new Map(database.categories.map(category => [category.id, category.label]))
 
   return database.products
-    .filter(product => includesText(`${product.name} ${product.brand}`, filters.query))
+    .filter(product => includesText(`${product.id} ${product.name} ${product.brand}`, filters.query))
     .filter(product => !filters.categoryId || filters.categoryId === 'all' || product.categoryId === filters.categoryId)
     .filter(product => filters.status === undefined || filters.status === 'all' || (filters.status === 'active' ? product.active : !product.active))
     .map(product => {
