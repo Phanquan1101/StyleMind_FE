@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -10,6 +10,10 @@ import type { DemoDatabase } from '@/app/store/types'
 import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
 
 let router: ReturnType<typeof createMemoryRouter>
+
+function setupUser() {
+  return userEvent.setup({ delay: null })
+}
 
 function persistDatabase(database: DemoDatabase) {
   window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(database))
@@ -73,7 +77,7 @@ describe('AdminPage', () => {
   })
 
   it('logs out from the admin shell', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderAt('/admin', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Đăng xuất' }))
@@ -83,7 +87,7 @@ describe('AdminPage', () => {
   })
 
   it('opens the products section from the sidebar query navigation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderAt('/admin', adminDatabase())
 
     await user.click(await screen.findByRole('link', { name: 'Sản phẩm' }))
@@ -93,7 +97,7 @@ describe('AdminPage', () => {
   })
 
   it('filters products and toggles a product inactive', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderAt('/admin?section=products', adminDatabase())
 
     await user.type(await screen.findByLabelText('Tìm sản phẩm'), 'blouse')
@@ -108,23 +112,23 @@ describe('AdminPage', () => {
   })
 
   it('creates a product with a color image URL', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderAt('/admin?section=products', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Thêm sản phẩm' }))
-    await user.type(screen.getByLabelText('ID sản phẩm'), 'prd-admin-test')
-    await user.type(screen.getByLabelText('Tên sản phẩm'), 'Áo linen test')
-    await user.type(screen.getByLabelText('Thương hiệu'), 'Studio Test')
-    await user.selectOptions(screen.getByLabelText('Danh mục'), 'tops')
-    await user.type(screen.getByLabelText('Giá cơ bản'), '580000')
-    await user.type(screen.getByLabelText('Mô tả'), 'Sản phẩm demo cho admin')
-    await user.type(screen.getByLabelText('Chất liệu'), 'Linen')
-    await user.type(screen.getByLabelText('Phom dáng'), 'Dáng vừa')
-    await user.type(screen.getByLabelText('Họa tiết'), 'Trơn')
-    await user.type(screen.getByLabelText('Màu'), 'Trắng')
-    await user.type(screen.getByLabelText('Mã màu'), '#FFFFFF')
-    await user.selectOptions(screen.getByLabelText('Size'), 'M')
-    await user.type(screen.getByLabelText('URL ảnh'), 'https://images.unsplash.com/photo-test?w=900')
+    fireEvent.change(screen.getByLabelText('ID sản phẩm'), { target: { value: 'prd-admin-test' } })
+    fireEvent.change(screen.getByLabelText('Tên sản phẩm'), { target: { value: 'Áo linen test' } })
+    fireEvent.change(screen.getByLabelText('Thương hiệu'), { target: { value: 'Studio Test' } })
+    fireEvent.change(screen.getByLabelText('Danh mục'), { target: { value: 'tops' } })
+    fireEvent.change(screen.getByLabelText('Giá cơ bản'), { target: { value: '580000' } })
+    fireEvent.change(screen.getByLabelText('Mô tả'), { target: { value: 'Sản phẩm demo cho admin' } })
+    fireEvent.change(screen.getByLabelText('Chất liệu'), { target: { value: 'Linen' } })
+    fireEvent.change(screen.getByLabelText('Phom dáng'), { target: { value: 'Dáng vừa' } })
+    fireEvent.change(screen.getByLabelText('Họa tiết'), { target: { value: 'Trơn' } })
+    fireEvent.change(screen.getByLabelText('Màu'), { target: { value: 'Trắng' } })
+    fireEvent.change(screen.getByLabelText('Mã màu'), { target: { value: '#FFFFFF' } })
+    fireEvent.change(screen.getByLabelText('Size'), { target: { value: 'M' } })
+    fireEvent.change(screen.getByLabelText('URL ảnh'), { target: { value: 'https://images.unsplash.com/photo-test?w=900' } })
     await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
 
     expect(await screen.findByText('prd-admin-test')).toBeInTheDocument()
@@ -138,7 +142,7 @@ describe('AdminPage', () => {
   })
 
   it('toggles a variant active state', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderAt('/admin?section=products', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Tắt biến thể var-blouse-white-m' }))
@@ -152,7 +156,7 @@ describe('AdminPage', () => {
   })
 
   it('creates and deactivates a clothing category', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderAt('/admin?section=categories', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Thêm danh mục' }))
@@ -168,6 +172,66 @@ describe('AdminPage', () => {
     await waitFor(() => {
       const category = getDatabase().categories.find(item => item.id === 'ao-dai')
       expect(category).toMatchObject({ label: 'Áo dài', active: false })
+    })
+  })
+
+  it('filters orders and advances an order status', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=orders', adminDatabase())
+
+    await user.type(await screen.findByLabelText('Tìm đơn hàng'), '1001')
+    expect(screen.getByText('ORD-DEMO-1001')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Xác nhận đơn ORD-DEMO-1001' }))
+
+    await waitFor(() => {
+      const order = getDatabase().orders.find(item => item.id === 'ORD-DEMO-1001')
+      expect(order?.status).toBe('confirmed')
+      expect(order?.timeline.some(item => item.label.includes('confirmed'))).toBe(true)
+    })
+  })
+
+  it('opens order detail with timeline and address snapshot', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=orders', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Xem chi tiết ORD-DEMO-1002' }))
+
+    expect(await screen.findByRole('heading', { name: 'Chi tiết đơn ORD-DEMO-1002' })).toBeInTheDocument()
+    expect(screen.getByText('Địa chỉ giao hàng')).toBeInTheDocument()
+    expect(screen.getByText('Lịch sử đơn hàng')).toBeInTheDocument()
+    expect(screen.getByText(/18 Lê Thánh Tôn/)).toBeInTheDocument()
+  })
+
+  it('approves a cancellation request and creates a customer notification', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=requests', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Duyệt hủy cancel-demo-1001' }))
+
+    await waitFor(() => {
+      const database = getDatabase()
+      expect(database.cancellationRequests.find(item => item.id === 'cancel-demo-1001')?.status).toBe('approved')
+      expect(database.orders.find(item => item.id === 'ORD-DEMO-1001')?.status).toBe('cancelled')
+      expect(database.notifications.some(item => item.userId === 'usr-customer-01' && item.link === '/orders/ORD-DEMO-1001')).toBe(true)
+    })
+  })
+
+  it('refunds an approved return request and creates a customer notification', async () => {
+    const user = setupUser()
+    const database = adminDatabase()
+    database.returnRequests = database.returnRequests.map(request =>
+      request.id === 'return-demo-1002' ? { ...request, status: 'approved' } : request,
+    )
+    renderAt('/admin?section=requests', database)
+
+    await user.click(await screen.findByRole('button', { name: 'Đổi/trả' }))
+    await user.click(screen.getByRole('button', { name: 'Hoàn tiền return-demo-1002' }))
+
+    await waitFor(() => {
+      const nextDatabase = getDatabase()
+      expect(nextDatabase.returnRequests.find(item => item.id === 'return-demo-1002')?.status).toBe('refunded')
+      expect(nextDatabase.notifications.some(item => item.userId === 'usr-customer-01' && item.link === '/orders/ORD-DEMO-1002')).toBe(true)
     })
   })
 })

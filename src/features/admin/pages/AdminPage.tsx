@@ -5,7 +5,9 @@ import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
 import { AdminOverviewPanel } from '@/features/admin/components/AdminOverviewPanel'
+import { AdminOrdersPanel } from '@/features/admin/components/AdminOrdersPanel'
 import { AdminProductsPanel } from '@/features/admin/components/AdminProductsPanel'
+import { AdminRequestsPanel } from '@/features/admin/components/AdminRequestsPanel'
 import { AdminShell } from '@/features/admin/components/AdminShell'
 import type { AdminSection } from '@/features/admin/model/adminTypes'
 
@@ -50,8 +52,10 @@ export function AdminPage() {
     if (activeSection === 'overview') return <AdminOverviewPanel database={state} />
     if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
     if (activeSection === 'categories') return <AdminCategoriesPanel database={state} dispatch={dispatch} />
+    if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} />
+    if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} />
     return sectionPlaceholder(activeSection)
-  }, [activeSection, dispatch, state])
+  }, [activeSection, currentUser?.id, dispatch, state])
 
   if (!currentUser) return null
 
