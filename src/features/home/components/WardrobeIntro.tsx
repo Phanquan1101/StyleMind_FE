@@ -1,6 +1,6 @@
 const steps = [
   'Chọn sản phẩm quần áo thật trong cửa hàng.',
-  'Lưu màu, size và chất liệu vào dữ liệu demo.',
+  'Lưu màu, size và chất liệu vào tủ đồ cá nhân.',
   'Gợi ý phối đồ dựa trên phong cách và dịp sử dụng.',
   'Chuyển các lựa chọn phù hợp vào giỏ hàng.',
 ]
@@ -13,7 +13,7 @@ export function WardrobeIntro() {
           <p className="text-sm font-semibold text-[#684B5A]">AI Wardrobe</p>
           <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-[#222222]">Tủ đồ AI bắt đầu từ dữ liệu rõ ràng</h2>
           <p className="mt-4 text-base leading-7 text-[#6F6B67]">
-            Giai đoạn này giữ phần tủ đồ ở trạng thái chờ, nhưng mọi sản phẩm đã có metadata để dùng cho trải nghiệm AI ở bước sau.
+            Tủ đồ giúp bạn lưu outfit thủ công, nhận gợi ý AI và chuyển các món phù hợp vào giỏ hàng khi muốn mua sắm.
           </p>
         </div>
         <div className="mt-8 grid gap-3 md:grid-cols-4">

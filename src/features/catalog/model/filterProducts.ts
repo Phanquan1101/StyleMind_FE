@@ -41,7 +41,7 @@ function includesText(fields: string[], query: string) {
 }
 
 function matchesVariantFilters(product: Product, filters: CatalogFilters) {
-  const variants = product.variants.filter(variant => variant.active && variant.stock > 0)
+  const variants = product.variants.filter(variant => variant.active)
   if (filters.colors.length === 0 && filters.sizes.length === 0) return variants.length > 0
 
   return variants.some(variant => {

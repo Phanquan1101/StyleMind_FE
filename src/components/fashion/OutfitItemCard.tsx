@@ -176,7 +176,7 @@ export default function OutfitItemCard({
         {isUnavailable && (
           <div className="pt-2">
             <p className="text-[11px] text-[#A94B4B] mb-2 font-medium">
-              {item.unavailableReason || 'Currently out of stock'}
+              {item.unavailableReason || 'Currently unavailable'}
             </p>
             {onFindAlternative && (
               <button

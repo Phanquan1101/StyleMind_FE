@@ -22,7 +22,7 @@ export const mockProducts: Product[] = [
       { name: 'Charcoal', hex: '#3A3A3A' },
     ],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
-    availableSizes: ['S', 'M'], // Note: XS and L, XL are out of stock
+    availableSizes: ['S', 'M'], // XS, L and XL are not available
     category: 'Outerwear',
     material: '100% Belgian Linen',
     fit: 'Relaxed',
@@ -186,7 +186,7 @@ export const mockProducts: Product[] = [
       { name: 'Emerald', hex: '#2A5C45' },
     ],
     sizes: ['XS', 'S', 'M', 'L'],
-    availableSizes: [], // Deliberately out of stock to test principle 2
+    availableSizes: [], // Deliberately unavailable to test principle 2
     category: 'Dresses',
     material: '100% Mulberry Silk',
     fit: 'Slim',

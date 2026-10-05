@@ -58,7 +58,7 @@ function uniqueAvailableColors(products: ReturnType<typeof useDemoStore>['state'
 
   products.forEach(product => {
     product.variants.forEach(variant => {
-      if (variant.active && variant.stock > 0) colors.add(variant.color)
+      if (variant.active) colors.add(variant.color)
     })
   })
 

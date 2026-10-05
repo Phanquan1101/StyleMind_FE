@@ -17,7 +17,7 @@ export function HeroSection() {
         <div className="max-w-2xl">
           <h1 className="font-display text-5xl font-semibold leading-none md:text-7xl">StyleMind</h1>
           <p className="mt-6 max-w-xl text-base leading-7 text-white/86 md:text-lg">
-            Mua sắm thời trang nữ với dữ liệu sản phẩm thật trong bản demo, đồng thời chuẩn bị nền tảng cho tủ đồ AI cá nhân hóa.
+            Mua sắm thời trang nữ với sản phẩm thật trong catalog StyleMind và xây dựng tủ đồ AI cá nhân hóa theo vóc dáng, dịp mặc và phong cách của bạn.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link

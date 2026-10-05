@@ -19,14 +19,14 @@ export function ForgotPasswordPage() {
     setMessage('')
     try {
       await auth.requestPasswordReset(email)
-      setMessage('Liên kết đặt lại mật khẩu demo đã được tạo.')
+      setMessage('Liên kết đặt lại mật khẩu đã được tạo.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể gửi yêu cầu')
     }
   }
 
   return (
-    <AuthLayout title="Quên mật khẩu" description="Nhập email để nhận hướng dẫn đặt lại mật khẩu trong bản demo.">
+    <AuthLayout title="Quên mật khẩu" description="Nhập email để nhận hướng dẫn đặt lại mật khẩu cho tài khoản của bạn.">
       <h1 className="font-display text-3xl font-semibold">Quên mật khẩu</h1>
       <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
         <TextField label="Email" type="email" value={email} onChange={event => setEmail(event.target.value)} />

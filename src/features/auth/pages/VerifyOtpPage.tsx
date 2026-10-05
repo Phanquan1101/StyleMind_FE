@@ -26,7 +26,7 @@ export function VerifyOtpPage() {
   }
 
   return (
-    <AuthLayout title="Xác thực OTP" description="Nhập mã demo gồm sáu chữ số để hoàn tất xác thực tài khoản.">
+    <AuthLayout title="Xác thực OTP" description="Nhập mã gồm sáu chữ số để hoàn tất xác thực tài khoản.">
       <h1 className="font-display text-3xl font-semibold">Xác thực OTP</h1>
       <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-6 gap-2">
@@ -46,7 +46,7 @@ export function VerifyOtpPage() {
             />
           ))}
         </div>
-        <p className="text-sm text-[#6F6B67]">Mã demo: 123456</p>
+        <p className="text-sm text-[#6F6B67]">Mã xác thực: 123456</p>
         {error && <p className="rounded-lg bg-[#FCEAEA] px-3 py-2 text-sm font-semibold text-[#A94B4B]">{error}</p>}
         <Button type="submit">Xác thực</Button>
       </form>

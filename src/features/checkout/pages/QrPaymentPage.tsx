@@ -112,7 +112,7 @@ export function QrPaymentPage() {
           <InfoRow label="Thời gian còn lại" value={expired ? 'Đã hết hạn' : `${remainingSeconds} giây`} />
         </dl>
         <p className="text-sm leading-6 text-[#6F6B67]">
-          Sau khi chuyển khoản demo, bấm xác nhận để hệ thống tạo đơn và chống tạo trùng theo mã QR.
+          Sau khi chuyển khoản, bấm xác nhận để hệ thống ghi nhận đơn và chống tạo trùng theo mã QR.
         </p>
       </aside>
     </div>

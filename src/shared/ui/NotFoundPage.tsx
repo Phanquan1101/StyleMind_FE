@@ -9,7 +9,7 @@ export function NotFoundPage() {
         <p className="mb-4 text-sm font-semibold text-[#684B5A]">404</p>
         <h1 className="font-display text-4xl font-semibold leading-tight md:text-5xl">Không tìm thấy trang</h1>
         <p className="mt-4 max-w-xl text-base leading-7 text-[#6F6B67]">
-          Đường dẫn này không còn hoạt động hoặc đã được chuyển sang vị trí khác trong bản demo StyleMind.
+          Đường dẫn này không còn hoạt động hoặc đã được chuyển sang vị trí khác trong StyleMind.
         </p>
         <Link
           to={ROUTES.home}

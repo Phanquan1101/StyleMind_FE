@@ -17,8 +17,8 @@ function labelsFor(options: FashionMetadataOption[], ids: string[]) {
   return ids.map(id => options.find(option => option.id === id)?.label ?? id)
 }
 
-function clampQuantity(value: number, max: number) {
-  return Math.max(1, Math.min(value, Math.max(1, max)))
+function normalizeQuantity(value: number) {
+  return Math.max(1, value)
 }
 
 export function ProductDetailPage() {
@@ -42,11 +42,6 @@ export function ProductDetailPage() {
     setSelectedColor(current => current ?? selection.selectedColor)
   }, [selection])
 
-  useEffect(() => {
-    if (!selection) return
-    setQuantity(current => clampQuantity(current, selection.canPurchase ? selection.stock : 1))
-  }, [selection])
-
   if (!product || !selection) {
     return (
       <div className="mx-auto max-w-[var(--container-wide)] px-5 py-12 md:px-8">
@@ -68,8 +63,6 @@ export function ProductDetailPage() {
 
   const styleLabels = labelsFor(state.fashionMetadata.styles, product.styleIds)
   const occasionLabels = labelsFor(state.fashionMetadata.occasions, product.occasionIds)
-  const maxQuantity = selection.canPurchase ? selection.stock : 1
-
   const handleColorChange = (color: string) => {
     const nextSelection = getProductSelection(product, { color, size: selectedSize })
     setSelectedColor(color)
@@ -81,7 +74,7 @@ export function ProductDetailPage() {
   const handleSizeChange = (size: ProductSize) => {
     const nextSelection = getProductSelection(product, { color: selection.selectedColor, size })
     setSelectedSize(size)
-    setQuantity(current => clampQuantity(current, nextSelection.stock))
+    setQuantity(current => normalizeQuantity(current))
     setValidationError(nextSelection.error ?? null)
   }
 
@@ -138,14 +131,14 @@ export function ProductDetailPage() {
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm font-bold text-[#222222]">Số lượng</span>
             <span className="text-sm font-semibold text-[#6F6B67]">
-              {selection.canPurchase ? `Còn ${selection.stock} sản phẩm` : 'Chọn kích thước để kiểm tra tồn kho'}
+              {selection.canPurchase ? 'Sẵn sàng thêm vào giỏ' : 'Chọn kích thước để tiếp tục'}
             </span>
           </div>
           <div className="inline-flex w-fit items-center rounded-lg border border-[#D8D0C6] bg-white">
             <button
               type="button"
               aria-label="Giảm số lượng"
-              onClick={() => setQuantity(current => clampQuantity(current - 1, maxQuantity))}
+              onClick={() => setQuantity(current => normalizeQuantity(current - 1))}
               className="grid h-11 w-11 place-items-center text-[#3A3632] transition hover:bg-[#EEE8E1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
             >
               <Minus size={16} aria-hidden="true" />
@@ -156,7 +149,7 @@ export function ProductDetailPage() {
             <button
               type="button"
               aria-label="Tăng số lượng"
-              onClick={() => setQuantity(current => clampQuantity(current + 1, maxQuantity))}
+              onClick={() => setQuantity(current => normalizeQuantity(current + 1))}
               className="grid h-11 w-11 place-items-center text-[#3A3632] transition hover:bg-[#EEE8E1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
             >
               <Plus size={16} aria-hidden="true" />

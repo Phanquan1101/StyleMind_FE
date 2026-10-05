@@ -17,8 +17,6 @@ function productPath(productId: string) {
 }
 
 export function CartLineItem({ detail, onQuantityChange, onRemove }: CartLineItemProps) {
-  const maxQuantity = detail.variant.stock
-
   return (
     <article className="grid gap-4 rounded-lg bg-[#FDFCFA] p-4 shadow-[0_14px_30px_rgba(58,54,50,0.08)] sm:grid-cols-[108px_minmax(0,1fr)]">
       <Link to={productPath(detail.product.id)} className="overflow-hidden rounded-lg bg-[#EEE8E1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]">
@@ -62,7 +60,7 @@ export function CartLineItem({ detail, onQuantityChange, onRemove }: CartLineIte
             <button
               type="button"
               aria-label={`Tăng số lượng ${detail.product.name}`}
-              onClick={() => onQuantityChange(Math.min(maxQuantity, detail.quantity + 1))}
+              onClick={() => onQuantityChange(detail.quantity + 1)}
               className="grid h-10 w-10 place-items-center text-[#3A3632] transition hover:bg-[#EEE8E1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
             >
               <Plus size={15} aria-hidden="true" />

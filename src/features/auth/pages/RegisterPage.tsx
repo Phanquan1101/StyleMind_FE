@@ -36,7 +36,7 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthLayout title="Đăng ký" description="Tạo tài khoản khách hàng để lưu giỏ hàng, địa chỉ và đơn hàng demo.">
+    <AuthLayout title="Đăng ký" description="Tạo tài khoản khách hàng để lưu giỏ hàng, địa chỉ và đơn hàng của bạn.">
       <h1 className="font-display text-3xl font-semibold">Đăng ký</h1>
       <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
         <TextField label="Họ tên" value={input.fullName} error={errors.fullName} onChange={event => setInput(value => ({ ...value, fullName: event.target.value }))} />

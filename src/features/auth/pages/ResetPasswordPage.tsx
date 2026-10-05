@@ -24,11 +24,11 @@ export function ResetPasswordPage() {
       setError('Mật khẩu xác nhận không khớp')
       return
     }
-    setMessage('Mật khẩu demo đã được cập nhật.')
+    setMessage('Mật khẩu đã được cập nhật.')
   }
 
   return (
-    <AuthLayout title="Đặt lại mật khẩu" description="Tạo mật khẩu mới cho tài khoản demo của bạn.">
+    <AuthLayout title="Đặt lại mật khẩu" description="Tạo mật khẩu mới cho tài khoản của bạn.">
       <h1 className="font-display text-3xl font-semibold">Đặt lại mật khẩu</h1>
       <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
         <TextField label="Mật khẩu mới" type="password" value={password} onChange={event => setPassword(event.target.value)} />

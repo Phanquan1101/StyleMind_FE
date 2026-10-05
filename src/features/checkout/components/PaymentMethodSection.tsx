@@ -35,7 +35,7 @@ export function PaymentMethodSection({ value, onChange }: PaymentMethodSectionPr
           />
           <span>
             <span className="block text-[#222222]">VietQR</span>
-            <span className="mt-1 block text-xs text-[#6F6B67]">Quét mã QR demo và xác minh thanh toán trong ứng dụng.</span>
+            <span className="mt-1 block text-xs text-[#6F6B67]">Quét mã QR và xác minh thanh toán trong ứng dụng.</span>
           </span>
         </label>
       </div>

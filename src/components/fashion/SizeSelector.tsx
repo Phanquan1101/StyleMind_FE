@@ -32,7 +32,7 @@ export default function SizeSelector({
                 disabled={!isAvailable}
                 onClick={() => isAvailable && onSelectSize(size)}
                 aria-pressed={isSelected}
-                aria-label={`Size ${size}${!isAvailable ? ' - currently out of stock' : ''}${isRecommended ? ' - recommended for your fit' : ''}`}
+                aria-label={`Size ${size}${!isAvailable ? ' - currently unavailable' : ''}${isRecommended ? ' - recommended for your fit' : ''}`}
                 className={`relative min-w-[48px] h-11 px-3.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-150 flex items-center justify-center border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] ${
                   isSelected
                     ? 'bg-[#684B5A] text-[#FAF8F5] border-[#684B5A] shadow-xs'

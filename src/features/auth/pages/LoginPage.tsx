@@ -96,7 +96,7 @@ export function LoginPage() {
         </Button>
       </form>
       <div className="mt-5 rounded-lg bg-[#F4E7E8] p-3 text-xs leading-5 text-[#3A3632]">
-        <p className="font-semibold">Tài khoản demo</p>
+        <p className="font-semibold">Tài khoản dùng thử</p>
         <p>Khách hàng: {DEMO_CUSTOMER.email} / {DEMO_CUSTOMER.password}</p>
         <p>Quản trị: {DEMO_ADMIN.email} / {DEMO_ADMIN.password}</p>
       </div>

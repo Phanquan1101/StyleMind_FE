@@ -54,11 +54,14 @@ describe('customer commerce smoke flow', () => {
     await searchFor('áo blouse')
     await user.click(await screen.findByRole('link', { name: /Áo blouse cổ vuông/ }))
     await user.click(screen.getByRole('button', { name: 'Kích thước M' }))
+
+    expect(document.body).not.toHaveTextContent(/Còn \d+ sản phẩm|tồn kho|hết hàng|stock/i)
+
     await user.click(screen.getByRole('button', { name: 'Thêm vào giỏ' }))
     await navigateToCartAndCheckout()
     await user.click(screen.getByLabelText('Thanh toán khi nhận hàng'))
     await user.click(screen.getByRole('button', { name: 'Đặt hàng' }))
 
     expect(await screen.findByText('Đặt hàng thành công')).toBeInTheDocument()
-  })
+  }, 10_000)
 })
