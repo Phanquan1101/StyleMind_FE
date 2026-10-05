@@ -180,12 +180,12 @@ describe('AdminPage', () => {
     renderAt('/admin?section=orders', adminDatabase())
 
     await user.type(await screen.findByLabelText('Tìm đơn hàng'), '1001')
-    expect(screen.getByText('ORD-DEMO-1001')).toBeInTheDocument()
+    expect(screen.getByText('ORD-ADM-1001')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Xác nhận đơn ORD-DEMO-1001' }))
+    await user.click(screen.getByRole('button', { name: 'Xác nhận đơn ORD-ADM-1001' }))
 
     await waitFor(() => {
-      const order = getDatabase().orders.find(item => item.id === 'ORD-DEMO-1001')
+      const order = getDatabase().orders.find(item => item.id === 'ORD-ADM-1001')
       expect(order?.status).toBe('confirmed')
       expect(order?.timeline.some(item => item.label.includes('confirmed'))).toBe(true)
     })
@@ -195,9 +195,9 @@ describe('AdminPage', () => {
     const user = setupUser()
     renderAt('/admin?section=orders', adminDatabase())
 
-    await user.click(await screen.findByRole('button', { name: 'Xem chi tiết ORD-DEMO-1002' }))
+    await user.click(await screen.findByRole('button', { name: 'Xem chi tiết ORD-ADM-1002' }))
 
-    expect(await screen.findByRole('heading', { name: 'Chi tiết đơn ORD-DEMO-1002' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Chi tiết đơn ORD-ADM-1002' })).toBeInTheDocument()
     expect(screen.getByText('Địa chỉ giao hàng')).toBeInTheDocument()
     expect(screen.getByText('Lịch sử đơn hàng')).toBeInTheDocument()
     expect(screen.getByText(/18 Lê Thánh Tôn/)).toBeInTheDocument()
@@ -207,13 +207,13 @@ describe('AdminPage', () => {
     const user = setupUser()
     renderAt('/admin?section=requests', adminDatabase())
 
-    await user.click(await screen.findByRole('button', { name: 'Duyệt hủy cancel-demo-1001' }))
+    await user.click(await screen.findByRole('button', { name: 'Duyệt hủy cancel-1001' }))
 
     await waitFor(() => {
       const database = getDatabase()
-      expect(database.cancellationRequests.find(item => item.id === 'cancel-demo-1001')?.status).toBe('approved')
-      expect(database.orders.find(item => item.id === 'ORD-DEMO-1001')?.status).toBe('cancelled')
-      expect(database.notifications.some(item => item.userId === 'usr-customer-01' && item.link === '/orders/ORD-DEMO-1001')).toBe(true)
+      expect(database.cancellationRequests.find(item => item.id === 'cancel-1001')?.status).toBe('approved')
+      expect(database.orders.find(item => item.id === 'ORD-ADM-1001')?.status).toBe('cancelled')
+      expect(database.notifications.some(item => item.userId === 'usr-customer-01' && item.link === '/orders/ORD-ADM-1001')).toBe(true)
     })
   })
 
@@ -221,17 +221,76 @@ describe('AdminPage', () => {
     const user = setupUser()
     const database = adminDatabase()
     database.returnRequests = database.returnRequests.map(request =>
-      request.id === 'return-demo-1002' ? { ...request, status: 'approved' } : request,
+      request.id === 'return-1002' ? { ...request, status: 'approved' } : request,
     )
     renderAt('/admin?section=requests', database)
 
     await user.click(await screen.findByRole('button', { name: 'Đổi/trả' }))
-    await user.click(screen.getByRole('button', { name: 'Hoàn tiền return-demo-1002' }))
+    await user.click(screen.getByRole('button', { name: 'Hoàn tiền return-1002' }))
 
     await waitFor(() => {
       const nextDatabase = getDatabase()
-      expect(nextDatabase.returnRequests.find(item => item.id === 'return-demo-1002')?.status).toBe('refunded')
-      expect(nextDatabase.notifications.some(item => item.userId === 'usr-customer-01' && item.link === '/orders/ORD-DEMO-1002')).toBe(true)
+      expect(nextDatabase.returnRequests.find(item => item.id === 'return-1002')?.status).toBe('refunded')
+      expect(nextDatabase.notifications.some(item => item.userId === 'usr-customer-01' && item.link === '/orders/ORD-ADM-1002')).toBe(true)
+    })
+  })
+
+  it('locks and unlocks a customer but not the current admin', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=customers', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Khóa khách hàng usr-customer-01' }))
+
+    await waitFor(() => {
+      expect(getDatabase().users.find(item => item.id === 'usr-customer-01')?.status).toBe('locked')
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Mở khóa khách hàng usr-customer-01' }))
+
+    await waitFor(() => {
+      expect(getDatabase().users.find(item => item.id === 'usr-customer-01')?.status).toBe('active')
+    })
+    expect(screen.getByRole('button', { name: 'Không thể tự khóa' })).toBeDisabled()
+  })
+
+  it('adds and deactivates an AI metadata option', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=ai', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Thêm thuộc tính AI' }))
+    fireEvent.change(screen.getByLabelText('Nhóm dữ liệu'), { target: { value: 'styles' } })
+    fireEvent.change(screen.getByLabelText('ID thuộc tính'), { target: { value: 'style-test' } })
+    fireEvent.change(screen.getByLabelText('Tên hiển thị'), { target: { value: 'Phong cách test' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu thuộc tính' }))
+
+    expect(await screen.findByText('Phong cách test')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tắt thuộc tính style-test' }))
+
+    await waitFor(() => {
+      const option = getDatabase().fashionMetadata.styles.find(item => item.id === 'style-test')
+      expect(option).toMatchObject({ label: 'Phong cách test', active: false })
+    })
+  })
+
+  it('adds and deactivates a compatibility rule', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=ai', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Luật tương thích' }))
+    await user.click(screen.getByRole('button', { name: 'Thêm luật' }))
+    fireEvent.change(screen.getByLabelText('ID luật'), { target: { value: 'rule-test' } })
+    fireEvent.change(screen.getByLabelText('Nguồn'), { target: { value: 'style:minimal' } })
+    fireEvent.change(screen.getByLabelText('Đích'), { target: { value: 'occasion:work' } })
+    fireEvent.change(screen.getByLabelText('Điểm'), { target: { value: '82' } })
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'Demo rule cho admin' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu luật' }))
+
+    expect(await screen.findByText('rule-test')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tắt luật rule-test' }))
+
+    await waitFor(() => {
+      const rule = getDatabase().compatibilityRules.find(item => item.id === 'rule-test')
+      expect(rule).toMatchObject({ sourceType: 'style:minimal', targetType: 'occasion:work', score: 82, active: false })
     })
   })
 })

@@ -65,6 +65,8 @@ function databaseWithOrders(status: OrderStatus = 'pending') {
     ...database,
     session: { userId: 'usr-customer-01', persistent: true },
     orders: [orderFixture(database, { status })],
+    cancellationRequests: [],
+    returnRequests: [],
   }
 }
 

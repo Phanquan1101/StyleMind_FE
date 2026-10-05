@@ -253,7 +253,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                       <div className="min-w-0">
                         <p className="break-all text-sm font-semibold text-[#222222]">{variant.id}</p>
                         <p className="mt-1 text-sm text-[#6F6B67]">
-                          {variant.color} · Size {variant.size} · {formatCurrency(variant.price)}
+                          {variant.color} · Cỡ {variant.size} · {formatCurrency(variant.price)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -208,7 +208,7 @@ export function AdminOrdersPanel({ database, dispatch }: AdminOrdersPanelProps) 
                     <div className="min-w-0 text-sm">
                       <p className="font-semibold text-[#222222]">{item.name}</p>
                       <p className="mt-1 text-[#6F6B67]">
-                        {item.color} · Size {item.size} · SL {item.quantity}
+                        {item.color} · Cỡ {item.size} · Số lượng {item.quantity}
                       </p>
                       <p className="mt-1 font-semibold tabular-nums text-[#222222]">{formatCurrency(item.unitPrice)}</p>
                     </div>

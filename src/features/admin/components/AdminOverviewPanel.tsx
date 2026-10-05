@@ -17,12 +17,12 @@ export function AdminOverviewPanel({ database }: AdminOverviewPanelProps) {
   return (
     <section className="grid gap-6">
       <div>
-        <p className="text-sm font-semibold text-[#684B5A]">StyleMind Admin</p>
+        <p className="text-sm font-semibold text-[#684B5A]">Bảng quản trị StyleMind</p>
         <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-[#222222] md:text-4xl">
           Tổng quan quản trị
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[#6F6B67]">
-          Theo dõi vận hành cửa hàng, yêu cầu khách hàng và hiệu quả AI Wardrobe trong cùng mock data demo.
+          Theo dõi vận hành cửa hàng, yêu cầu khách hàng và hiệu quả tủ đồ AI trong cùng dữ liệu demo.
         </p>
       </div>
 
@@ -67,10 +67,10 @@ export function AdminOverviewPanel({ database }: AdminOverviewPanelProps) {
         </section>
 
         <section className="rounded-lg bg-white p-4 shadow-[0_10px_28px_rgba(58,54,50,0.07)]">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">AI analytics</h2>
+          <h2 className="font-display text-2xl font-semibold text-[#222222]">Phân tích AI</h2>
           <dl className="mt-4 grid gap-3 text-sm">
             <div className="flex justify-between gap-3">
-              <dt className="text-[#6F6B67]">Outfit hiện có</dt>
+              <dt className="text-[#6F6B67]">Bộ phối hiện có</dt>
               <dd className="font-semibold text-[#222222]">{summary.ai.outfitsTotal}</dd>
             </div>
             <div className="flex justify-between gap-3">
@@ -82,7 +82,7 @@ export function AdminOverviewPanel({ database }: AdminOverviewPanelProps) {
               <dd className="font-semibold text-[#222222]">{summary.ai.manualOutfits}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-[#6F6B67]">Lượt AI generate</dt>
+              <dt className="text-[#6F6B67]">Lượt tạo bằng AI</dt>
               <dd className="font-semibold text-[#222222]">{summary.ai.generatedOutfits}</dd>
             </div>
             <div className="flex justify-between gap-3">
@@ -90,7 +90,7 @@ export function AdminOverviewPanel({ database }: AdminOverviewPanelProps) {
               <dd className="font-semibold text-[#222222]">{summary.ai.aiAddedToCart}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-[#6F6B67]">Đơn từ AI recommendation</dt>
+              <dt className="text-[#6F6B67]">Đơn từ gợi ý AI</dt>
               <dd className="font-semibold text-[#222222]">{summary.ai.aiOrderCount}</dd>
             </div>
           </dl>

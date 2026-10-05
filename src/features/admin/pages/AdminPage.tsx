@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
+import { AdminAiPanel } from '@/features/admin/components/AdminAiPanel'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
+import { AdminCustomersPanel } from '@/features/admin/components/AdminCustomersPanel'
 import { AdminOverviewPanel } from '@/features/admin/components/AdminOverviewPanel'
 import { AdminOrdersPanel } from '@/features/admin/components/AdminOrdersPanel'
 import { AdminProductsPanel } from '@/features/admin/components/AdminProductsPanel'
@@ -31,10 +33,10 @@ function sectionPlaceholder(section: AdminSection) {
   return (
     <section className="grid gap-4">
       <div>
-        <p className="text-sm font-semibold text-[#684B5A]">StyleMind Admin</p>
+        <p className="text-sm font-semibold text-[#684B5A]">Bảng quản trị StyleMind</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-[#222222]">{title[section]}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6F6B67]">
-          Khu vực này đã có route và layout sẵn sàng; các thao tác chi tiết sẽ được mở trong bước tiếp theo của Admin MVP.
+          Khu vực này đã có điều hướng và bố cục sẵn sàng; các thao tác chi tiết sẽ được mở trong bước tiếp theo của MVP quản trị.
         </p>
       </div>
     </section>
@@ -54,6 +56,8 @@ export function AdminPage() {
     if (activeSection === 'categories') return <AdminCategoriesPanel database={state} dispatch={dispatch} />
     if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} />
     if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} />
+    if (activeSection === 'customers') return <AdminCustomersPanel database={state} dispatch={dispatch} actorId={currentUser?.id ?? ''} />
+    if (activeSection === 'ai') return <AdminAiPanel database={state} dispatch={dispatch} />
     return sectionPlaceholder(activeSection)
   }, [activeSection, currentUser?.id, dispatch, state])
 

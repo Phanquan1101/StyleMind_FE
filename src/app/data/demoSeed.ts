@@ -411,7 +411,7 @@ function orderItem(productId: string, variantId: string, quantity: number): Orde
 
 const seededOrders: Order[] = [
   {
-    id: 'ORD-DEMO-1001',
+    id: 'ORD-ADM-1001',
     userId: 'usr-customer-01',
     status: 'pending',
     paymentMethod: 'cod',
@@ -435,7 +435,7 @@ const seededOrders: Order[] = [
     timeline: [{ id: 'timeline-demo-1001-created', label: 'Đã tạo đơn COD', at: '2026-09-27T09:00:00.000Z' }],
   },
   {
-    id: 'ORD-DEMO-1002',
+    id: 'ORD-ADM-1002',
     userId: 'usr-customer-01',
     status: 'shipped',
     paymentMethod: 'vietqr',
@@ -568,8 +568,8 @@ export function createDemoSeed(): DemoDatabase {
     aiConversations: seededAiConversations,
     cancellationRequests: [
       {
-        id: 'cancel-demo-1001',
-        orderId: 'ORD-DEMO-1001',
+        id: 'cancel-1001',
+        orderId: 'ORD-ADM-1001',
         userId: 'usr-customer-01',
         reason: 'Tôi đặt nhầm size và muốn hủy trước khi xử lý',
         status: 'submitted',
@@ -578,8 +578,8 @@ export function createDemoSeed(): DemoDatabase {
     ],
     returnRequests: [
       {
-        id: 'return-demo-1002',
-        orderId: 'ORD-DEMO-1002',
+        id: 'return-1002',
+        orderId: 'ORD-ADM-1002',
         userId: 'usr-customer-01',
         reason: 'Chân váy không vừa như mong muốn',
         items: [{ productId: 'prd-midi-skirt-01', variantId: 'var-midi-skirt-01-camel-m', quantity: 1 }],
