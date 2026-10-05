@@ -7,12 +7,13 @@ import type { AiConversation } from '@/entities/ai/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
 import { AiEditPanel } from '@/features/ai-stylist/components/AiEditPanel'
 import { useAuth } from '@/features/auth'
+import { SharePanel } from '@/features/sharing/components/SharePanel'
+import { canViewSharedOutfit, selectSharesForOutfit } from '@/features/sharing/model/shareSelectors'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 
 import { OutfitItemCard } from '../components/OutfitItemCard'
-import { OutfitShareSummary } from '../components/OutfitShareSummary'
-import { selectOutfitDetail, type OutfitItemDetail } from '../model/outfitSelectors'
+import { selectOutfitDetail, type OutfitDetail, type OutfitItemDetail } from '../model/outfitSelectors'
 
 function updatedOutfit(outfit: Outfit, patch: Partial<Outfit>): Outfit {
   return {
@@ -20,6 +21,44 @@ function updatedOutfit(outfit: Outfit, patch: Partial<Outfit>): Outfit {
     ...patch,
     updatedAt: new Date().toISOString(),
   }
+}
+
+function ReadOnlySharedOutfit({ detail }: { detail: OutfitDetail }) {
+  return (
+    <section className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-8 md:px-8 md:py-12">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-3xl">
+          <Link to={ROUTES.sharedWithMe} className="text-sm font-semibold text-[#684B5A] hover:underline">
+            Được chia sẻ với tôi
+          </Link>
+          <h1 className="mt-2 font-display text-4xl font-semibold leading-tight text-[#222222]">{detail.outfit.name}</h1>
+          {detail.outfit.description && <p className="mt-3 text-sm leading-6 text-[#6F6B67]">{detail.outfit.description}</p>}
+        </div>
+        <div className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#3A3632] shadow-sm">
+          Được chia sẻ
+        </div>
+      </div>
+
+      <section aria-label="Các món trong outfit được chia sẻ" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {detail.items.map(item => (
+          <Link
+            key={item.item.id}
+            to={`/products/${item.product.id}`}
+            className="overflow-hidden rounded-lg border border-[#E3DAD0] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
+          >
+            {item.image && <img src={item.image.url} alt={item.image.alt} className="aspect-[4/5] w-full object-cover" />}
+            <div className="p-4">
+              <h2 className="font-semibold text-[#222222]">{item.product.name}</h2>
+              <p className="mt-1 text-sm text-[#6F6B67]">
+                {item.variant.color} · {item.variant.size}
+              </p>
+              <p className="mt-3 font-semibold text-[#222222]">{formatCurrency(item.price)}</p>
+            </div>
+          </Link>
+        ))}
+      </section>
+    </section>
+  )
 }
 
 export function OutfitDetailPage() {
@@ -36,7 +75,10 @@ export function OutfitDetailPage() {
 
   if (!currentUser) return null
 
-  if (!detail || detail.outfit.ownerId !== currentUser.id) {
+  const isOwner = detail?.outfit.ownerId === currentUser.id
+  const isSharedViewer = detail ? canViewSharedOutfit(state, detail.outfit.id, currentUser.email) : false
+
+  if (!detail || (!isOwner && !isSharedViewer)) {
     return (
       <section className="mx-auto max-w-[var(--container-wide)] px-5 py-10 md:px-8">
         <Link to={ROUTES.wardrobes} className="text-sm font-semibold text-[#684B5A] hover:underline">
@@ -50,7 +92,12 @@ export function OutfitDetailPage() {
     )
   }
 
+  if (!isOwner) {
+    return <ReadOnlySharedOutfit detail={detail} />
+  }
+
   const cartSource = detail.outfit.source === 'ai' ? 'ai' : 'shop'
+  const activeShares = selectSharesForOutfit(state, detail.outfit.id)
 
   const saveName = () => {
     const trimmed = nameDraft.trim()
@@ -118,6 +165,36 @@ export function OutfitDetailPage() {
 
   const saveAiConversation = (conversation: AiConversation) => {
     dispatch({ type: 'ai/conversationUpserted', payload: conversation })
+  }
+
+  const grantShare = (email: string) => {
+    dispatch({
+      type: 'share/granted',
+      payload: {
+        id: `share-${detail.outfit.id}-${email}-${Date.now()}`,
+        outfitId: detail.outfit.id,
+        ownerId: currentUser.id,
+        viewerEmail: email,
+        permission: 'view',
+        active: true,
+        createdAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  const revokeShare = (shareId: string) => {
+    dispatch({ type: 'share/revoked', payload: { shareId } })
+  }
+
+  const togglePublicLink = (enabled: boolean) => {
+    dispatch({
+      type: 'outfit/publicToggled',
+      payload: {
+        outfitId: detail.outfit.id,
+        enabled,
+        publicToken: enabled ? `public-${detail.outfit.id}` : undefined,
+      },
+    })
   }
 
   return (
@@ -211,7 +288,13 @@ export function OutfitDetailPage() {
             onConversationUpsert={saveAiConversation}
           />
 
-          <OutfitShareSummary outfit={detail.outfit} shares={state.outfitShares} />
+          <SharePanel
+            outfit={detail.outfit}
+            shares={activeShares}
+            onGrant={grantShare}
+            onRevoke={revokeShare}
+            onTogglePublic={togglePublicLink}
+          />
         </aside>
       </div>
     </section>

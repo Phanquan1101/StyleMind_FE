@@ -33,6 +33,7 @@ export const appRoutes: RouteObject[] = [
   { path: ROUTES.verifyOtp, element: <GuestGuard><VerifyOtpPage /></GuestGuard> },
   { path: ROUTES.forgotPassword, element: <GuestGuard><ForgotPasswordPage /></GuestGuard> },
   { path: ROUTES.resetPassword, element: <GuestGuard><ResetPasswordPage /></GuestGuard> },
+  { path: ROUTES.publicOutfit, element: <PublicOutfitPage /> },
   {
     path: ROUTES.home,
     element: <CustomerLayout />,
@@ -55,7 +56,6 @@ export const appRoutes: RouteObject[] = [
       { path: 'wardrobes/new/ai', element: <AuthGuard><AiStylistCreatePage /></AuthGuard> },
       { path: 'outfits/:outfitId', element: <AuthGuard><OutfitDetailPage /></AuthGuard> },
       { path: 'shared-with-me', element: <AuthGuard><SharedWithMePage /></AuthGuard> },
-      { path: 'shared/outfits/:token', element: <PublicOutfitPage /> },
     ],
   },
   { path: ROUTES.admin, element: <AuthGuard roles={['admin']}><AdminAccessPage /></AuthGuard> },
