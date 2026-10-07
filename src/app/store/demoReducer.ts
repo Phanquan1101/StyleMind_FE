@@ -356,7 +356,11 @@ export function demoReducer(state: DemoDatabase, action: DemoAction): DemoDataba
         orders: state.orders.map(order =>
           order.id === action.payload.orderId
             ? appendOrderTimeline(
-                { ...order, status: action.payload.status },
+                {
+                  ...order,
+                  status: action.payload.status,
+                  paymentStatus: action.payload.status === 'paid' ? 'paid' : order.paymentStatus,
+                },
                 `Admin chuyển trạng thái đơn sang ${action.payload.status}`,
                 action.payload.at,
               )

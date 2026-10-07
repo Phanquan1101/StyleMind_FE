@@ -141,6 +141,81 @@ describe('AdminPage', () => {
     })
   })
 
+  it('validates product price before saving', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=products', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Thêm sản phẩm' }))
+    fireEvent.change(screen.getByLabelText('ID sản phẩm'), { target: { value: 'prd-zero-price' } })
+    fireEvent.change(screen.getByLabelText('Tên sản phẩm'), { target: { value: 'Áo lỗi giá' } })
+    fireEvent.change(screen.getByLabelText('Thương hiệu'), { target: { value: 'Studio Test' } })
+    fireEvent.change(screen.getByLabelText('Giá cơ bản'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Mô tả'), { target: { value: 'Sản phẩm kiểm tra validation' } })
+    fireEvent.change(screen.getByLabelText('Chất liệu'), { target: { value: 'Cotton' } })
+    fireEvent.change(screen.getByLabelText('Phom dáng'), { target: { value: 'Dáng vừa' } })
+    fireEvent.change(screen.getByLabelText('Họa tiết'), { target: { value: 'Trơn' } })
+    fireEvent.change(screen.getByLabelText('Màu'), { target: { value: 'Trắng' } })
+    fireEvent.change(screen.getByLabelText('URL ảnh'), { target: { value: 'https://images.unsplash.com/photo-test?w=900' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
+
+    expect(await screen.findByText('Giá cơ bản phải lớn hơn 0.')).toBeInTheDocument()
+  })
+
+  it('creates a product with selected metadata tags variant price and active flags', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=products', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Thêm sản phẩm' }))
+    fireEvent.change(screen.getByLabelText('ID sản phẩm'), { target: { value: 'prd-rich-product' } })
+    fireEvent.change(screen.getByLabelText('Tên sản phẩm'), { target: { value: 'Áo metadata test' } })
+    fireEvent.change(screen.getByLabelText('Thương hiệu'), { target: { value: 'Studio Test' } })
+    fireEvent.change(screen.getByLabelText('Danh mục'), { target: { value: 'tops' } })
+    fireEvent.change(screen.getByLabelText('Giá cơ bản'), { target: { value: '580000' } })
+    fireEvent.change(screen.getByLabelText('Mô tả'), { target: { value: 'Sản phẩm có metadata do admin chọn' } })
+    fireEvent.change(screen.getByLabelText('Chất liệu'), { target: { value: 'Linen' } })
+    fireEvent.change(screen.getByLabelText('Phom dáng'), { target: { value: 'Dáng vừa' } })
+    fireEvent.change(screen.getByLabelText('Họa tiết'), { target: { value: 'Trơn' } })
+    fireEvent.change(screen.getByLabelText('Phong cách'), { target: { value: 'classic' } })
+    fireEvent.change(screen.getByLabelText('Dịp sử dụng'), { target: { value: 'party' } })
+    fireEvent.change(screen.getByLabelText('Thẻ tìm kiếm'), { target: { value: 'linen test, tiệc nhẹ' } })
+    fireEvent.change(screen.getByLabelText('Màu'), { target: { value: 'Kem' } })
+    fireEvent.change(screen.getByLabelText('Giá biến thể'), { target: { value: '610000' } })
+    fireEvent.change(screen.getByLabelText('URL ảnh'), { target: { value: 'https://images.unsplash.com/photo-test?w=900' } })
+    await user.click(screen.getByLabelText('Sản phẩm đang bán'))
+    await user.click(screen.getByLabelText('Biến thể đang bật'))
+    await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
+
+    await waitFor(() => {
+      const product = getDatabase().products.find(item => item.id === 'prd-rich-product')
+      expect(product).toMatchObject({
+        active: false,
+        styleIds: ['classic'],
+        occasionIds: ['party'],
+        tags: ['linen test', 'tiệc nhẹ'],
+      })
+      expect(product?.variants[0]).toMatchObject({ active: false, priceOverride: 610000 })
+    })
+  })
+
+  it('edits an existing product from the catalog manager', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=products', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Sửa sản phẩm prd-blouse-01' }))
+    fireEvent.change(screen.getByLabelText('Tên sản phẩm'), { target: { value: 'Áo blouse đã sửa' } })
+    fireEvent.change(screen.getByLabelText('Giá cơ bản'), { target: { value: '640000' } })
+    fireEvent.change(screen.getByLabelText('Thẻ tìm kiếm'), { target: { value: 'blouse sửa, công sở' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
+
+    await waitFor(() => {
+      expect(getDatabase().products.find(item => item.id === 'prd-blouse-01')).toMatchObject({
+        name: 'Áo blouse đã sửa',
+        basePrice: 640000,
+        tags: ['blouse sửa', 'công sở'],
+      })
+    })
+  })
+
   it('toggles a variant active state', async () => {
     const user = setupUser()
     renderAt('/admin?section=products', adminDatabase())
@@ -172,6 +247,20 @@ describe('AdminPage', () => {
     await waitFor(() => {
       const category = getDatabase().categories.find(item => item.id === 'ao-dai')
       expect(category).toMatchObject({ label: 'Áo dài', active: false })
+    })
+  })
+
+  it('edits an existing clothing category', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=categories', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Sửa danh mục tops' }))
+    fireEvent.change(screen.getByLabelText('Tên danh mục'), { target: { value: 'Áo nữ' } })
+    fireEvent.change(screen.getByLabelText('Thứ tự hiển thị'), { target: { value: '9' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu danh mục' }))
+
+    await waitFor(() => {
+      expect(getDatabase().categories.find(item => item.id === 'tops')).toMatchObject({ label: 'Áo nữ', order: 9 })
     })
   })
 
@@ -272,6 +361,22 @@ describe('AdminPage', () => {
     })
   })
 
+  it('edits an AI metadata option', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=ai', adminDatabase())
+
+    await user.click(await screen.findByRole('button', { name: 'Sửa thuộc tính minimal' }))
+    fireEvent.change(screen.getByLabelText('Tên hiển thị'), { target: { value: 'Tối giản chỉnh sửa' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu thuộc tính' }))
+
+    await waitFor(() => {
+      expect(getDatabase().fashionMetadata.styles.find(item => item.id === 'minimal')).toMatchObject({
+        label: 'Tối giản chỉnh sửa',
+        active: true,
+      })
+    })
+  })
+
   it('adds and deactivates a compatibility rule', async () => {
     const user = setupUser()
     renderAt('/admin?section=ai', adminDatabase())
@@ -291,6 +396,38 @@ describe('AdminPage', () => {
     await waitFor(() => {
       const rule = getDatabase().compatibilityRules.find(item => item.id === 'rule-test')
       expect(rule).toMatchObject({ sourceType: 'style:minimal', targetType: 'occasion:work', score: 82, active: false })
+    })
+  })
+
+  it('edits a compatibility rule', async () => {
+    const user = setupUser()
+    const database = {
+      ...adminDatabase(),
+      compatibilityRules: [
+        {
+          id: 'rule-edit',
+          sourceType: 'style:minimal',
+          targetType: 'occasion:work',
+          score: 40,
+          note: 'Luật trước khi sửa',
+          active: true,
+        },
+      ],
+    }
+    renderAt('/admin?section=ai', database)
+
+    await user.click(await screen.findByRole('button', { name: 'Luật tương thích' }))
+    await user.click(screen.getByRole('button', { name: 'Sửa luật rule-edit' }))
+    fireEvent.change(screen.getByLabelText('Điểm'), { target: { value: '91' } })
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'Luật đã sửa' } })
+    await user.click(screen.getByRole('button', { name: 'Lưu luật' }))
+
+    await waitFor(() => {
+      expect(getDatabase().compatibilityRules.find(item => item.id === 'rule-edit')).toMatchObject({
+        score: 91,
+        note: 'Luật đã sửa',
+        active: true,
+      })
     })
   })
 })

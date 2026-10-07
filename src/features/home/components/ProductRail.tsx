@@ -14,7 +14,8 @@ function productPath(productId: string) {
 }
 
 function getPrimaryImage(product: Product) {
-  return product.variants.flatMap(variant => variant.images).find(image => image.isPrimary) ?? product.variants[0]?.images[0]
+  const activeVariants = product.variants.filter(variant => variant.active)
+  return activeVariants.flatMap(variant => variant.images).find(image => image.isPrimary) ?? activeVariants[0]?.images[0]
 }
 
 export function ProductRail({ title, products }: ProductRailProps) {
@@ -30,7 +31,7 @@ export function ProductRail({ title, products }: ProductRailProps) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {products.slice(0, 4).map(product => {
             const primaryImage = getPrimaryImage(product)
-            const colors = Array.from(new Set(product.variants.map(variant => variant.color)))
+            const colors = Array.from(new Set(product.variants.filter(variant => variant.active).map(variant => variant.color)))
             return (
               <article key={product.id} className="overflow-hidden rounded-lg bg-[#FDFCFA] shadow-[0_16px_34px_rgba(58,54,50,0.08)]">
                 <Link to={productPath(product.id)} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]">

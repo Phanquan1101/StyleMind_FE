@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
@@ -29,6 +29,11 @@ interface RuleFormState {
   note: string
 }
 
+interface EditingMetadata {
+  group: MetadataGroup
+  id: string
+}
+
 const metadataGroupLabels: Record<MetadataGroup, string> = {
   styles: 'Phong cách',
   occasions: 'Dịp sử dụng',
@@ -44,8 +49,22 @@ function createMetadataForm(): MetadataFormState {
   return { group: 'styles', id: '', label: '' }
 }
 
+function createMetadataFormFromOption(group: MetadataGroup, option: FashionMetadataOption): MetadataFormState {
+  return { group, id: option.id, label: option.label }
+}
+
 function createRuleForm(): RuleFormState {
   return { id: '', sourceType: '', targetType: '', score: '', note: '' }
+}
+
+function createRuleFormFromRule(rule: CompatibilityRule): RuleFormState {
+  return {
+    id: rule.id,
+    sourceType: rule.sourceType,
+    targetType: rule.targetType,
+    score: String(rule.score),
+    note: rule.note,
+  }
 }
 
 function statusTone(active: boolean) {
@@ -57,6 +76,8 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
   const [activeTab, setActiveTab] = useState<AiTab>('metadata')
   const [metadataModalOpen, setMetadataModalOpen] = useState(false)
   const [ruleModalOpen, setRuleModalOpen] = useState(false)
+  const [editingMetadata, setEditingMetadata] = useState<EditingMetadata | null>(null)
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null)
   const [metadataForm, setMetadataForm] = useState<MetadataFormState>(() => createMetadataForm())
   const [ruleForm, setRuleForm] = useState<RuleFormState>(() => createRuleForm())
   const [formError, setFormError] = useState<string | null>(null)
@@ -67,23 +88,49 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
   )
 
   const openMetadataModal = () => {
+    setEditingMetadata(null)
     setMetadataForm(createMetadataForm())
     setFormError(null)
     setMetadataModalOpen(true)
   }
 
+  const openEditMetadataModal = (group: MetadataGroup, optionId: string) => {
+    const option = database.fashionMetadata[group].find(item => item.id === optionId)
+    if (!option) return
+
+    setEditingMetadata({ group, id: optionId })
+    setMetadataForm(createMetadataFormFromOption(group, option))
+    setFormError(null)
+    setMetadataModalOpen(true)
+  }
+
   const openRuleModal = () => {
+    setEditingRuleId(null)
     setRuleForm(createRuleForm())
+    setFormError(null)
+    setRuleModalOpen(true)
+  }
+
+  const openEditRuleModal = (ruleId: string) => {
+    const rule = database.compatibilityRules.find(item => item.id === ruleId)
+    if (!rule) return
+
+    setEditingRuleId(ruleId)
+    setRuleForm(createRuleFormFromRule(rule))
     setFormError(null)
     setRuleModalOpen(true)
   }
 
   const submitMetadata = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const group = editingMetadata?.group ?? metadataForm.group
+    const optionId = editingMetadata?.id ?? metadataForm.id.trim()
+    const existingOption = editingMetadata ? database.fashionMetadata[group].find(option => option.id === editingMetadata.id) : undefined
+    const duplicate = database.fashionMetadata[group].some(option => option.id === optionId && option.id !== editingMetadata?.id)
     const option: FashionMetadataOption = {
-      id: metadataForm.id.trim(),
+      id: optionId,
       label: metadataForm.label.trim(),
-      active: true,
+      active: existingOption?.active ?? true,
     }
 
     if (!option.id || !option.label) {
@@ -91,20 +138,29 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
       return
     }
 
-    dispatch({ type: 'admin/fashionMetadataOptionUpserted', payload: { group: metadataForm.group, option } })
-    toast.success('Đã thêm thuộc tính AI.')
+    if (duplicate) {
+      setFormError('ID thuộc tính đã tồn tại trong nhóm này.')
+      return
+    }
+
+    dispatch({ type: 'admin/fashionMetadataOptionUpserted', payload: { group, option } })
+    toast.success(editingMetadata ? 'Đã cập nhật thuộc tính AI.' : 'Đã thêm thuộc tính AI.')
     setMetadataModalOpen(false)
   }
 
   const submitRule = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const ruleId = editingRuleId ?? ruleForm.id.trim()
+    const existingRule = editingRuleId ? database.compatibilityRules.find(rule => rule.id === editingRuleId) : undefined
+    const duplicate = database.compatibilityRules.some(rule => rule.id === ruleId && rule.id !== editingRuleId)
+    const score = Number(ruleForm.score)
     const rule: CompatibilityRule = {
-      id: ruleForm.id.trim(),
+      id: ruleId,
       sourceType: ruleForm.sourceType.trim(),
       targetType: ruleForm.targetType.trim(),
-      score: Number(ruleForm.score) || 0,
+      score,
       note: ruleForm.note.trim(),
-      active: true,
+      active: existingRule?.active ?? true,
     }
 
     if (!rule.id || !rule.sourceType || !rule.targetType) {
@@ -112,8 +168,18 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
       return
     }
 
+    if (!Number.isFinite(score) || score < 0) {
+      setFormError('Điểm phải là số không âm.')
+      return
+    }
+
+    if (duplicate) {
+      setFormError('ID luật đã tồn tại.')
+      return
+    }
+
     dispatch({ type: 'admin/compatibilityRuleUpserted', payload: rule })
-    toast.success('Đã thêm luật tương thích.')
+    toast.success(editingRuleId ? 'Đã cập nhật luật tương thích.' : 'Đã thêm luật tương thích.')
     setRuleModalOpen(false)
   }
 
@@ -164,20 +230,31 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
                       </div>
                       <p className="mt-1 break-all text-sm font-semibold text-[#684B5A]">{option.id}</p>
                     </div>
-                    <Button
-                      type="button"
-                      variant={option.active ? 'danger' : 'secondary'}
-                      className="min-h-9 px-3"
-                      onClick={() => {
-                        dispatch({
-                          type: 'admin/fashionMetadataOptionStatusChanged',
-                          payload: { group, optionId: option.id, active: !option.active },
-                        })
-                        toast.info(option.active ? 'Đã tắt thuộc tính AI.' : 'Đã bật thuộc tính AI.')
-                      }}
-                    >
-                      {option.active ? `Tắt thuộc tính ${option.id}` : `Bật thuộc tính ${option.id}`}
-                    </Button>
+                    <div className="flex flex-wrap gap-2 md:justify-end">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-9 px-3"
+                        icon={<Pencil size={16} aria-hidden="true" />}
+                        onClick={() => openEditMetadataModal(group, option.id)}
+                      >
+                        Sửa thuộc tính {option.id}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={option.active ? 'danger' : 'secondary'}
+                        className="min-h-9 px-3"
+                        onClick={() => {
+                          dispatch({
+                            type: 'admin/fashionMetadataOptionStatusChanged',
+                            payload: { group, optionId: option.id, active: !option.active },
+                          })
+                          toast.info(option.active ? 'Đã tắt thuộc tính AI.' : 'Đã bật thuộc tính AI.')
+                        }}
+                      >
+                        {option.active ? `Tắt thuộc tính ${option.id}` : `Bật thuộc tính ${option.id}`}
+                      </Button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -203,19 +280,29 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
                   </p>
                   <p className="mt-2 text-sm leading-6 text-[#3A3632]">{rule.note}</p>
                 </div>
-                <Button
-                  type="button"
-                  variant={rule.active ? 'danger' : 'secondary'}
-                  onClick={() => {
-                    dispatch({
-                      type: 'admin/compatibilityRuleStatusChanged',
-                      payload: { ruleId: rule.id, active: !rule.active },
-                    })
-                    toast.info(rule.active ? 'Đã tắt luật tương thích.' : 'Đã bật luật tương thích.')
-                  }}
-                >
-                  {rule.active ? `Tắt luật ${rule.id}` : `Bật luật ${rule.id}`}
-                </Button>
+                <div className="flex flex-wrap gap-2 xl:justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<Pencil size={16} aria-hidden="true" />}
+                    onClick={() => openEditRuleModal(rule.id)}
+                  >
+                    Sửa luật {rule.id}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={rule.active ? 'danger' : 'secondary'}
+                    onClick={() => {
+                      dispatch({
+                        type: 'admin/compatibilityRuleStatusChanged',
+                        payload: { ruleId: rule.id, active: !rule.active },
+                      })
+                      toast.info(rule.active ? 'Đã tắt luật tương thích.' : 'Đã bật luật tương thích.')
+                    }}
+                  >
+                    {rule.active ? `Tắt luật ${rule.id}` : `Bật luật ${rule.id}`}
+                  </Button>
+                </div>
               </article>
             ))
           )}
@@ -224,8 +311,8 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
 
       <Modal
         open={metadataModalOpen}
-        title="Thêm thuộc tính AI"
-        description="Thuộc tính mới được dùng trong dữ liệu phân loại và gợi ý phối đồ."
+        title={editingMetadata ? 'Sửa thuộc tính AI' : 'Thêm thuộc tính AI'}
+        description="Thuộc tính được dùng trong dữ liệu phân loại và gợi ý phối đồ."
         onClose={() => setMetadataModalOpen(false)}
       >
         <form className="grid gap-4" onSubmit={submitMetadata}>
@@ -233,6 +320,7 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
           <SelectField
             label="Nhóm dữ liệu"
             value={metadataForm.group}
+            disabled={Boolean(editingMetadata)}
             onChange={event => setMetadataForm(current => ({ ...current, group: event.target.value as MetadataGroup }))}
           >
             {metadataGroups.map(group => (
@@ -244,6 +332,8 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
           <TextField
             label="ID thuộc tính"
             value={metadataForm.id}
+            readOnly={Boolean(editingMetadata)}
+            className={editingMetadata ? 'bg-[#F5F2EE]' : ''}
             onChange={event => setMetadataForm(current => ({ ...current, id: event.target.value }))}
           />
           <TextField
@@ -262,13 +352,19 @@ export function AdminAiPanel({ database, dispatch }: AdminAiPanelProps) {
 
       <Modal
         open={ruleModalOpen}
-        title="Thêm luật tương thích"
+        title={editingRuleId ? 'Sửa luật tương thích' : 'Thêm luật tương thích'}
         description="Luật mô tả quan hệ giữa hai nhóm dữ liệu để phục vụ gợi ý phối đồ."
         onClose={() => setRuleModalOpen(false)}
       >
         <form className="grid gap-4" onSubmit={submitRule}>
           {formError && <p className="rounded-lg bg-[#FCEAEA] p-3 text-sm font-semibold text-[#A94B4B]">{formError}</p>}
-          <TextField label="ID luật" value={ruleForm.id} onChange={event => setRuleForm(current => ({ ...current, id: event.target.value }))} />
+          <TextField
+            label="ID luật"
+            value={ruleForm.id}
+            readOnly={Boolean(editingRuleId)}
+            className={editingRuleId ? 'bg-[#F5F2EE]' : ''}
+            onChange={event => setRuleForm(current => ({ ...current, id: event.target.value }))}
+          />
           <TextField
             label="Nguồn"
             value={ruleForm.sourceType}

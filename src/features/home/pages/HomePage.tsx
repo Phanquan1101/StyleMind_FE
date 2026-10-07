@@ -9,8 +9,13 @@ import { WardrobeIntro } from '../components/WardrobeIntro'
 
 export function HomePage() {
   const { state } = useDemoStore()
-  const newest = [...state.products].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  const featured = state.products.filter(product => product.featured)
+  const activeCategoryIds = new Set(state.categories.filter(category => category.active).map(category => category.id))
+  const activeProducts = state.products.filter(
+    product => product.active && activeCategoryIds.has(product.categoryId) && product.variants.some(variant => variant.active),
+  )
+  const newest = [...activeProducts].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const featured = activeProducts.filter(product => product.featured)
+  const activeCategories = state.categories.filter(category => category.active).sort((a, b) => a.order - b.order)
 
   return (
     <>
@@ -22,7 +27,7 @@ export function HomePage() {
         <div className="mx-auto max-w-[var(--container-wide)]">
           <h2 className="font-display text-3xl font-semibold text-[#222222]">Mua theo danh mục</h2>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {state.categories.map(category => (
+            {activeCategories.map(category => (
               <Link
                 key={category.id}
                 to={`${ROUTES.shop}?category=${category.id}`}

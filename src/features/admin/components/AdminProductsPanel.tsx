@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
@@ -25,9 +25,15 @@ interface ProductFormState {
   material: string
   fit: string
   pattern: string
+  styleId: string
+  occasionId: string
+  tags: string
+  productActive: boolean
   color: string
   colorHex: string
   size: ProductSize
+  variantPriceOverride: string
+  variantActive: boolean
   imageUrl: string
 }
 
@@ -44,7 +50,18 @@ function toSlug(value: string) {
   )
 }
 
-function createInitialForm(categoryId: string): ProductFormState {
+function parseTags(value: string) {
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function firstActiveOptionId(database: DemoDatabase, group: 'styles' | 'occasions') {
+  return database.fashionMetadata[group].find(option => option.active)?.id ?? database.fashionMetadata[group][0]?.id ?? ''
+}
+
+function createInitialForm(categoryId: string, database: DemoDatabase): ProductFormState {
   return {
     id: '',
     name: '',
@@ -55,20 +72,55 @@ function createInitialForm(categoryId: string): ProductFormState {
     material: '',
     fit: '',
     pattern: '',
+    styleId: firstActiveOptionId(database, 'styles'),
+    occasionId: firstActiveOptionId(database, 'occasions'),
+    tags: '',
+    productActive: true,
     color: '',
     colorHex: '#FFFFFF',
     size: 'M',
+    variantPriceOverride: '',
+    variantActive: true,
     imageUrl: '',
   }
 }
 
-function buildProduct(form: ProductFormState, database: DemoDatabase): Product {
-  const productId = form.id.trim()
+function createFormFromProduct(product: Product, database: DemoDatabase): ProductFormState {
+  const variant = product.variants[0]
+  const primaryImage = variant?.images.find(image => image.isPrimary) ?? variant?.images[0]
+
+  return {
+    id: product.id,
+    name: product.name,
+    brand: product.brand,
+    categoryId: product.categoryId,
+    basePrice: String(product.basePrice),
+    description: product.description,
+    material: product.material,
+    fit: product.fit,
+    pattern: product.pattern,
+    styleId: product.styleIds[0] ?? firstActiveOptionId(database, 'styles'),
+    occasionId: product.occasionIds[0] ?? firstActiveOptionId(database, 'occasions'),
+    tags: product.tags.join(', '),
+    productActive: product.active,
+    color: variant?.color ?? '',
+    colorHex: variant?.colorHex ?? '#FFFFFF',
+    size: variant?.size ?? 'M',
+    variantPriceOverride: variant?.priceOverride ? String(variant.priceOverride) : '',
+    variantActive: variant?.active ?? true,
+    imageUrl: primaryImage?.url ?? '',
+  }
+}
+
+function buildProduct(form: ProductFormState, existingProduct?: Product): Product {
+  const productId = existingProduct?.id ?? form.id.trim()
   const color = form.color.trim()
   const size = form.size
-  const variantId = `${productId.replace(/^prd-/, 'var-')}-${toSlug(color)}-${size.toLowerCase()}`
-  const activeStyles = database.fashionMetadata.styles.filter(option => option.active)
-  const activeOccasions = database.fashionMetadata.occasions.filter(option => option.active)
+  const variant = existingProduct?.variants[0]
+  const variantId = variant?.id ?? `${productId.replace(/^prd-/, 'var-')}-${toSlug(color)}-${size.toLowerCase()}`
+  const explicitTags = parseTags(form.tags)
+  const fallbackTags = [color, form.material, form.fit].map(item => item.trim()).filter(Boolean)
+  const priceOverride = form.variantPriceOverride.trim() ? Number(form.variantPriceOverride) : undefined
 
   return {
     id: productId,
@@ -76,27 +128,28 @@ function buildProduct(form: ProductFormState, database: DemoDatabase): Product {
     name: form.name.trim(),
     brand: form.brand.trim(),
     description: form.description.trim(),
-    basePrice: Number(form.basePrice) || 0,
+    basePrice: Number(form.basePrice),
     material: form.material.trim(),
     fit: form.fit.trim(),
     pattern: form.pattern.trim(),
-    styleIds: activeStyles[0] ? [activeStyles[0].id] : [],
-    occasionIds: activeOccasions[0] ? [activeOccasions[0].id] : [],
-    tags: [color, form.material, form.fit].map(item => item.trim()).filter(Boolean),
-    active: true,
-    featured: false,
-    createdAt: new Date().toISOString(),
+    styleIds: form.styleId ? [form.styleId] : [],
+    occasionIds: form.occasionId ? [form.occasionId] : [],
+    tags: explicitTags.length > 0 ? explicitTags : fallbackTags,
+    active: form.productActive,
+    featured: existingProduct?.featured ?? false,
+    createdAt: existingProduct?.createdAt ?? new Date().toISOString(),
     variants: [
       {
         id: variantId,
         color,
         colorHex: form.colorHex.trim() || '#FFFFFF',
         size,
-        stock: 0,
-        active: true,
+        stock: variant?.stock ?? 0,
+        active: form.variantActive,
+        ...(priceOverride ? { priceOverride } : {}),
         images: [
           {
-            id: `img-${variantId}-primary`,
+            id: variant?.images[0]?.id ?? `img-${variantId}-primary`,
             url: form.imageUrl.trim(),
             alt: form.name.trim(),
             isPrimary: true,
@@ -104,6 +157,7 @@ function buildProduct(form: ProductFormState, database: DemoDatabase): Product {
           },
         ],
       },
+      ...(existingProduct?.variants.slice(1) ?? []),
     ],
   }
 }
@@ -117,27 +171,64 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const firstCategoryId = database.categories.find(category => category.active)?.id ?? database.categories[0]?.id ?? ''
   const [filters, setFilters] = useState<AdminProductFilters>({ query: '', categoryId: 'all', status: 'all' })
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId))
+  const [editingProductId, setEditingProductId] = useState<string | null>(null)
+  const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId, database))
   const [formError, setFormError] = useState<string | null>(null)
 
   const rows = useMemo(() => selectAdminProducts(database, filters), [database, filters])
+  const editingProduct = editingProductId ? database.products.find(product => product.id === editingProductId) : undefined
 
   const openCreateModal = () => {
-    setForm(createInitialForm(firstCategoryId))
+    setEditingProductId(null)
+    setForm(createInitialForm(firstCategoryId, database))
     setFormError(null)
     setModalOpen(true)
   }
 
-  const updateField = (field: keyof ProductFormState, value: string) => {
+  const openEditModal = (productId: string) => {
+    const product = database.products.find(item => item.id === productId)
+    if (!product) return
+
+    setEditingProductId(productId)
+    setForm(createFormFromProduct(product, database))
+    setFormError(null)
+    setModalOpen(true)
+  }
+
+  const updateField = <Field extends keyof ProductFormState>(field: Field, value: ProductFormState[Field]) => {
     setForm(current => ({ ...current, [field]: value }))
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const duplicate = database.products.some(product => product.id === form.id.trim())
+    const productId = editingProductId ?? form.id.trim()
+    const duplicate = database.products.some(product => product.id === productId && product.id !== editingProductId)
+    const basePrice = Number(form.basePrice)
+    const variantPriceOverride = form.variantPriceOverride.trim() ? Number(form.variantPriceOverride) : undefined
 
-    if (!form.id.trim() || !form.name.trim() || !form.categoryId || !form.imageUrl.trim()) {
-      setFormError('Vui lòng nhập đủ mã, tên, danh mục và URL ảnh.')
+    if (
+      !productId ||
+      !form.name.trim() ||
+      !form.brand.trim() ||
+      !form.categoryId ||
+      !form.description.trim() ||
+      !form.material.trim() ||
+      !form.fit.trim() ||
+      !form.pattern.trim() ||
+      !form.color.trim() ||
+      !form.imageUrl.trim()
+    ) {
+      setFormError('Vui lòng nhập đủ thông tin bắt buộc của sản phẩm và biến thể.')
+      return
+    }
+
+    if (!Number.isFinite(basePrice) || basePrice <= 0) {
+      setFormError('Giá cơ bản phải lớn hơn 0.')
+      return
+    }
+
+    if (variantPriceOverride !== undefined && (!Number.isFinite(variantPriceOverride) || variantPriceOverride <= 0)) {
+      setFormError('Giá biến thể phải lớn hơn 0 hoặc để trống.')
       return
     }
 
@@ -146,8 +237,8 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       return
     }
 
-    dispatch({ type: 'admin/productUpserted', payload: buildProduct(form, database) })
-    toast.success('Đã thêm sản phẩm demo.')
+    dispatch({ type: 'admin/productUpserted', payload: buildProduct(form, editingProduct) })
+    toast.success(editingProductId ? 'Đã cập nhật sản phẩm.' : 'Đã thêm sản phẩm demo.')
     setModalOpen(false)
   }
 
@@ -233,16 +324,26 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                     ))}
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant={row.active ? 'danger' : 'secondary'}
-                  onClick={() => {
-                    dispatch({ type: 'admin/productStatusChanged', payload: { productId: row.id, active: !row.active } })
-                    toast.info(row.active ? 'Đã tắt sản phẩm.' : 'Đã bật sản phẩm.')
-                  }}
-                >
-                  {row.active ? `Tắt sản phẩm ${row.id}` : `Bật sản phẩm ${row.id}`}
-                </Button>
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<Pencil size={16} aria-hidden="true" />}
+                    onClick={() => openEditModal(row.id)}
+                  >
+                    Sửa sản phẩm {row.id}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={row.active ? 'danger' : 'secondary'}
+                    onClick={() => {
+                      dispatch({ type: 'admin/productStatusChanged', payload: { productId: row.id, active: !row.active } })
+                      toast.info(row.active ? 'Đã tắt sản phẩm.' : 'Đã bật sản phẩm.')
+                    }}
+                  >
+                    {row.active ? `Tắt sản phẩm ${row.id}` : `Bật sản phẩm ${row.id}`}
+                  </Button>
+                </div>
               </div>
 
               <div className="grid gap-2 border-t border-[#E3DAD0] pt-3">
@@ -284,14 +385,20 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
 
       <Modal
         open={modalOpen}
-        title="Thêm sản phẩm"
-        description="Tạo sản phẩm demo với một biến thể màu và ảnh đại diện."
+        title={editingProductId ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}
+        description="Tạo hoặc cập nhật sản phẩm demo với metadata, biến thể màu và ảnh đại diện."
         onClose={() => setModalOpen(false)}
       >
         <form className="grid gap-4" onSubmit={handleSubmit}>
           {formError && <p className="rounded-lg bg-[#FCEAEA] p-3 text-sm font-semibold text-[#A94B4B]">{formError}</p>}
           <div className="grid gap-3 md:grid-cols-2">
-            <TextField label="ID sản phẩm" value={form.id} onChange={event => updateField('id', event.target.value)} />
+            <TextField
+              label="ID sản phẩm"
+              value={form.id}
+              readOnly={Boolean(editingProductId)}
+              className={editingProductId ? 'bg-[#F5F2EE]' : ''}
+              onChange={event => updateField('id', event.target.value)}
+            />
             <TextField label="Tên sản phẩm" value={form.name} onChange={event => updateField('name', event.target.value)} />
             <TextField label="Thương hiệu" value={form.brand} onChange={event => updateField('brand', event.target.value)} />
             <SelectField label="Danh mục" value={form.categoryId} onChange={event => updateField('categoryId', event.target.value)}>
@@ -305,18 +412,62 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
             <TextField label="Chất liệu" value={form.material} onChange={event => updateField('material', event.target.value)} />
             <TextField label="Phom dáng" value={form.fit} onChange={event => updateField('fit', event.target.value)} />
             <TextField label="Họa tiết" value={form.pattern} onChange={event => updateField('pattern', event.target.value)} />
+            <SelectField label="Phong cách" value={form.styleId} onChange={event => updateField('styleId', event.target.value)}>
+              <option value="">Chưa chọn</option>
+              {database.fashionMetadata.styles.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField label="Dịp sử dụng" value={form.occasionId} onChange={event => updateField('occasionId', event.target.value)}>
+              <option value="">Chưa chọn</option>
+              {database.fashionMetadata.occasions.map(option => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </SelectField>
+            <TextField label="Thẻ tìm kiếm" value={form.tags} onChange={event => updateField('tags', event.target.value)} />
             <TextField label="Màu" value={form.color} onChange={event => updateField('color', event.target.value)} />
             <TextField label="Mã màu" value={form.colorHex} onChange={event => updateField('colorHex', event.target.value)} />
-            <SelectField label="Size" value={form.size} onChange={event => updateField('size', event.target.value)}>
+            <SelectField label="Size" value={form.size} onChange={event => updateField('size', event.target.value as ProductSize)}>
               {productSizes.map(size => (
                 <option key={size} value={size}>
                   {size}
                 </option>
               ))}
             </SelectField>
+            <TextField
+              label="Giá biến thể"
+              type="number"
+              min="0"
+              value={form.variantPriceOverride}
+              onChange={event => updateField('variantPriceOverride', event.target.value)}
+            />
             <TextField label="URL ảnh" value={form.imageUrl} onChange={event => updateField('imageUrl', event.target.value)} />
           </div>
           <TextField label="Mô tả" value={form.description} onChange={event => updateField('description', event.target.value)} />
+          <div className="grid gap-2 rounded-lg border border-[#E3DAD0] bg-white p-3 sm:grid-cols-2">
+            <label className="inline-flex items-center gap-3 text-sm font-semibold text-[#3A3632]">
+              <input
+                type="checkbox"
+                checked={form.productActive}
+                onChange={event => updateField('productActive', event.target.checked)}
+                className="h-4 w-4 accent-[#684B5A]"
+              />
+              Sản phẩm đang bán
+            </label>
+            <label className="inline-flex items-center gap-3 text-sm font-semibold text-[#3A3632]">
+              <input
+                type="checkbox"
+                checked={form.variantActive}
+                onChange={event => updateField('variantActive', event.target.checked)}
+                className="h-4 w-4 accent-[#684B5A]"
+              />
+              Biến thể đang bật
+            </label>
+          </div>
           <div className="flex flex-wrap justify-end gap-3">
             <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
               Hủy

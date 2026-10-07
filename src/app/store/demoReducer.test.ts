@@ -119,6 +119,25 @@ describe('demoReducer', () => {
     expect(notification).toMatchObject({ userId: request.userId, type: 'order', read: false })
   })
 
+  it('marks payment paid when an admin moves an order to paid', () => {
+    const state = {
+      ...createDemoSeed(),
+      orders: createDemoSeed().orders.map(order =>
+        order.id === 'ORD-ADM-1001' ? { ...order, status: 'payment_pending' as const, paymentStatus: 'pending' as const } : order,
+      ),
+    }
+
+    const next = demoReducer(state, {
+      type: 'admin/orderStatusChanged',
+      payload: { orderId: 'ORD-ADM-1001', status: 'paid', at: '2026-10-05T09:00:00.000Z' },
+    })
+
+    expect(next.orders.find(order => order.id === 'ORD-ADM-1001')).toMatchObject({
+      status: 'paid',
+      paymentStatus: 'paid',
+    })
+  })
+
   it('summarizes admin dashboard metrics from the demo database', () => {
     const summary = selectAdminDashboard(createDemoSeed())
 
