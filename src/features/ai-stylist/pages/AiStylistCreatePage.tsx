@@ -119,7 +119,7 @@ export function AiStylistCreatePage() {
           to={ROUTES.outfitNew}
           className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222] transition hover:bg-[#E3DAD0] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]/30"
         >
-          Tạo thủ công
+          Tạo tủ đồ
         </Link>
       </div>
 

@@ -11,7 +11,7 @@ import type {
   Product,
   ProductCategory,
 } from '@/entities/product/model/types'
-import type { OutfitShare } from '@/entities/share/model/types'
+import type { OutfitShare, WardrobePublicLink } from '@/entities/share/model/types'
 import type { DemoSession, User, UserStatus } from '@/entities/user/model/types'
 
 export interface AiMetrics {
@@ -34,6 +34,7 @@ export interface DemoDatabase {
   notifications: Notification[]
   outfits: Outfit[]
   outfitShares: OutfitShare[]
+  wardrobePublicLinks: WardrobePublicLink[]
   aiConversations: AiConversation[]
   cancellationRequests: CancellationRequest[]
   returnRequests: ReturnRequest[]
@@ -65,6 +66,7 @@ export type DemoAction =
   | { type: 'outfit/publicToggled'; payload: { outfitId: string; enabled: boolean; publicToken?: string } }
   | { type: 'share/granted'; payload: OutfitShare }
   | { type: 'share/revoked'; payload: { shareId: string } }
+  | { type: 'wardrobe/publicToggled'; payload: { ownerId: string; enabled: boolean; token?: string } }
   | { type: 'notification/read'; payload: { notificationId: string; readAt: string } }
   | { type: 'notification/readAll'; payload: { userId: string; readAt: string } }
   | { type: 'cancellation/submitted'; payload: CancellationRequest }

@@ -7,8 +7,7 @@ import type { AiConversation } from '@/entities/ai/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
 import { AiEditPanel } from '@/features/ai-stylist/components/AiEditPanel'
 import { useAuth } from '@/features/auth'
-import { SharePanel } from '@/features/sharing/components/SharePanel'
-import { canViewSharedOutfit, selectSharesForOutfit } from '@/features/sharing/model/shareSelectors'
+import { canViewSharedOutfit } from '@/features/sharing/model/shareSelectors'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 
@@ -123,7 +122,6 @@ export function OutfitDetailPage() {
   }
 
   const cartSource = detail.outfit.source === 'ai' ? 'ai' : 'shop'
-  const activeShares = selectSharesForOutfit(state, detail.outfit.id)
 
   const saveName = () => {
     const trimmed = nameDraft.trim()
@@ -197,36 +195,6 @@ export function OutfitDetailPage() {
 
   const saveAiConversation = (conversation: AiConversation) => {
     dispatch({ type: 'ai/conversationUpserted', payload: conversation })
-  }
-
-  const grantShare = (email: string) => {
-    dispatch({
-      type: 'share/granted',
-      payload: {
-        id: `share-${detail.outfit.id}-${email}-${Date.now()}`,
-        outfitId: detail.outfit.id,
-        ownerId: currentUser.id,
-        viewerEmail: email,
-        permission: 'view',
-        active: true,
-        createdAt: new Date().toISOString(),
-      },
-    })
-  }
-
-  const revokeShare = (shareId: string) => {
-    dispatch({ type: 'share/revoked', payload: { shareId } })
-  }
-
-  const togglePublicLink = (enabled: boolean) => {
-    dispatch({
-      type: 'outfit/publicToggled',
-      payload: {
-        outfitId: detail.outfit.id,
-        enabled,
-        publicToken: enabled ? `public-${detail.outfit.id}` : undefined,
-      },
-    })
   }
 
   return (
@@ -321,14 +289,6 @@ export function OutfitDetailPage() {
             items={detail.items}
             onApply={applyAiOutfit}
             onConversationUpsert={saveAiConversation}
-          />
-
-          <SharePanel
-            outfit={detail.outfit}
-            shares={activeShares}
-            onGrant={grantShare}
-            onRevoke={revokeShare}
-            onTogglePublic={togglePublicLink}
           />
         </aside>
       </div>

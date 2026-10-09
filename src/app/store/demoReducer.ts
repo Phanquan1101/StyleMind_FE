@@ -3,7 +3,7 @@ import type { CartLine } from '@/entities/cart/model/types'
 import type { Notification } from '@/entities/notification/model/types'
 import type { Order } from '@/entities/order/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
-import type { OutfitShare } from '@/entities/share/model/types'
+import type { OutfitShare, WardrobePublicLink } from '@/entities/share/model/types'
 
 import type { DemoAction, DemoDatabase } from './types'
 
@@ -57,6 +57,11 @@ function upsertShare(shares: OutfitShare[], share: OutfitShare) {
   return [...withoutDuplicate, share]
 }
 
+function upsertWardrobePublicLink(links: WardrobePublicLink[], link: WardrobePublicLink) {
+  const withoutOwnerLink = links.filter(item => item.ownerId !== link.ownerId)
+  return [...withoutOwnerLink, link]
+}
+
 function orderNotification(input: {
   id: string
   userId: string
@@ -100,6 +105,7 @@ export function normalizeDemoDatabase(database: DemoDatabase): DemoDatabase {
     cartLines,
     outfits: database.outfits ?? [],
     outfitShares: database.outfitShares ?? [],
+    wardrobePublicLinks: database.wardrobePublicLinks ?? [],
     aiConversations: database.aiConversations ?? [],
     cancellationRequests: database.cancellationRequests ?? [],
     returnRequests: database.returnRequests ?? [],
@@ -268,6 +274,30 @@ export function demoReducer(state: DemoDatabase, action: DemoAction): DemoDataba
         ...state,
         outfitShares: state.outfitShares.map(share => (share.id === action.payload.shareId ? { ...share, active: false } : share)),
       }
+    case 'wardrobe/publicToggled': {
+      const currentLink = state.wardrobePublicLinks.find(link => link.ownerId === action.payload.ownerId)
+
+      if (!action.payload.enabled) {
+        return {
+          ...state,
+          wardrobePublicLinks: state.wardrobePublicLinks.map(link =>
+            link.ownerId === action.payload.ownerId && link.active
+              ? { ...link, active: false, disabledAt: new Date().toISOString() }
+              : link,
+          ),
+        }
+      }
+
+      const link: WardrobePublicLink = {
+        id: currentLink?.id ?? `wardrobe-public-${action.payload.ownerId}`,
+        ownerId: action.payload.ownerId,
+        token: action.payload.token ?? currentLink?.token ?? `pub-wardrobe-${action.payload.ownerId}`,
+        active: true,
+        createdAt: currentLink?.createdAt ?? new Date().toISOString(),
+      }
+
+      return { ...state, wardrobePublicLinks: upsertWardrobePublicLink(state.wardrobePublicLinks, link) }
+    }
     case 'notification/read':
       return {
         ...state,

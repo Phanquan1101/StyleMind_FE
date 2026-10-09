@@ -565,6 +565,7 @@ export function createDemoSeed(): DemoDatabase {
     ],
     outfits: seededOutfits,
     outfitShares: seededOutfitShares,
+    wardrobePublicLinks: [],
     aiConversations: seededAiConversations,
     cancellationRequests: [
       {

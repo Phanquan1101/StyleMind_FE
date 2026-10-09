@@ -21,7 +21,7 @@ import { NotificationsPage } from '@/features/notifications'
 import { ManualOutfitBuilderPage } from '@/features/outfit-builder'
 import { OrderDetailPage, OrdersPage } from '@/features/orders'
 import { ProductDetailPage } from '@/features/product-detail'
-import { PublicOutfitPage, SharedWithMePage } from '@/features/sharing'
+import { PublicOutfitPage, PublicWardrobePage, SharedWithMePage } from '@/features/sharing'
 import { OutfitDetailPage, WardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
@@ -34,6 +34,7 @@ export const appRoutes: RouteObject[] = [
   { path: ROUTES.forgotPassword, element: <GuestGuard><ForgotPasswordPage /></GuestGuard> },
   { path: ROUTES.resetPassword, element: <GuestGuard><ResetPasswordPage /></GuestGuard> },
   { path: ROUTES.publicOutfit, element: <PublicOutfitPage /> },
+  { path: ROUTES.publicWardrobe, element: <PublicWardrobePage /> },
   {
     path: ROUTES.home,
     element: <CustomerLayout />,

@@ -68,8 +68,33 @@ describe('Wardrobe flow', () => {
     renderAt('/wardrobes')
 
     expect(await screen.findByRole('heading', { name: 'Tủ đồ của tôi' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tạo tủ đồ' })).toHaveAttribute('href', '/wardrobes/new')
+    expect(screen.queryByRole('link', { name: 'Tạo thủ công' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Di lam toi gian/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Cafe cuoi tuan/ })).toBeInTheDocument()
+  })
+
+  it('shares the entire wardrobe from the wardrobe header', async () => {
+    const user = userEvent.setup()
+    renderAt('/wardrobes')
+
+    await user.click(await screen.findByRole('button', { name: 'Chia sẻ tủ đồ' }))
+    await screen.findByRole('dialog', { name: 'Chia sẻ tủ đồ' })
+    await user.type(screen.getByLabelText('Email được chia sẻ'), 'banbe@example.com')
+    await user.click(screen.getByRole('button', { name: 'Xác nhận chia sẻ' }))
+
+    await waitFor(() => expect(screen.getAllByText(/banbe@example.com/).length).toBeGreaterThan(0))
+    await waitFor(() => {
+      const database = getDatabase()
+      const ownedOutfitIds = database.outfits
+        .filter(outfit => outfit.ownerId === 'usr-customer-01')
+        .map(outfit => outfit.id)
+      const sharedOutfitIds = database.outfitShares
+        .filter(share => share.viewerEmail === 'banbe@example.com' && share.active)
+        .map(share => share.outfitId)
+
+      expect(sharedOutfitIds.sort()).toEqual(ownedOutfitIds.sort())
+    })
   })
 
   it('opens an owner outfit detail with product-linked items', async () => {

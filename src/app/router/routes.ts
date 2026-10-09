@@ -23,5 +23,6 @@ export const ROUTES = {
   outfitNewAi: '/wardrobes/new/ai',
   sharedWithMe: '/shared-with-me',
   publicOutfit: '/shared/outfits/:token',
+  publicWardrobe: '/shared/wardrobes/:token',
   admin: '/admin',
 } as const

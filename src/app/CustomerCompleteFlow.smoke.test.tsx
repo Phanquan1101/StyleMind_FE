@@ -81,7 +81,7 @@ describe('complete customer flow smoke', () => {
     expect(getDatabase().orders).toHaveLength(1)
   }, 10_000)
 
-  it('creates an AI outfit shares it publicly and opens the public viewer', async () => {
+  it('creates an AI outfit and shares the entire wardrobe by email', async () => {
     const user = userEvent.setup()
     const router = renderAt('/wardrobes/new/ai')
 
@@ -92,25 +92,22 @@ describe('complete customer flow smoke', () => {
     await user.click(screen.getByRole('button', { name: 'Lưu outfit AI' }))
 
     expect(await screen.findByRole('heading', { name: 'Outfit AI public smoke' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Bật link công khai' }))
-
-    let publicToken = ''
-    await waitFor(() => {
-      const outfit = getDatabase().outfits.find(item => item.name === 'Outfit AI public smoke')
-      expect(outfit).toMatchObject({ visibility: 'public' })
-      expect(outfit?.publicToken).toBeTruthy()
-      publicToken = outfit?.publicToken ?? ''
-    })
+    expect(screen.queryByRole('region', { name: 'Chia sẻ outfit' })).not.toBeInTheDocument()
 
     await act(async () => {
-      await router.navigate(`/shared/outfits/${publicToken}`)
+      await router.navigate('/wardrobes')
     })
 
-    expect(await screen.findByRole('heading', { name: 'Outfit AI public smoke' })).toBeInTheDocument()
-    expect(screen.queryByText(/Giỏ hàng/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Đơn hàng/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Chiều cao|Cân nặng/)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Tin nhắn cho AI Stylist')).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Chia sẻ outfit' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Chia sẻ tủ đồ' }))
+    await screen.findByRole('dialog', { name: 'Chia sẻ tủ đồ' })
+    await user.type(screen.getByLabelText('Email được chia sẻ'), 'stylist@example.com')
+    await user.click(screen.getByRole('button', { name: 'Xác nhận chia sẻ' }))
+
+    await waitFor(() => {
+      const database = getDatabase()
+      const created = database.outfits.find(item => item.name === 'Outfit AI public smoke')
+      expect(created).toBeTruthy()
+      expect(database.outfitShares.some(share => share.viewerEmail === 'stylist@example.com' && share.outfitId === created?.id)).toBe(true)
+    })
   }, 10_000)
 })
