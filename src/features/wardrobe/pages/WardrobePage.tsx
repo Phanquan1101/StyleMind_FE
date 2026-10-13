@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
+import { upsertableChatSession } from '@/features/messages/model/chatSelectors'
 import { WardrobeSharePanel } from '@/features/sharing/components/WardrobeSharePanel'
+import { getWardrobeSettings, getWardrobeVisibilityLabel, selectActiveWardrobeSharesForOwner } from '@/features/sharing/model/shareSelectors'
+import type { WardrobeVisibility } from '@/entities/share/model/types'
 
 import { OutfitCard } from '../components/OutfitCard'
 import { selectOwnedOutfits } from '../model/outfitSelectors'
@@ -15,25 +18,36 @@ export function WardrobePage() {
   if (!currentUser) return null
 
   const outfits = selectOwnedOutfits(state, currentUser.id)
-  const ownedOutfitIds = new Set(outfits.map(outfit => outfit.id))
-  const wardrobeShares = state.outfitShares.filter(
-    share => share.ownerId === currentUser.id && share.active && ownedOutfitIds.has(share.outfitId),
-  )
+  const wardrobeSettings = getWardrobeSettings(state, currentUser.id)
+  const wardrobeShares = selectActiveWardrobeSharesForOwner(state, currentUser.id)
   const activePublicLink = state.wardrobePublicLinks.find(link => link.ownerId === currentUser.id && link.active)
-  const publicPath = activePublicLink ? `/shared/wardrobes/${activePublicLink.token}` : ''
+  const publicPath = wardrobeSettings.visibility === 'public' && activePublicLink ? `/shared/wardrobes/${activePublicLink.token}` : ''
   const publicUrl = publicPath && typeof window !== 'undefined' ? `${window.location.origin}${publicPath}` : publicPath
 
   const grantWardrobeShare = (email: string) => {
     const createdAt = new Date().toISOString()
+    const normalizedEmail = email.toLowerCase()
 
+    dispatch({
+      type: 'wardrobeShare/granted',
+      payload: {
+        id: `wardrobe-share-${currentUser.id}-${normalizedEmail}`,
+        ownerId: currentUser.id,
+        viewerEmail: normalizedEmail,
+        permission: 'view',
+        active: true,
+        createdAt,
+      },
+    })
+    dispatch({ type: 'chat/sessionUpserted', payload: upsertableChatSession(currentUser.id, normalizedEmail, createdAt) })
     outfits.forEach(outfit => {
       dispatch({
         type: 'share/granted',
         payload: {
-          id: `share-${outfit.id}-${email}-${Date.now()}`,
+          id: `share-${outfit.id}-${normalizedEmail}-${Date.now()}`,
           outfitId: outfit.id,
           ownerId: currentUser.id,
-          viewerEmail: email,
+          viewerEmail: normalizedEmail,
           permission: 'view',
           active: true,
           createdAt,
@@ -46,17 +60,20 @@ export function WardrobePage() {
     wardrobeShares
       .filter(share => share.viewerEmail.toLowerCase() === email.toLowerCase())
       .forEach(share => {
-        dispatch({ type: 'share/revoked', payload: { shareId: share.id } })
+        dispatch({ type: 'wardrobeShare/revoked', payload: { shareId: share.id } })
       })
+    state.outfitShares
+      .filter(share => share.ownerId === currentUser.id && share.viewerEmail.toLowerCase() === email.toLowerCase() && share.active)
+      .forEach(share => dispatch({ type: 'share/revoked', payload: { shareId: share.id } }))
   }
 
-  const toggleWardrobePublic = (enabled: boolean) => {
+  const changeWardrobeVisibility = (visibility: WardrobeVisibility) => {
     dispatch({
-      type: 'wardrobe/publicToggled',
+      type: 'wardrobe/visibilityChanged',
       payload: {
         ownerId: currentUser.id,
-        enabled,
-        token: `pub-wardrobe-${currentUser.id}`,
+        visibility,
+        publicToken: `pub-wardrobe-${currentUser.id}`,
       },
     })
   }
@@ -69,16 +86,24 @@ export function WardrobePage() {
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6F6B67]">
             Lưu outfit thủ công, outfit AI và các bộ phối bạn muốn dùng lại khi mua sắm.
           </p>
+          <p className="mt-3 inline-flex rounded-md bg-[#F4E7E8] px-3 py-1 text-xs font-semibold text-[#684B5A]">
+            {getWardrobeVisibilityLabel(wardrobeSettings.visibility)}
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <WardrobeSharePanel
             outfitCount={outfits.length}
             shares={wardrobeShares}
+            visibility={wardrobeSettings.visibility}
             publicUrl={publicUrl}
+            accessUrl={ROUTES.wardrobeAccess}
             onGrant={grantWardrobeShare}
             onRevokeEmail={revokeWardrobeShare}
-            onTogglePublic={toggleWardrobePublic}
+            onVisibilityChange={changeWardrobeVisibility}
           />
+          <Link to={ROUTES.wardrobeAccess} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]">
+            Quyền truy cập
+          </Link>
           <Link to={ROUTES.outfitNew} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]">
             Tạo tủ đồ
           </Link>

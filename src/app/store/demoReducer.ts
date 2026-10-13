@@ -1,9 +1,10 @@
 import type { Address } from '@/entities/address/model/types'
 import type { CartLine } from '@/entities/cart/model/types'
+import type { ChatSession } from '@/entities/chat/model/types'
 import type { Notification } from '@/entities/notification/model/types'
 import type { Order } from '@/entities/order/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
-import type { OutfitShare, WardrobePublicLink } from '@/entities/share/model/types'
+import type { OutfitShare, WardrobePublicLink, WardrobeSettings, WardrobeShare } from '@/entities/share/model/types'
 
 import type { DemoAction, DemoDatabase } from './types'
 
@@ -62,6 +63,21 @@ function upsertWardrobePublicLink(links: WardrobePublicLink[], link: WardrobePub
   return [...withoutOwnerLink, link]
 }
 
+function upsertWardrobeShare(shares: WardrobeShare[], share: WardrobeShare) {
+  const withoutDuplicate = shares.filter(
+    item => !(item.ownerId === share.ownerId && item.viewerEmail.toLowerCase() === share.viewerEmail.toLowerCase()),
+  )
+  return [...withoutDuplicate, share]
+}
+
+function upsertWardrobeSettings(settings: WardrobeSettings[], nextSettings: WardrobeSettings) {
+  return [...settings.filter(item => item.ownerId !== nextSettings.ownerId), nextSettings]
+}
+
+function upsertChatSession(sessions: ChatSession[], session: ChatSession) {
+  return [...sessions.filter(item => item.id !== session.id), session]
+}
+
 function orderNotification(input: {
   id: string
   userId: string
@@ -105,7 +121,11 @@ export function normalizeDemoDatabase(database: DemoDatabase): DemoDatabase {
     cartLines,
     outfits: database.outfits ?? [],
     outfitShares: database.outfitShares ?? [],
+    wardrobeShares: database.wardrobeShares ?? [],
+    wardrobeSettings: database.wardrobeSettings ?? [],
     wardrobePublicLinks: database.wardrobePublicLinks ?? [],
+    chatSessions: database.chatSessions ?? [],
+    chatMessages: database.chatMessages ?? [],
     aiConversations: database.aiConversations ?? [],
     cancellationRequests: database.cancellationRequests ?? [],
     returnRequests: database.returnRequests ?? [],
@@ -274,12 +294,64 @@ export function demoReducer(state: DemoDatabase, action: DemoAction): DemoDataba
         ...state,
         outfitShares: state.outfitShares.map(share => (share.id === action.payload.shareId ? { ...share, active: false } : share)),
       }
+    case 'wardrobeShare/granted':
+      return { ...state, wardrobeShares: upsertWardrobeShare(state.wardrobeShares, action.payload) }
+    case 'wardrobeShare/revoked':
+      return {
+        ...state,
+        wardrobeShares: state.wardrobeShares.map(share =>
+          share.id === action.payload.shareId ? { ...share, active: false, revokedAt: new Date().toISOString() } : share,
+        ),
+      }
+    case 'wardrobeShare/restored':
+      return {
+        ...state,
+        wardrobeShares: state.wardrobeShares.map(share =>
+          share.id === action.payload.shareId ? { ...share, active: true, revokedAt: undefined } : share,
+        ),
+      }
+    case 'wardrobe/visibilityChanged': {
+      const currentSettings = state.wardrobeSettings.find(item => item.ownerId === action.payload.ownerId)
+      const token = action.payload.publicToken ?? currentSettings?.publicToken ?? `pub-wardrobe-${action.payload.ownerId}`
+      const nextSettings: WardrobeSettings = {
+        ownerId: action.payload.ownerId,
+        visibility: action.payload.visibility,
+        publicToken: action.payload.visibility === 'public' ? token : currentSettings?.publicToken,
+        updatedAt: new Date().toISOString(),
+      }
+      const nextPublicLinks = action.payload.visibility === 'public'
+        ? upsertWardrobePublicLink(state.wardrobePublicLinks, {
+          id: `wardrobe-public-${action.payload.ownerId}`,
+          ownerId: action.payload.ownerId,
+          token,
+          active: true,
+          createdAt: state.wardrobePublicLinks.find(link => link.ownerId === action.payload.ownerId)?.createdAt ?? new Date().toISOString(),
+        })
+        : state.wardrobePublicLinks.map(link =>
+          link.ownerId === action.payload.ownerId && link.active
+            ? { ...link, active: false, disabledAt: new Date().toISOString() }
+            : link,
+        )
+
+      return {
+        ...state,
+        wardrobeSettings: upsertWardrobeSettings(state.wardrobeSettings, nextSettings),
+        wardrobePublicLinks: nextPublicLinks,
+      }
+    }
     case 'wardrobe/publicToggled': {
       const currentLink = state.wardrobePublicLinks.find(link => link.ownerId === action.payload.ownerId)
+      const currentSettings = state.wardrobeSettings.find(item => item.ownerId === action.payload.ownerId)
 
       if (!action.payload.enabled) {
         return {
           ...state,
+          wardrobeSettings: upsertWardrobeSettings(state.wardrobeSettings, {
+            ownerId: action.payload.ownerId,
+            visibility: 'protected',
+            publicToken: currentSettings?.publicToken ?? currentLink?.token,
+            updatedAt: new Date().toISOString(),
+          }),
           wardrobePublicLinks: state.wardrobePublicLinks.map(link =>
             link.ownerId === action.payload.ownerId && link.active
               ? { ...link, active: false, disabledAt: new Date().toISOString() }
@@ -296,8 +368,27 @@ export function demoReducer(state: DemoDatabase, action: DemoAction): DemoDataba
         createdAt: currentLink?.createdAt ?? new Date().toISOString(),
       }
 
-      return { ...state, wardrobePublicLinks: upsertWardrobePublicLink(state.wardrobePublicLinks, link) }
+      return {
+        ...state,
+        wardrobeSettings: upsertWardrobeSettings(state.wardrobeSettings, {
+          ownerId: action.payload.ownerId,
+          visibility: 'public',
+          publicToken: link.token,
+          updatedAt: new Date().toISOString(),
+        }),
+        wardrobePublicLinks: upsertWardrobePublicLink(state.wardrobePublicLinks, link),
+      }
     }
+    case 'chat/sessionUpserted':
+      return { ...state, chatSessions: upsertChatSession(state.chatSessions, action.payload) }
+    case 'chat/messageSent':
+      return {
+        ...state,
+        chatSessions: state.chatSessions.map(session =>
+          session.id === action.payload.sessionId ? { ...session, updatedAt: action.payload.createdAt } : session,
+        ),
+        chatMessages: [...state.chatMessages, action.payload],
+      }
     case 'notification/read':
       return {
         ...state,

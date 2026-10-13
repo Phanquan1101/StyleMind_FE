@@ -1,4 +1,4 @@
-import { Bell, LogOut, Search, ShoppingBag, UserRound } from 'lucide-react'
+import { Bell, LogOut, MessageCircle, Search, ShoppingBag, UserRound } from 'lucide-react'
 import { FormEvent, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
@@ -74,6 +74,9 @@ export function CustomerHeader() {
           </form>
           <HeaderIconLink to={ROUTES.notifications} label={`Thông báo (${unreadCount} chưa đọc)`} count={unreadCount}>
             <Bell size={18} aria-hidden="true" />
+          </HeaderIconLink>
+          <HeaderIconLink to={ROUTES.messages} label="Tin nhắn">
+            <MessageCircle size={18} aria-hidden="true" />
           </HeaderIconLink>
           <HeaderIconLink to={ROUTES.cart} label={`Giỏ hàng (${cartCount} sản phẩm)`} count={cartCount}>
             <ShoppingBag size={18} aria-hidden="true" />

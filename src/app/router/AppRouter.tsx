@@ -17,11 +17,12 @@ import { CartPage } from '@/features/cart'
 import { ShopPage } from '@/features/catalog'
 import { CheckoutPage, OrderSuccessPage, QrPaymentPage } from '@/features/checkout'
 import { HomePage } from '@/features/home'
+import { MessagesPage } from '@/features/messages'
 import { NotificationsPage } from '@/features/notifications'
 import { ManualOutfitBuilderPage } from '@/features/outfit-builder'
 import { OrderDetailPage, OrdersPage } from '@/features/orders'
 import { ProductDetailPage } from '@/features/product-detail'
-import { PublicOutfitPage, PublicWardrobePage, SharedWithMePage } from '@/features/sharing'
+import { PublicOutfitPage, PublicWardrobePage, SharedWardrobePage, SharedWithMePage, WardrobeAccessPage } from '@/features/sharing'
 import { OutfitDetailPage, WardrobePage } from '@/features/wardrobe'
 import { NotFoundPage } from '@/shared/ui/NotFoundPage'
 
@@ -53,10 +54,13 @@ export const appRoutes: RouteObject[] = [
       { path: 'account/addresses', element: <AuthGuard><AddressBookPage /></AuthGuard> },
       { path: 'ai-wardrobe', element: <AuthGuard><AiStylistCreatePage /></AuthGuard> },
       { path: 'wardrobes', element: <AuthGuard><WardrobePage /></AuthGuard> },
+      { path: 'wardrobes/access', element: <AuthGuard><WardrobeAccessPage /></AuthGuard> },
       { path: 'wardrobes/new', element: <AuthGuard><ManualOutfitBuilderPage /></AuthGuard> },
       { path: 'wardrobes/new/ai', element: <AuthGuard><AiStylistCreatePage /></AuthGuard> },
       { path: 'outfits/:outfitId', element: <AuthGuard><OutfitDetailPage /></AuthGuard> },
       { path: 'shared-with-me', element: <AuthGuard><SharedWithMePage /></AuthGuard> },
+      { path: 'shared-with-me/:ownerId', element: <AuthGuard><SharedWardrobePage /></AuthGuard> },
+      { path: 'messages', element: <AuthGuard><MessagesPage /></AuthGuard> },
     ],
   },
   { path: ROUTES.admin, element: <AuthGuard roles={['admin']}><AdminPage /></AuthGuard> },

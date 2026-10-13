@@ -1,16 +1,20 @@
 import { Share2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 
-import type { OutfitShare } from '@/entities/share/model/types'
+import type { WardrobeShare, WardrobeVisibility } from '@/entities/share/model/types'
+import { getWardrobeVisibilityLabel } from '@/features/sharing/model/shareSelectors'
 import { Button, Modal } from '@/shared/ui'
 
 interface WardrobeSharePanelProps {
   outfitCount: number
-  shares: OutfitShare[]
+  shares: WardrobeShare[]
+  visibility: WardrobeVisibility
   publicUrl: string
+  accessUrl: string
   onGrant: (email: string) => void
   onRevokeEmail: (email: string) => void
-  onTogglePublic: (enabled: boolean) => void
+  onVisibilityChange: (visibility: WardrobeVisibility) => void
 }
 
 interface ShareRecipient {
@@ -21,10 +25,12 @@ interface ShareRecipient {
 export function WardrobeSharePanel({
   outfitCount,
   shares,
+  visibility,
   publicUrl,
+  accessUrl,
   onGrant,
   onRevokeEmail,
-  onTogglePublic,
+  onVisibilityChange,
 }: WardrobeSharePanelProps) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
@@ -32,17 +38,11 @@ export function WardrobeSharePanel({
   const [open, setOpen] = useState(false)
 
   const recipients = useMemo<ShareRecipient[]>(() => {
-    const grouped = new Map<string, number>()
-
-    for (const share of shares) {
-      if (!share.active) continue
-      grouped.set(share.viewerEmail, (grouped.get(share.viewerEmail) ?? 0) + 1)
-    }
-
-    return Array.from(grouped, ([recipientEmail, count]) => ({ email: recipientEmail, count })).sort((a, b) =>
-      a.email.localeCompare(b.email),
-    )
-  }, [shares])
+    return shares
+      .filter(share => share.active)
+      .map(share => ({ email: share.viewerEmail, count: outfitCount }))
+      .sort((a, b) => a.email.localeCompare(b.email))
+  }, [outfitCount, shares])
 
   const submit = () => {
     const normalizedEmail = email.trim().toLowerCase()
@@ -105,6 +105,29 @@ export function WardrobeSharePanel({
             </Button>
           </form>
 
+          <div className="rounded-lg bg-[#FAF8F5] p-3">
+            <p className="text-sm font-semibold text-[#222222]">Chế độ tủ đồ</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {(['private', 'protected', 'public'] as WardrobeVisibility[]).map(option => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`min-h-10 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] ${
+                    visibility === option ? 'bg-[#684B5A] text-white' : 'bg-white text-[#3A3632] hover:bg-[#EEE8E1]'
+                  }`}
+                  onClick={() => onVisibilityChange(option)}
+                >
+                  {getWardrobeVisibilityLabel(option)}
+                </button>
+              ))}
+            </div>
+            {visibility === 'private' && (
+              <p className="mt-3 text-sm leading-6 text-[#6F6B67]">
+                Tủ đồ đang riêng tư. Danh sách email vẫn được lưu nhưng người được chia sẻ tạm thời không xem hoặc chat được.
+              </p>
+            )}
+          </div>
+
           <div>
             {recipients.length === 0 ? (
               <p className="text-sm leading-6 text-[#6F6B67]">Chưa chia sẻ tủ đồ với email nào.</p>
@@ -138,11 +161,11 @@ export function WardrobeSharePanel({
               </p>
             </div>
             {publicUrl ? (
-              <Button type="button" variant="danger" onClick={() => onTogglePublic(false)}>
+              <Button type="button" variant="danger" onClick={() => onVisibilityChange('protected')}>
                 Tắt link công khai
               </Button>
             ) : (
-              <Button type="button" variant="secondary" disabled={outfitCount === 0} onClick={() => onTogglePublic(true)}>
+              <Button type="button" variant="secondary" disabled={outfitCount === 0} onClick={() => onVisibilityChange('public')}>
                 Bật link công khai
               </Button>
             )}
@@ -157,6 +180,13 @@ export function WardrobeSharePanel({
             </a>
           )}
         </section>
+
+        <Link
+          to={accessUrl}
+          className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222] transition hover:bg-[#E4DCD2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]"
+        >
+          Quản lý quyền truy cập
+        </Link>
       </Modal>
     </>
   )

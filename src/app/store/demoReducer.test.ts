@@ -141,7 +141,7 @@ describe('demoReducer', () => {
   it('summarizes admin dashboard metrics from the demo database', () => {
     const summary = selectAdminDashboard(createDemoSeed())
 
-    expect(summary.totalUsers).toBe(2)
+    expect(summary.totalUsers).toBe(3)
     expect(summary.totalProducts).toBeGreaterThanOrEqual(12)
     expect(summary.totalOrders).toBeGreaterThanOrEqual(2)
     expect(summary.totalRevenue).toBeGreaterThan(0)

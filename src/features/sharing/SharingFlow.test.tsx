@@ -7,7 +7,7 @@ import { createDemoSeed } from '@/app/data/demoSeed'
 import { AppProviders } from '@/app/providers/AppProviders'
 import { appRoutes } from '@/app/router/AppRouter'
 import type { DemoDatabase } from '@/app/store/types'
-import type { OutfitShare, WardrobePublicLink } from '@/entities/share/model/types'
+import type { WardrobePublicLink, WardrobeShare } from '@/entities/share/model/types'
 import type { User } from '@/entities/user/model/types'
 import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
 
@@ -69,22 +69,17 @@ describe('Sharing flow', () => {
     await waitFor(() => expect(screen.getAllByText(/newfriend@stylemind.vn/).length).toBeGreaterThan(0))
     await waitFor(() => {
       const database = getDatabase()
-      const ownedOutfitIds = database.outfits
-        .filter(outfit => outfit.ownerId === 'usr-customer-01')
-        .map(outfit => outfit.id)
-      const sharedOutfitIds = database.outfitShares
-        .filter(share => share.viewerEmail === 'newfriend@stylemind.vn' && share.active)
-        .map(share => share.outfitId)
-
-      expect(sharedOutfitIds.sort()).toEqual(ownedOutfitIds.sort())
+      expect(database.wardrobeShares.some(
+        share => share.ownerId === 'usr-customer-01' && share.viewerEmail === 'newfriend@stylemind.vn' && share.active,
+      )).toBe(true)
+      expect(database.chatSessions.some(session => session.participantEmail === 'newfriend@stylemind.vn')).toBe(true)
     })
   })
 
   it('revokes wardrobe access without affecting another viewer', async () => {
     const user = userEvent.setup()
-    const otherViewerShare: OutfitShare = {
-      id: 'share-work-other-viewer',
-      outfitId: 'outfit-work-minimal',
+    const otherViewerShare: WardrobeShare = {
+      id: 'wardrobe-share-other-viewer',
       ownerId: 'usr-customer-01',
       viewerEmail: 'other-viewer@stylemind.vn',
       permission: 'view',
@@ -92,7 +87,7 @@ describe('Sharing flow', () => {
       createdAt: '2026-09-26T09:00:00.000Z',
     }
     renderRoute('/wardrobes', databaseWithCustomer({
-      outfitShares: [...createDemoSeed().outfitShares, otherViewerShare],
+      wardrobeShares: [...createDemoSeed().wardrobeShares, otherViewerShare],
     }))
 
     await user.click(await screen.findByRole('button', { name: 'Chia sẻ tủ đồ' }))
@@ -101,8 +96,8 @@ describe('Sharing flow', () => {
 
     await waitFor(() => {
       const database = getDatabase()
-      expect(database.outfitShares.some(share => share.viewerEmail === 'friend@stylemind.vn' && share.active)).toBe(false)
-      expect(database.outfitShares.find(share => share.id === 'share-work-other-viewer')?.active).toBe(true)
+      expect(database.wardrobeShares.some(share => share.viewerEmail === 'friend@stylemind.vn' && share.active)).toBe(false)
+      expect(database.wardrobeShares.find(share => share.id === 'wardrobe-share-other-viewer')?.active).toBe(true)
     })
   })
 
@@ -138,6 +133,12 @@ describe('Sharing flow', () => {
     renderRoute('/shared/wardrobes/pub-wardrobe-test', databaseWithCustomer({
       session: null,
       wardrobePublicLinks: [publicLink],
+      wardrobeSettings: [{
+        ownerId: 'usr-customer-01',
+        visibility: 'public' as const,
+        publicToken: 'pub-wardrobe-test',
+        updatedAt: '2026-09-27T09:00:00.000Z',
+      }],
     }))
 
     expect(await screen.findByRole('heading', { name: /Tủ đồ của Nguyễn Thiên An/ })).toBeInTheDocument()
@@ -151,15 +152,15 @@ describe('Sharing flow', () => {
     expect(screen.queryByRole('region', { name: 'Chia sẻ outfit' })).not.toBeInTheDocument()
   })
 
-  it('lists only outfits shared to the current customers email', async () => {
+  it('lists only wardrobes shared to the current customers email', async () => {
     const viewer = viewerUser()
     renderRoute('/shared-with-me', databaseWithCustomer({
       users: [...createDemoSeed().users, viewer],
       session: { userId: viewer.id, persistent: true },
     }))
 
-    expect(await screen.findByRole('heading', { name: 'Cafe cuoi tuan' })).toBeInTheDocument()
-    expect(screen.queryByText('Di lam toi gian')).not.toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Tủ đồ của Nguyễn Thiên An/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Xem tủ đồ' })).toHaveAttribute('href', '/shared-with-me/usr-customer-01')
   })
 
   it('renders a public outfit without height weight address orders cart or AI chat history', async () => {

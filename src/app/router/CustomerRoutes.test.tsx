@@ -49,10 +49,12 @@ describe('customer routes', () => {
       ['/orders/missing-order', 'Không tìm thấy đơn hàng'],
       ['/notifications', 'Thông báo'],
       ['/wardrobes', 'Tủ đồ của tôi'],
+      ['/wardrobes/access', 'Quyền truy cập'],
       ['/wardrobes/new', 'Tạo outfit thủ công'],
       ['/wardrobes/new/ai', 'AI Stylist'],
       ['/outfits/outfit-ai-cafe', 'Cafe cuoi tuan'],
-      ['/shared-with-me', 'Được chia sẻ với tôi'],
+      ['/shared-with-me', 'Tủ đồ được chia sẻ với tôi'],
+      ['/messages', 'Tin nhắn'],
     ] as const
 
     for (const [path, heading] of entries) {
@@ -80,6 +82,7 @@ describe('customer routes', () => {
     expect(within(header).getByRole('link', { name: 'Tủ đồ' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: 'Đơn hàng' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: /Thông báo/ })).toBeInTheDocument()
+    expect(within(header).getByRole('link', { name: 'Tin nhắn' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: 'Tài khoản' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: /Giỏ hàng/ })).toBeInTheDocument()
   })

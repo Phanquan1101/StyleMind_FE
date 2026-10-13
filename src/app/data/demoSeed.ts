@@ -1,9 +1,10 @@
 import type { DemoDatabase } from '@/app/store/types'
 import type { AiConversation } from '@/entities/ai/model/types'
+import type { ChatMessage, ChatSession } from '@/entities/chat/model/types'
 import type { Order, OrderItemSnapshot } from '@/entities/order/model/types'
 import type { Outfit } from '@/entities/outfit/model/types'
 import type { Product, ProductImage, ProductSize, ProductVariant } from '@/entities/product/model/types'
-import type { OutfitShare } from '@/entities/share/model/types'
+import type { OutfitShare, WardrobeSettings, WardrobeShare } from '@/entities/share/model/types'
 import { DEMO_ADMIN, DEMO_CUSTOMER } from '@/shared/constants/demoAccounts'
 
 const PRODUCT_IMAGE_BASE = 'https://images.unsplash.com'
@@ -388,6 +389,69 @@ const seededOutfitShares: OutfitShare[] = [
   },
 ]
 
+const seededWardrobeSettings: WardrobeSettings[] = [
+  {
+    ownerId: 'usr-customer-01',
+    visibility: 'protected',
+    publicToken: 'pub-wardrobe-usr-customer-01',
+    updatedAt: '2026-09-25T09:10:00.000Z',
+  },
+]
+
+const seededWardrobeShares: WardrobeShare[] = [
+  {
+    id: 'wardrobe-share-friend',
+    ownerId: 'usr-customer-01',
+    viewerEmail: 'friend@stylemind.vn',
+    permission: 'view',
+    active: true,
+    createdAt: '2026-09-25T09:10:00.000Z',
+  },
+  {
+    id: 'wardrobe-share-old-friend',
+    ownerId: 'usr-customer-01',
+    viewerEmail: 'old-friend@stylemind.vn',
+    permission: 'view',
+    active: false,
+    createdAt: '2026-09-23T09:10:00.000Z',
+    revokedAt: '2026-09-24T09:10:00.000Z',
+  },
+]
+
+const seededChatSessions: ChatSession[] = [
+  {
+    id: 'chat-usr-customer-01-friend-stylemind-vn',
+    wardrobeOwnerId: 'usr-customer-01',
+    participantEmail: 'friend@stylemind.vn',
+    createdAt: '2026-09-25T09:30:00.000Z',
+    updatedAt: '2026-09-25T09:45:00.000Z',
+  },
+]
+
+const seededChatMessages: ChatMessage[] = [
+  {
+    id: 'msg-friend-01',
+    sessionId: 'chat-usr-customer-01-friend-stylemind-vn',
+    senderId: 'usr-friend-01',
+    body: 'Bộ đồ đi cafe của bạn nhẹ nhàng lắm, áo dệt kim nhìn rất hợp.',
+    createdAt: '2026-09-25T09:30:00.000Z',
+  },
+  {
+    id: 'msg-owner-01',
+    sessionId: 'chat-usr-customer-01-friend-stylemind-vn',
+    senderId: 'usr-customer-01',
+    body: 'Cảm ơn Mai, mình đang thử thêm một phiên bản đi làm nữa.',
+    createdAt: '2026-09-25T09:36:00.000Z',
+  },
+  {
+    id: 'msg-friend-02',
+    sessionId: 'chat-usr-customer-01-friend-stylemind-vn',
+    senderId: 'usr-friend-01',
+    body: 'Bạn thử phối blouse trắng với quần đen trong outfit công sở xem sao.',
+    createdAt: '2026-09-25T09:45:00.000Z',
+  },
+]
+
 const seededAiConversations: AiConversation[] = []
 
 function orderItem(productId: string, variantId: string, quantity: number): OrderItemSnapshot {
@@ -494,6 +558,16 @@ export function createDemoSeed(): DemoDatabase {
         avatarInitials: 'MQ',
         createdAt: '2026-09-01T08:15:00.000Z',
       },
+      {
+        id: 'usr-friend-01',
+        role: 'customer',
+        status: 'active',
+        fullName: 'Lê Mai',
+        email: 'friend@stylemind.vn',
+        password: DEMO_CUSTOMER.password,
+        avatarInitials: 'LM',
+        createdAt: '2026-09-18T09:00:00.000Z',
+      },
     ],
     session: null,
     categories: [
@@ -565,7 +639,11 @@ export function createDemoSeed(): DemoDatabase {
     ],
     outfits: seededOutfits,
     outfitShares: seededOutfitShares,
+    wardrobeShares: seededWardrobeShares,
+    wardrobeSettings: seededWardrobeSettings,
     wardrobePublicLinks: [],
+    chatSessions: seededChatSessions,
+    chatMessages: seededChatMessages,
     aiConversations: seededAiConversations,
     cancellationRequests: [
       {

@@ -58,8 +58,8 @@ export function selectAdminDashboard(database: DemoDatabase): AdminDashboardSumm
       generatedOutfits: database.aiMetrics.generatedOutfits,
       aiAddedToCart: database.aiMetrics.aiAddedToCart,
       aiOrderCount: database.aiMetrics.aiOrderCount,
-      emailShares: database.outfitShares.filter(share => share.active).length,
-      publicOutfits: database.outfits.filter(outfit => outfit.visibility === 'public').length,
+      emailShares: database.wardrobeShares.filter(share => share.active).length || database.outfitShares.filter(share => share.active).length,
+      publicOutfits: database.wardrobeSettings.filter(settings => settings.visibility === 'public').length || database.outfits.filter(outfit => outfit.visibility === 'public').length,
     },
   }
 }

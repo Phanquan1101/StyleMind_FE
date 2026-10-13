@@ -1,6 +1,7 @@
 import type { Address } from '@/entities/address/model/types'
 import type { AiConversation } from '@/entities/ai/model/types'
 import type { AddCartLineInput, CartLine } from '@/entities/cart/model/types'
+import type { ChatMessage, ChatSession } from '@/entities/chat/model/types'
 import type { Notification } from '@/entities/notification/model/types'
 import type { CancellationRequest, Order, OrderStatus, ReturnRequest } from '@/entities/order/model/types'
 import type { Outfit, OutfitItem } from '@/entities/outfit/model/types'
@@ -11,7 +12,7 @@ import type {
   Product,
   ProductCategory,
 } from '@/entities/product/model/types'
-import type { OutfitShare, WardrobePublicLink } from '@/entities/share/model/types'
+import type { OutfitShare, WardrobePublicLink, WardrobeSettings, WardrobeShare, WardrobeVisibility } from '@/entities/share/model/types'
 import type { DemoSession, User, UserStatus } from '@/entities/user/model/types'
 
 export interface AiMetrics {
@@ -34,7 +35,11 @@ export interface DemoDatabase {
   notifications: Notification[]
   outfits: Outfit[]
   outfitShares: OutfitShare[]
+  wardrobeShares: WardrobeShare[]
+  wardrobeSettings: WardrobeSettings[]
   wardrobePublicLinks: WardrobePublicLink[]
+  chatSessions: ChatSession[]
+  chatMessages: ChatMessage[]
   aiConversations: AiConversation[]
   cancellationRequests: CancellationRequest[]
   returnRequests: ReturnRequest[]
@@ -66,7 +71,13 @@ export type DemoAction =
   | { type: 'outfit/publicToggled'; payload: { outfitId: string; enabled: boolean; publicToken?: string } }
   | { type: 'share/granted'; payload: OutfitShare }
   | { type: 'share/revoked'; payload: { shareId: string } }
+  | { type: 'wardrobeShare/granted'; payload: WardrobeShare }
+  | { type: 'wardrobeShare/revoked'; payload: { shareId: string } }
+  | { type: 'wardrobeShare/restored'; payload: { shareId: string; restoredAt: string } }
+  | { type: 'wardrobe/visibilityChanged'; payload: { ownerId: string; visibility: WardrobeVisibility; publicToken?: string } }
   | { type: 'wardrobe/publicToggled'; payload: { ownerId: string; enabled: boolean; token?: string } }
+  | { type: 'chat/sessionUpserted'; payload: ChatSession }
+  | { type: 'chat/messageSent'; payload: ChatMessage }
   | { type: 'notification/read'; payload: { notificationId: string; readAt: string } }
   | { type: 'notification/readAll'; payload: { userId: string; readAt: string } }
   | { type: 'cancellation/submitted'; payload: CancellationRequest }
