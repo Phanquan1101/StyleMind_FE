@@ -1,0 +1,15 @@
+{
+  "title": "StyleMind — Trợ lý phối đồ cá nhân",
+  "description": "Khám phá phong cách riêng, phối đồ thông minh từ tủ đồ của bạn cùng StyleMind.",
+  "language": "vi",
+  "robots": {
+    "index": true
+  },
+  "icons": {},
+  "openGraph": {},
+  "analytics": {},
+  "customScripts": {},
+  "accessibility": {
+    "addBypassLinks": false
+  }
+}
