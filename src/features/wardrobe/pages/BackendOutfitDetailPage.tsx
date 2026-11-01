@@ -3,14 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useAuth } from '@/features/auth'
-import { wardrobeErrorMessage } from '@/shared/api/wardrobeApi'
+import { IdentityApiError } from '@/shared/api/identityApi'
+import { wardrobeErrorMessage, type OutfitItemView } from '@/shared/api/wardrobeApi'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 import { Button, LoadingSkeleton, useToast } from '@/shared/ui'
 
+import { AddOutfitItemPanel } from '../components/AddOutfitItemPanel'
 import { BackendOutfitItemCard } from '../components/BackendOutfitItemCard'
+import { ChangeVariantDialog } from '../components/ChangeVariantDialog'
 import { ConfirmDeleteOutfitDialog } from '../components/ConfirmDeleteOutfitDialog'
-import { checkOutfitName, outfitSourceLabel, outfitTotal } from '../model/backendOutfit'
+import { checkOutfitName, OUTFIT_MAX_ITEMS, outfitSourceLabel, outfitTotal } from '../model/backendOutfit'
 import { useBackendOutfitDetail } from '../model/useBackendOutfitDetail'
 
 function BackLink() {
@@ -21,15 +24,25 @@ function BackLink() {
   )
 }
 
+interface ChangeError {
+  message: string
+  code?: string
+}
+
 export function BackendOutfitDetailPage({ outfitId }: { outfitId: string }) {
   const navigate = useNavigate()
   const toast = useToast()
   const { currentUser } = useAuth()
-  const { detail, status, error, pending, reload, rename, removeItem, deleteOutfit } = useBackendOutfitDetail(outfitId)
+  const { detail, status, error, pending, reload, rename, addItem, changeItemVariant, removeItem, deleteOutfit } =
+    useBackendOutfitDetail(outfitId)
   const [nameDraft, setNameDraft] = useState('')
   const [nameError, setNameError] = useState('')
   const [actionError, setActionError] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [addingItem, setAddingItem] = useState(false)
+  const [addError, setAddError] = useState('')
+  const [changing, setChanging] = useState<OutfitItemView | null>(null)
+  const [changeError, setChangeError] = useState<ChangeError | null>(null)
 
   useEffect(() => {
     if (detail?.name !== undefined) setNameDraft(detail.name)
@@ -87,7 +100,9 @@ export function BackendOutfitDetailPage({ outfitId }: { outfitId: string }) {
 
   const busy = pending !== null
   const isLastItem = detail.items.length <= 1
+  const isFull = detail.items.length >= OUTFIT_MAX_ITEMS
   const total = outfitTotal(detail.items)
+  const outfitVariantIds = new Set(detail.items.map(item => item.variant_id))
 
   const submitRename = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -122,6 +137,45 @@ export function BackendOutfitDetailPage({ outfitId }: { outfitId: string }) {
     }
   }
 
+  const addOutfitItem = async (variantId: string) => {
+    if (busy || isFull) return
+    setAddError('')
+    try {
+      await addItem(variantId)
+      toast.success('Đã thêm món vào outfit')
+      setAddingItem(false)
+    } catch (caught) {
+      setAddError(wardrobeErrorMessage(caught, 'Không thêm được món vào outfit.'))
+    }
+  }
+
+  const openChangeVariant = (item: OutfitItemView) => {
+    setChangeError(null)
+    setChanging(item)
+  }
+
+  const saveVariantChange = async (variantId: string) => {
+    if (busy || !changing) return
+    setChangeError(null)
+    try {
+      await changeItemVariant(changing.outfit_item_id, variantId)
+      toast.success('Đã đổi phiên bản')
+      setChanging(null)
+    } catch (caught) {
+      setChangeError({
+        message: wardrobeErrorMessage(caught, 'Không đổi được phiên bản.'),
+        code: caught instanceof IdentityApiError ? caught.code : undefined,
+      })
+    }
+  }
+
+  const removeFromChangeDialog = async () => {
+    if (!changing) return
+    const target = changing.outfit_item_id
+    setChanging(null)
+    await removeOutfitItem(target)
+  }
+
   const confirmDelete = async () => {
     if (busy) return
     setActionError('')
@@ -143,12 +197,36 @@ export function BackendOutfitDetailPage({ outfitId }: { outfitId: string }) {
           <h1 className="mt-2 font-display text-4xl font-semibold leading-tight text-[#222222]">{detail.name}</h1>
           <p className="mt-3 text-sm text-[#8A8179]">Cập nhật {formatDate(detail.updated_at)}</p>
         </div>
+        <div className="grid justify-items-start gap-2 md:justify-items-end">
+          <Button
+            disabled={busy || isFull}
+            aria-expanded={addingItem}
+            onClick={() => {
+              setAddError('')
+              setAddingItem(open => !open)
+            }}
+          >
+            Thêm món
+          </Button>
+          {isFull && <p className="text-sm text-[#6F6B67]">Outfit đã đủ {OUTFIT_MAX_ITEMS} món.</p>}
+        </div>
       </div>
 
       {actionError && (
         <p role="alert" className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#A94B4B]">
           {actionError}
         </p>
+      )}
+
+      {addingItem && (
+        <AddOutfitItemPanel
+          variantIds={outfitVariantIds}
+          full={isFull}
+          adding={pending === 'add'}
+          error={addError}
+          onAdd={variantId => void addOutfitItem(variantId)}
+          onClose={() => setAddingItem(false)}
+        />
       )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -159,7 +237,9 @@ export function BackendOutfitDetailPage({ outfitId }: { outfitId: string }) {
               item={item}
               removeDisabled={busy || isLastItem}
               removing={pending === `remove:${item.outfit_item_id}`}
+              changeDisabled={busy}
               onRemove={removeOutfitItem}
+              onChangeVariant={openChangeVariant}
             />
           ))}
         </section>
@@ -220,6 +300,20 @@ export function BackendOutfitDetailPage({ outfitId }: { outfitId: string }) {
           </section>
         </aside>
       </div>
+
+      {changing && (
+        <ChangeVariantDialog
+          item={changing}
+          takenVariantIds={new Set(detail.items.filter(item => item.outfit_item_id !== changing.outfit_item_id).map(item => item.variant_id))}
+          saving={pending === `change:${changing.outfit_item_id}`}
+          error={changeError?.message ?? ''}
+          suggestRemoval={changeError?.code === 'OUTFIT_ITEM_UNAVAILABLE'}
+          canRemove={!isLastItem}
+          onSave={variantId => void saveVariantChange(variantId)}
+          onRemoveItem={() => void removeFromChangeDialog()}
+          onClose={() => setChanging(null)}
+        />
+      )}
 
       <ConfirmDeleteOutfitDialog
         open={confirmingDelete}

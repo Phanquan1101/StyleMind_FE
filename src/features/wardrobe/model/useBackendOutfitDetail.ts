@@ -15,6 +15,8 @@ export interface BackendOutfitDetailState {
   pending: OutfitPendingAction
   reload: () => void
   rename: (name: string) => Promise<void>
+  addItem: (variantId: string) => Promise<void>
+  changeItemVariant: (outfitItemId: string, variantId: string) => Promise<void>
   removeItem: (outfitItemId: string) => Promise<void>
   deleteOutfit: () => Promise<void>
 }
@@ -87,6 +89,23 @@ export function useBackendOutfitDetail(outfitId: string): BackendOutfitDetailSta
     [outfitId, run],
   )
 
+  // POST items and PATCH item answer with the full OutfitDetail, so the detail is replaced instead of reloaded.
+  const addItem = useCallback(
+    (variantId: string) =>
+      run('add', async () => {
+        setDetail(await wardrobeApi.addOutfitItem(outfitId, variantId))
+      }),
+    [outfitId, run],
+  )
+
+  const changeItemVariant = useCallback(
+    (outfitItemId: string, variantId: string) =>
+      run(`change:${outfitItemId}`, async () => {
+        setDetail(await wardrobeApi.changeOutfitItemVariant(outfitId, outfitItemId, variantId))
+      }),
+    [outfitId, run],
+  )
+
   const removeItem = useCallback(
     (outfitItemId: string) =>
       run(`remove:${outfitItemId}`, async () => {
@@ -106,5 +125,5 @@ export function useBackendOutfitDetail(outfitId: string): BackendOutfitDetailSta
 
   const deleteOutfit = useCallback(() => run('delete', () => wardrobeApi.deleteOutfit(outfitId)), [outfitId, run])
 
-  return { detail, status, error, pending, reload: () => void load(), rename, removeItem, deleteOutfit }
+  return { detail, status, error, pending, reload: () => void load(), rename, addItem, changeItemVariant, removeItem, deleteOutfit }
 }

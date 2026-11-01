@@ -2,15 +2,20 @@ import { vi } from 'vitest'
 
 import type { OutfitCreationSource, OutfitItemView } from '@/shared/api/wardrobeApi'
 
+import { lookupMockVariant } from './commerceMockBackend'
+
 /**
  * In-memory stand-in for wardrobe-community-service (gateway prefix /wardrobe-community).
  * It wraps whatever `fetch` stub is installed first (the identity mock), so requests for other
  * services still reach it. Rules follow the real API: owner-scoped data, 403 for ADMIN, 404 for
- * unknown outfits, 409 OUTFIT_LAST_ITEM, name 1..100 characters.
+ * unknown outfits, 409 OUTFIT_LAST_ITEM, name 1..100 characters, at most 10 items and 100 outfits.
+ * Products for create/add/change come from the commerce mock, like the real service reads Commerce.
  */
 
 const PREFIX = '/wardrobe-community/api/v1/me/outfits'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const MAX_ITEMS = 10
+const MAX_OUTFITS = 100
 
 export interface MockOutfit {
   outfit_id: string
@@ -78,6 +83,10 @@ function summary(outfit: MockOutfit) {
   }
 }
 
+function detail(outfit: MockOutfit) {
+  return { ...outfit, public_token: null }
+}
+
 function ownedOutfits(ownerId: string): MockOutfit[] {
   return outfitsByOwner.get(ownerId) ?? []
 }
@@ -89,6 +98,41 @@ function parsePagination(url: URL): { page: number; size: number } | null {
   const size = Number(url.searchParams.get('size') ?? '20')
   if (!Number.isInteger(page) || !Number.isInteger(size) || page < 0 || size < 1 || size > 100) return null
   return { page, size }
+}
+
+function onlyKeys(body: Record<string, unknown> | undefined, keys: string[]): body is Record<string, unknown> {
+  if (!body) return false
+  const actual = Object.keys(body)
+  return actual.length === keys.length && keys.every(key => actual.includes(key))
+}
+
+function isVariantId(value: unknown): value is string {
+  return typeof value === 'string' && UUID_PATTERN.test(value)
+}
+
+/** Builds an outfit item from the commerce mock; available is false for an inactive variant or product. */
+function itemFromCatalog(variantId: string, displayOrder: number, outfitItemId: string): OutfitItemView | null {
+  const found = lookupMockVariant(variantId)
+  if (!found) return null
+  const { product, variant } = found
+  const image = variant.images.find(candidate => candidate.is_primary) ?? variant.images[0]
+  return {
+    outfit_item_id: outfitItemId,
+    variant_id: variantId,
+    display_order: displayOrder,
+    product_id: product.product_id,
+    product_name: product.name,
+    color: variant.color,
+    size: variant.size,
+    unit_price_vnd: variant.unit_price_vnd,
+    image_url: image?.image_url ?? null,
+    available: product.product_status === 'ACTIVE' && variant.variant_status === 'ACTIVE',
+  }
+}
+
+function purchasable(variantId: string): OutfitItemView | null {
+  const item = itemFromCatalog(variantId, 0, 'unused')
+  return item?.available ? item : null
 }
 
 async function handle(url: URL, input: RequestInfo | URL, init: RequestInit): Promise<Response> {
@@ -132,25 +176,57 @@ async function handle(url: URL, input: RequestInfo | URL, init: RequestInit): Pr
     })
   }
 
-  const match = /^\/([^/]+)(?:\/items\/([^/]+))?$/.exec(rest)
+  if (rest === '' && method === 'POST') {
+    if (!onlyKeys(body, ['name', 'creation_source', 'items'])) return problem(400, 'INVALID_REQUEST')
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const items = body.items
+    if (!name || Array.from(name).length > 100) return problem(400, 'INVALID_REQUEST')
+    if (body.creation_source !== 'MANUAL' && body.creation_source !== 'AI') return problem(400, 'INVALID_REQUEST')
+    if (!Array.isArray(items) || items.length < 1 || items.length > MAX_ITEMS) return problem(400, 'INVALID_REQUEST')
+    const variantIds: string[] = []
+    for (const entry of items as unknown[]) {
+      const record = entry as Record<string, unknown>
+      if (!onlyKeys(record, ['variant_id']) || !isVariantId(record.variant_id)) return problem(400, 'INVALID_REQUEST')
+      variantIds.push(record.variant_id)
+    }
+    if (new Set(variantIds).size !== variantIds.length) return problem(400, 'INVALID_REQUEST')
+
+    const owned = ownedOutfits(claims.sub)
+    if (owned.length >= MAX_OUTFITS) return problem(409, 'OUTFIT_LIMIT_REACHED')
+    if (variantIds.some(variantId => !purchasable(variantId))) return problem(409, 'VARIANT_NOT_ACTIVE')
+
+    const now = new Date().toISOString()
+    const created: MockOutfit = {
+      outfit_id: crypto.randomUUID(),
+      name,
+      creation_source: body.creation_source,
+      created_at: now,
+      updated_at: now,
+      items: variantIds.map((variantId, index) => itemFromCatalog(variantId, index, crypto.randomUUID())!),
+    }
+    outfitsByOwner.set(claims.sub, [...owned, created])
+    return jsonResponse(201, detail(created))
+  }
+
+  const match = /^\/([^/]+)(\/items)?(?:\/([^/]+))?$/.exec(rest)
   if (!match) return problem(404, 'RESOURCE_NOT_FOUND')
-  const [, outfitId, itemId] = match
+  const [, outfitId, itemsSegment, itemId] = match
   if (!UUID_PATTERN.test(outfitId) || (itemId !== undefined && !UUID_PATTERN.test(itemId))) return problem(400, 'INVALID_REQUEST')
+  if (itemId !== undefined && itemsSegment === undefined) return problem(404, 'RESOURCE_NOT_FOUND')
 
   const owned = ownedOutfits(claims.sub)
   const outfit = owned.find(candidate => candidate.outfit_id === outfitId)
   if (!outfit) return problem(404, 'RESOURCE_NOT_FOUND')
 
-  if (itemId === undefined) {
-    if (method === 'GET') return jsonResponse(200, { ...outfit, public_token: null })
+  if (itemsSegment === undefined) {
+    if (method === 'GET') return jsonResponse(200, detail(outfit))
     if (method === 'DELETE') {
       outfitsByOwner.set(claims.sub, owned.filter(candidate => candidate.outfit_id !== outfitId))
       return jsonResponse(204)
     }
     if (method === 'PATCH') {
-      const keys = body ? Object.keys(body) : []
-      const name = typeof body?.name === 'string' ? body.name.trim() : ''
-      if (keys.length !== 1 || keys[0] !== 'name' || !name || Array.from(name).length > 100) return problem(400, 'INVALID_REQUEST')
+      const name = onlyKeys(body, ['name']) && typeof body.name === 'string' ? body.name.trim() : ''
+      if (!name || Array.from(name).length > 100) return problem(400, 'INVALID_REQUEST')
       outfit.name = name
       outfit.updated_at = new Date().toISOString()
       return jsonResponse(200, summary(outfit))
@@ -158,13 +234,46 @@ async function handle(url: URL, input: RequestInfo | URL, init: RequestInit): Pr
     return problem(405, 'METHOD_NOT_ALLOWED')
   }
 
+  if (itemId === undefined) {
+    if (method !== 'POST') return problem(405, 'METHOD_NOT_ALLOWED')
+    if (!onlyKeys(body, ['variant_id']) || !isVariantId(body.variant_id)) return problem(400, 'INVALID_REQUEST')
+    const variantId = body.variant_id
+    if (outfit.items.length >= MAX_ITEMS) return problem(409, 'OUTFIT_ITEM_LIMIT_REACHED')
+    if (outfit.items.some(item => item.variant_id === variantId)) return problem(409, 'OUTFIT_ITEM_DUPLICATE')
+    if (!purchasable(variantId)) return problem(409, 'VARIANT_NOT_ACTIVE')
+    const order = outfit.items.reduce((max, item) => Math.max(max, item.display_order), -1) + 1
+    outfit.items = [...outfit.items, itemFromCatalog(variantId, order, crypto.randomUUID())!]
+    outfit.updated_at = new Date().toISOString()
+    return jsonResponse(201, detail(outfit))
+  }
+
+  const item = outfit.items.find(candidate => candidate.outfit_item_id === itemId)
+  if (!item) return problem(404, 'RESOURCE_NOT_FOUND')
+
   if (method === 'DELETE') {
-    const item = outfit.items.find(candidate => candidate.outfit_item_id === itemId)
-    if (!item) return problem(404, 'RESOURCE_NOT_FOUND')
     if (outfit.items.length <= 1) return problem(409, 'OUTFIT_LAST_ITEM')
     outfit.items = outfit.items.filter(candidate => candidate.outfit_item_id !== itemId)
     outfit.updated_at = new Date().toISOString()
     return jsonResponse(204)
+  }
+
+  if (method === 'PATCH') {
+    if (!onlyKeys(body, ['variant_id']) || !isVariantId(body.variant_id)) return problem(400, 'INVALID_REQUEST')
+    const variantId = body.variant_id
+    if (item.variant_id === variantId) return jsonResponse(200, detail(outfit))
+    const current = lookupMockVariant(item.variant_id)
+    if (!current) return problem(409, 'OUTFIT_ITEM_UNAVAILABLE')
+    const next = purchasable(variantId)
+    if (!next) return problem(409, 'VARIANT_NOT_ACTIVE')
+    if (next.product_id !== current.product.product_id) return problem(400, 'INVALID_REQUEST')
+    if (outfit.items.some(other => other.variant_id === variantId)) return problem(409, 'OUTFIT_ITEM_DUPLICATE')
+    outfit.items = outfit.items.map(candidate =>
+      candidate.outfit_item_id === itemId
+        ? { ...next, outfit_item_id: candidate.outfit_item_id, display_order: candidate.display_order }
+        : candidate,
+    )
+    outfit.updated_at = new Date().toISOString()
+    return jsonResponse(200, detail(outfit))
   }
   return problem(405, 'METHOD_NOT_ALLOWED')
 }

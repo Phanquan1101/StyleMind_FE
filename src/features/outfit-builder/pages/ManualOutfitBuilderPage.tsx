@@ -1,48 +1,45 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
-import { useDemoStore } from '@/app/store/DemoStoreProvider'
-import { useAuth } from '@/features/auth'
+import { commerceCatalogApi, type CatalogProduct, type CatalogVariant } from '@/shared/api/commerceCatalogApi'
+import { IdentityApiError } from '@/shared/api/identityApi'
+import { wardrobeApi, wardrobeErrorMessage } from '@/shared/api/wardrobeApi'
 
-import { BuilderCatalogPanel } from '../components/BuilderCatalogPanel'
 import { BuilderDraftPanel } from '../components/BuilderDraftPanel'
+import { ProductPicker } from '../components/ProductPicker'
 import {
-  createDraftItem,
+  addDraftItem,
+  changeDraftVariant,
   createManualOutfitDraft,
-  draftToOutfit,
+  markDiscontinued,
+  MAX_DRAFT_ITEMS,
+  removeDraftItem,
   validateOutfitDraft,
   type OutfitDraftErrors,
 } from '../model/draftOutfit'
 
 export function ManualOutfitBuilderPage() {
   const navigate = useNavigate()
-  const { state, dispatch } = useDemoStore()
-  const { currentUser } = useAuth()
-  const ownerId = currentUser?.id ?? ''
-  const [search, setSearch] = useState('')
-  const [draft, setDraft] = useState(() => createManualOutfitDraft(ownerId))
+  const [draft, setDraft] = useState(createManualOutfitDraft)
   const [errors, setErrors] = useState<OutfitDraftErrors>({})
-  const products = state.products.filter(product => product.active)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [pickerMessage, setPickerMessage] = useState('')
+  const saveInFlight = useRef(false)
+  const draftVariantIds = useMemo(() => new Set(draft.items.map(item => item.variantId)), [draft.items])
+  const full = draft.items.length >= MAX_DRAFT_ITEMS
 
-  useEffect(() => {
-    if (!ownerId) return
-    setDraft(previous => (previous.ownerId === ownerId ? previous : createManualOutfitDraft(ownerId)))
-  }, [ownerId])
-
-  if (!currentUser) return null
-
-  const addVariant = (productId: string, variantId: string) => {
+  const addVariant = (product: CatalogProduct, variant: CatalogVariant) => {
+    const result = addDraftItem(draft, product, variant)
     setErrors(previous => ({ ...previous, items: undefined }))
-    setDraft(previous => {
-      const exists = previous.items.some(item => item.productId === productId && item.variantId === variantId)
-      if (exists) return previous
-
-      return {
-        ...previous,
-        items: [...previous.items, createDraftItem(productId, variantId, previous.items.length + 1)],
-      }
-    })
+    setSaveError('')
+    if (result.added) {
+      setDraft(result.draft)
+      setPickerMessage('')
+      return
+    }
+    setPickerMessage(result.reason === 'full' ? `Outfit đã đủ ${MAX_DRAFT_ITEMS} món.` : 'Món này đã có trong outfit.')
   }
 
   const changeName = (name: string) => {
@@ -50,29 +47,61 @@ export function ManualOutfitBuilderPage() {
     setDraft(previous => ({ ...previous, name }))
   }
 
-  const changeVariant = (itemId: string, variantId: string) => {
-    setDraft(previous => ({
-      ...previous,
-      items: previous.items.map(item => (item.id === itemId ? { ...item, variantId } : item)),
-    }))
+  const changeVariant = (variantId: string, next: CatalogVariant) => {
+    setErrors(previous => ({ ...previous, items: undefined }))
+    setDraft(previous => changeDraftVariant(previous, variantId, next))
   }
 
-  const removeItem = (itemId: string) => {
-    setDraft(previous => ({
-      ...previous,
-      items: previous.items.filter(item => item.id !== itemId),
-    }))
+  const removeItem = (variantId: string) => {
+    setErrors(previous => ({ ...previous, items: undefined }))
+    setDraft(previous => removeDraftItem(previous, variantId))
   }
 
-  const saveOutfit = () => {
+  /** Commerce did not say which variant is gone, so ask the public lookup and mark the missing ones. */
+  const markDiscontinuedItems = async () => {
+    const active = await commerceCatalogApi.lookupVariants(draft.items.map(item => item.variantId))
+    const activeIds = new Set(active.map(variant => variant.variant_id))
+    if (draft.items.every(item => activeIds.has(item.variantId))) return false
+    setDraft(previous => markDiscontinued(previous, activeIds))
+    return true
+  }
+
+  const saveOutfit = async () => {
+    if (saveInFlight.current) return
     const nextErrors = validateOutfitDraft(draft)
     setErrors(nextErrors)
+    setSaveError('')
     if (Object.keys(nextErrors).length > 0) return
 
-    const now = new Date().toISOString()
-    const outfit = draftToOutfit(draft, now)
-    dispatch({ type: 'outfit/created', payload: outfit })
-    navigate(`/outfits/${outfit.id}`)
+    saveInFlight.current = true
+    setSaving(true)
+    try {
+      const created = await wardrobeApi.createOutfit({
+        name: draft.name.trim(),
+        creation_source: 'MANUAL',
+        items: draft.items.map(item => ({ variant_id: item.variantId })),
+      })
+      navigate(`/outfits/${created.outfit_id}`)
+    } catch (caught) {
+      if (caught instanceof IdentityApiError && caught.code === 'VARIANT_NOT_ACTIVE') {
+        let marked = false
+        try {
+          marked = await markDiscontinuedItems()
+        } catch {
+          marked = false
+        }
+        setSaveError(
+          marked
+            ? 'Một số món đã ngừng bán. Hãy xóa hoặc đổi phiên bản các món được đánh dấu rồi lưu lại.'
+            : wardrobeErrorMessage(caught, 'Không lưu được outfit.'),
+        )
+      } else {
+        setSaveError(wardrobeErrorMessage(caught, 'Không lưu được outfit. Vui lòng thử lại.'))
+      }
+    } finally {
+      saveInFlight.current = false
+      setSaving(false)
+    }
   }
 
   return (
@@ -86,27 +115,34 @@ export function ManualOutfitBuilderPage() {
             Tạo outfit thủ công
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6F6B67]">
-            Chọn sản phẩm thật trong catalog, đổi phiên bản theo màu hoặc size rồi lưu vào tủ đồ cá nhân.
+            Chọn sản phẩm thật trong catalog, chọn màu và size rồi lưu vào tủ đồ cá nhân.
           </p>
         </div>
         {/* TODO: mở lại "Chuyển sang AI Stylist" khi có AI Stylist BE. */}
       </div>
 
+      {pickerMessage && (
+        <p role="status" className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#A94B4B]">
+          {pickerMessage}
+        </p>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <BuilderCatalogPanel
-          products={products}
-          search={search}
-          onSearchChange={setSearch}
-          onAddVariant={addVariant}
+        <ProductPicker
+          disabledVariantIds={draftVariantIds}
+          addDisabled={full || saving}
+          addDisabledReason={full ? `Outfit đã đủ ${MAX_DRAFT_ITEMS} món.` : undefined}
+          onAdd={addVariant}
         />
         <BuilderDraftPanel
           draft={draft}
-          products={products}
           errors={errors}
+          saving={saving}
+          saveError={saveError}
           onNameChange={changeName}
           onVariantChange={changeVariant}
           onRemoveItem={removeItem}
-          onSave={saveOutfit}
+          onSave={() => void saveOutfit()}
         />
       </div>
     </section>

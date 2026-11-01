@@ -104,7 +104,10 @@ export function WardrobePage() {
           <Link to={ROUTES.wardrobeAccess} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]">
             Quyền truy cập
           </Link>
-          {/* TODO: mở lại "Tạo tủ đồ" khi builder nối commerce (FE-2); lối vào "Tạo với AI" đang ẩn, chưa có AI Stylist BE. */}
+          <Link to={ROUTES.outfitNew} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]">
+            Tạo tủ đồ
+          </Link>
+          {/* TODO: mở lại lối vào "Tạo với AI" khi có AI Stylist BE. */}
         </div>
       </div>
 

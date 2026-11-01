@@ -7,11 +7,13 @@ interface BackendOutfitItemCardProps {
   item: OutfitItemView
   removeDisabled: boolean
   removing: boolean
+  changeDisabled: boolean
   onRemove: (outfitItemId: string) => void
+  onChangeVariant: (item: OutfitItemView) => void
 }
 
 // TODO: thêm "Thêm vào giỏ" và link sang /products/:id khi Shop/Cart nối thật (hiện catalog và giỏ vẫn là demo).
-export function BackendOutfitItemCard({ item, removeDisabled, removing, onRemove }: BackendOutfitItemCardProps) {
+export function BackendOutfitItemCard({ item, removeDisabled, removing, changeDisabled, onRemove, onChangeVariant }: BackendOutfitItemCardProps) {
   const name = item.product_name ?? 'Sản phẩm không còn trong catalog'
   const image = commerceImageUrl(item.image_url)
   const variantLabel = [item.color, item.size].filter(Boolean).join(' · ')
@@ -28,7 +30,12 @@ export function BackendOutfitItemCard({ item, removeDisabled, removing, onRemove
           <p className="mt-3 text-sm font-semibold text-[#A94B4B]">Ngừng bán</p>
         )}
       </div>
-      <div className="border-t border-[#EEE8E1] p-4">
+      <div className="flex flex-wrap gap-2 border-t border-[#EEE8E1] p-4">
+        {item.available && item.product_id && (
+          <Button variant="secondary" size="sm" disabled={changeDisabled} aria-label={`Đổi màu/size ${name}`} onClick={() => onChangeVariant(item)}>
+            Đổi màu/size
+          </Button>
+        )}
         <Button
           variant="danger-soft"
           size="sm"

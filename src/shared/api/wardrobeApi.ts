@@ -49,7 +49,16 @@ function outfitPath(outfitId: string): string {
   return `${OUTFITS_PATH}/${encodeURIComponent(outfitId)}`
 }
 
+export interface CreateOutfitRequest {
+  name: string
+  creation_source: OutfitCreationSource
+  items: { variant_id: string }[]
+}
+
 export const wardrobeApi = {
+  createOutfit(request: CreateOutfitRequest) {
+    return performRequest<OutfitDetailResponse>(OUTFITS_PATH, jsonRequest('POST', request), true, true)
+  },
   listOutfits(page = 0, size = 20) {
     return performRequest<OutfitListResponse>(`${OUTFITS_PATH}?page=${page}&size=${size}`, { method: 'GET' }, true, true)
   },
@@ -61,6 +70,17 @@ export const wardrobeApi = {
   },
   deleteOutfit(outfitId: string) {
     return performRequest<void>(outfitPath(outfitId), { method: 'DELETE' }, true, true)
+  },
+  addOutfitItem(outfitId: string, variantId: string) {
+    return performRequest<OutfitDetailResponse>(`${outfitPath(outfitId)}/items`, jsonRequest('POST', { variant_id: variantId }), true, true)
+  },
+  changeOutfitItemVariant(outfitId: string, outfitItemId: string, variantId: string) {
+    return performRequest<OutfitDetailResponse>(
+      `${outfitPath(outfitId)}/items/${encodeURIComponent(outfitItemId)}`,
+      jsonRequest('PATCH', { variant_id: variantId }),
+      true,
+      true,
+    )
   },
   removeOutfitItem(outfitId: string, outfitItemId: string) {
     return performRequest<void>(`${outfitPath(outfitId)}/items/${encodeURIComponent(outfitItemId)}`, { method: 'DELETE' }, true, true)

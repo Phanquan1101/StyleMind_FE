@@ -95,8 +95,8 @@ describe('Wardrobe flow', () => {
     // The outfits of the old demo store are no longer listed.
     expect(screen.queryByRole('link', { name: /Di lam toi gian/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Cafe cuoi tuan/ })).not.toBeInTheDocument()
-    // The creation entrances stay hidden until the builder and AI Stylist are connected.
-    expect(screen.queryByRole('link', { name: 'Tạo tủ đồ' })).not.toBeInTheDocument()
+    // The manual builder entrance is back; the AI Stylist entrance stays hidden until it is connected.
+    expect(screen.getByRole('link', { name: 'Tạo tủ đồ' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Tạo với AI' })).not.toBeInTheDocument()
   })
 

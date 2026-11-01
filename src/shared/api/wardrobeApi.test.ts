@@ -5,6 +5,7 @@ import { checkOutfitName, isUuid, mergeOutfitPage, outfitTotal } from '@/feature
 import { IdentityApiError, identityErrorMessage } from '@/shared/api/identityApi'
 import { wardrobeApi, wardrobeErrorMessage, type OutfitSummary } from '@/shared/api/wardrobeApi'
 import { commerceImageUrl } from '@/shared/lib/commerceImageUrl'
+import { mockProduct, seedCommerceCatalog } from '@/test/commerceMockBackend'
 import { getIdentityMockCalls, seedIdentitySession } from '@/test/identityMockBackend'
 import {
   expireNextWardrobeRequest,
@@ -66,6 +67,29 @@ describe('Wardrobe API client', () => {
       `DELETE /wardrobe-community/api/v1/me/outfits/${OUTFIT_ID}`,
     ])
     expect(calls[2].body).toEqual({ name: 'Đi làm mới' })
+    calls.forEach(call => expect(call.headers.get('Authorization')).toMatch(/^Bearer /))
+  })
+
+  it('creates an outfit and adds or changes items with the documented request bodies', async () => {
+    signIn('usr-customer-01')
+    const product = mockProduct({}, [{ color: 'Trắng', size: 'M' }, { color: 'Đen', size: 'M' }, { color: 'Đỏ', size: 'S' }])
+    const [first, second, third] = product.variants.map(variant => variant.variant_id)
+    seedCommerceCatalog({ products: [product] })
+
+    const created = await wardrobeApi.createOutfit({ name: 'Mới', creation_source: 'MANUAL', items: [{ variant_id: first }] })
+    const added = await wardrobeApi.addOutfitItem(created.outfit_id, second)
+    const changed = await wardrobeApi.changeOutfitItemVariant(created.outfit_id, added.items[1].outfit_item_id, third)
+
+    expect(changed.items.map(item => item.variant_id)).toEqual([first, third])
+    const calls = getWardrobeMockCalls()
+    expect(calls.map(call => `${call.method} ${call.path}`)).toEqual([
+      'POST /wardrobe-community/api/v1/me/outfits',
+      `POST /wardrobe-community/api/v1/me/outfits/${created.outfit_id}/items`,
+      `PATCH /wardrobe-community/api/v1/me/outfits/${created.outfit_id}/items/${added.items[1].outfit_item_id}`,
+    ])
+    expect(calls[0].body).toEqual({ name: 'Mới', creation_source: 'MANUAL', items: [{ variant_id: first }] })
+    expect(calls[1].body).toEqual({ variant_id: second })
+    expect(calls[2].body).toEqual({ variant_id: third })
     calls.forEach(call => expect(call.headers.get('Authorization')).toMatch(/^Bearer /))
   })
 

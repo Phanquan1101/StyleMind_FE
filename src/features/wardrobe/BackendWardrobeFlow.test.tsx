@@ -7,6 +7,7 @@ import { createDemoSeed } from '@/app/data/demoSeed'
 import { AppProviders } from '@/app/providers/AppProviders'
 import { appRoutes } from '@/app/router/AppRouter'
 import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
+import { mockProduct, seedCommerceCatalog } from '@/test/commerceMockBackend'
 import {
   failWardrobeRequest,
   getWardrobeMockCalls,
@@ -267,5 +268,161 @@ describe('Backend outfit detail', () => {
     renderAt(`/outfits/${OUTFIT_ID}`, ADMIN)
 
     expect(await screen.findByText('Tài khoản của bạn không có quyền dùng Tủ đồ.')).toBeInTheDocument()
+  })
+})
+
+function seedEditingScenario(itemCount = 2) {
+  const blouse = mockProduct({ name: 'Áo blouse cổ vuông' }, [
+    { color: 'Trắng', size: 'M', unit_price_vnd: 450000 },
+    { color: 'Trắng', size: 'L', unit_price_vnd: 460000 },
+    { color: 'Đen', size: 'M', unit_price_vnd: 470000 },
+  ])
+  const trousers = mockProduct({ name: 'Quần ống suông' }, [{ color: 'Đen', size: 'S', unit_price_vnd: 300000 }])
+  const scarf = mockProduct({ name: 'Khăn lụa' }, [{ color: 'Đỏ', size: 'M', unit_price_vnd: 150000 }])
+  const extras = Array.from({ length: 8 }, (_, index) => mockProduct({ name: `Phụ kiện ${index}` }, [{ color: 'Đen', size: 'M' }]))
+  seedCommerceCatalog({ products: [blouse, trousers, scarf, ...extras] })
+  const variantOf = (product: { variants: Array<{ variant_id: string }> }, index = 0) => product.variants[index].variant_id
+  const items = [
+    mockOutfitItem({ outfit_item_id: ITEM_1, variant_id: variantOf(blouse), product_id: blouse.product_id, product_name: blouse.name, color: 'Trắng', size: 'M' }),
+    mockOutfitItem({ outfit_item_id: ITEM_2, variant_id: variantOf(trousers), product_id: trousers.product_id, product_name: trousers.name, color: 'Đen', size: 'S', display_order: 1 }),
+    ...extras.slice(0, itemCount - 2).map((product, index) =>
+      mockOutfitItem({
+        outfit_item_id: `21111111-1111-4111-8111-${String(index + 10).padStart(12, '0')}`,
+        variant_id: variantOf(product),
+        product_id: product.product_id,
+        product_name: product.name,
+        display_order: index + 2,
+      }),
+    ),
+  ]
+  seedWardrobeOutfits(CUSTOMER, [outfit({ items })])
+  return { blouse, trousers, scarf }
+}
+
+describe('Backend outfit item editing', () => {
+  it('adds an item from the catalog picker and shows it without reloading the list', async () => {
+    const user = userEvent.setup()
+    seedEditingScenario()
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Thêm món' }))
+    const panel = await screen.findByRole('region', { name: 'Thêm món vào outfit' })
+    await user.click(await within(panel).findByRole('button', { name: 'Chọn phiên bản Khăn lụa' }))
+    await user.click(within(panel).getByRole('button', { name: 'Kích cỡ M' }))
+    await user.click(within(panel).getByRole('button', { name: 'Thêm Khăn lụa vào outfit' }))
+
+    expect(await screen.findByRole('heading', { name: 'Khăn lụa' })).toBeInTheDocument()
+    expect(await screen.findByText('Đã thêm món vào outfit')).toBeInTheDocument()
+    const posts = getWardrobeMockCalls().filter(call => call.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(posts[0].path).toBe(`/wardrobe-community/api/v1/me/outfits/${OUTFIT_ID}/items`)
+    expect(Object.keys(posts[0].body ?? {})).toEqual(['variant_id'])
+    expect(getWardrobeMockOutfits(CUSTOMER)[0].items).toHaveLength(3)
+  })
+
+  it('marks variants already in the outfit and blocks adding them again', async () => {
+    const user = userEvent.setup()
+    seedEditingScenario()
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Thêm món' }))
+    const panel = await screen.findByRole('region', { name: 'Thêm món vào outfit' })
+    await user.click(await within(panel).findByRole('button', { name: 'Chọn phiên bản Quần ống suông' }))
+
+    expect(within(panel).getByRole('button', { name: 'Kích cỡ S (đã có)' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Thêm Quần ống suông vào outfit' })).toBeDisabled()
+  })
+
+  it.each(['OUTFIT_ITEM_DUPLICATE', 'OUTFIT_ITEM_LIMIT_REACHED', 'VARIANT_NOT_ACTIVE'])(
+    'keeps the outfit unchanged and shows an error when adding fails with %s',
+    async code => {
+      const user = userEvent.setup()
+      seedEditingScenario()
+      renderAt(`/outfits/${OUTFIT_ID}`)
+      await user.click(await screen.findByRole('button', { name: 'Thêm món' }))
+      const panel = await screen.findByRole('region', { name: 'Thêm món vào outfit' })
+      await user.click(await within(panel).findByRole('button', { name: 'Chọn phiên bản Khăn lụa' }))
+      await user.click(within(panel).getByRole('button', { name: 'Kích cỡ M' }))
+      failWardrobeRequest('POST', /\/items$/, 409, code)
+
+      await user.click(within(panel).getByRole('button', { name: 'Thêm Khăn lụa vào outfit' }))
+
+      expect(await within(panel).findByRole('alert')).not.toHaveTextContent(/^$/)
+      expect(getWardrobeMockOutfits(CUSTOMER)[0].items).toHaveLength(2)
+    },
+  )
+
+  it('disables "Thêm món" once the outfit has 10 items', async () => {
+    seedEditingScenario(10)
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    expect(await screen.findByRole('button', { name: 'Thêm món' })).toBeDisabled()
+    expect(screen.getAllByText('Outfit đã đủ 10 món.').length).toBeGreaterThan(0)
+  })
+
+  it('changes the colour and size of an item with a PATCH', async () => {
+    const user = userEvent.setup()
+    seedEditingScenario()
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Đổi màu/size Áo blouse cổ vuông' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đổi màu/size Áo blouse cổ vuông' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Màu Đen' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Kích cỡ M' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByText('Đã đổi phiên bản')).toBeInTheDocument()
+    const patches = getWardrobeMockCalls().filter(call => call.method === 'PATCH' && call.path.endsWith(`/items/${ITEM_1}`))
+    expect(patches).toHaveLength(1)
+    expect(Object.keys(patches[0].body ?? {})).toEqual(['variant_id'])
+    expect(getWardrobeMockOutfits(CUSTOMER)[0].items[0]).toMatchObject({ color: 'Đen', size: 'M', unit_price_vnd: 470000 })
+  })
+
+  it('keeps save disabled until another variant is picked and reports a duplicate', async () => {
+    const user = userEvent.setup()
+    const { blouse } = seedEditingScenario()
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Đổi màu/size Áo blouse cổ vuông' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đổi màu/size Áo blouse cổ vuông' })
+    await within(dialog).findByRole('button', { name: 'Màu Trắng' })
+    expect(within(dialog).getByRole('button', { name: 'Lưu thay đổi' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Kích cỡ M (đang chọn)' })).toBeDisabled()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Kích cỡ L' }))
+    failWardrobeRequest('PATCH', /\/items\//, 409, 'OUTFIT_ITEM_DUPLICATE')
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }))
+
+    expect(await within(dialog).findByRole('alert')).not.toHaveTextContent(/^$/)
+    expect(getWardrobeMockOutfits(CUSTOMER)[0].items[0].variant_id).toBe(blouse.variants[0].variant_id)
+  })
+
+  it('offers to remove the item when its variant is no longer available (OUTFIT_ITEM_UNAVAILABLE)', async () => {
+    const user = userEvent.setup()
+    seedEditingScenario()
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    await user.click(await screen.findByRole('button', { name: 'Đổi màu/size Áo blouse cổ vuông' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đổi màu/size Áo blouse cổ vuông' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Màu Đen' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Kích cỡ M' }))
+    failWardrobeRequest('PATCH', /\/items\//, 409, 'OUTFIT_ITEM_UNAVAILABLE')
+    await user.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }))
+
+    await user.click(await within(dialog).findByRole('button', { name: 'Xóa món này khỏi outfit' }))
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Áo blouse cổ vuông' })).not.toBeInTheDocument())
+    expect(getWardrobeMockOutfits(CUSTOMER)[0].items).toHaveLength(1)
+  })
+
+  it('has no change button for a discontinued item', async () => {
+    seedEditingScenario()
+    const [saved] = getWardrobeMockOutfits(CUSTOMER)
+    seedWardrobeOutfits(CUSTOMER, [{ ...saved, items: saved.items.map(item => (item.outfit_item_id === ITEM_1 ? { ...item, available: false } : item)) }])
+    renderAt(`/outfits/${OUTFIT_ID}`)
+
+    expect(await screen.findByRole('heading', { name: 'Quần ống suông' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đổi màu/size Quần ống suông' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Đổi màu\/size Áo blouse/ })).not.toBeInTheDocument()
   })
 })

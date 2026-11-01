@@ -1,58 +1,26 @@
-import type { Product, ProductVariant } from '@/entities/product/model/types'
+import type { CatalogVariant } from '@/shared/api/commerceCatalogApi'
+import { commerceImageUrl } from '@/shared/lib/commerceImageUrl'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
+import { Button } from '@/shared/ui'
 
-import type { OutfitDraft, OutfitDraftErrors } from '../model/draftOutfit'
+import { draftTotal, MAX_DRAFT_ITEMS, type OutfitDraft, type OutfitDraftErrors } from '../model/draftOutfit'
 
 interface BuilderDraftPanelProps {
   draft: OutfitDraft
-  products: Product[]
   errors: OutfitDraftErrors
-  onNameChange: (value: string) => void
-  onVariantChange: (itemId: string, variantId: string) => void
-  onRemoveItem: (itemId: string) => void
+  saving: boolean
+  saveError: string
+  onNameChange: (name: string) => void
+  onVariantChange: (variantId: string, next: CatalogVariant) => void
+  onRemoveItem: (variantId: string) => void
   onSave: () => void
 }
 
-interface DraftItemDetail {
-  id: string
-  product: Product
-  variant: ProductVariant
-  activeVariants: ProductVariant[]
-  price: number
-}
+const variantLabel = (variant: { color: string | null; size: string | null }) =>
+  `${variant.color || 'Mặc định'} · ${variant.size || 'Một cỡ'}`
 
-function resolveDraftItems(draft: OutfitDraft, products: Product[]): DraftItemDetail[] {
-  return draft.items.flatMap(item => {
-    const product = products.find(candidate => candidate.id === item.productId && candidate.active)
-    if (!product) return []
-
-    const activeVariants = product.variants.filter(variant => variant.active)
-    const variant = activeVariants.find(candidate => candidate.id === item.variantId)
-    if (!variant) return []
-
-    return [
-      {
-        id: item.id,
-        product,
-        variant,
-        activeVariants,
-        price: variant.priceOverride ?? product.basePrice,
-      },
-    ]
-  })
-}
-
-export function BuilderDraftPanel({
-  draft,
-  products,
-  errors,
-  onNameChange,
-  onVariantChange,
-  onRemoveItem,
-  onSave,
-}: BuilderDraftPanelProps) {
-  const items = resolveDraftItems(draft, products)
-  const total = items.reduce((sum, item) => sum + item.price, 0)
+export function BuilderDraftPanel({ draft, errors, saving, saveError, onNameChange, onVariantChange, onRemoveItem, onSave }: BuilderDraftPanelProps) {
+  const draftVariantIds = new Set(draft.items.map(item => item.variantId))
 
   return (
     <section
@@ -62,7 +30,7 @@ export function BuilderDraftPanel({
       <div>
         <h2 className="font-display text-2xl font-semibold text-[#222222]">Outfit đang tạo</h2>
         <p className="mt-2 text-sm leading-6 text-[#6F6B67]">
-          Đặt tên, kiểm tra phiên bản từng món rồi lưu vào tủ đồ.
+          Đặt tên, kiểm tra phiên bản từng món rồi lưu vào tủ đồ (tối đa {MAX_DRAFT_ITEMS} món).
         </p>
       </div>
 
@@ -71,77 +39,90 @@ export function BuilderDraftPanel({
         <input
           value={draft.name}
           onChange={event => onNameChange(event.target.value)}
-          className="min-h-11 rounded-lg border border-[#D8D0C6] bg-white px-3 text-sm font-medium text-[#222222] outline-none transition focus:border-[#684B5A] focus:ring-2 focus:ring-[#684B5A]/20"
+          disabled={saving}
+          aria-invalid={errors.name ? true : undefined}
+          className="min-h-11 rounded-lg border border-[#D8D0C6] bg-white px-3 text-sm font-medium text-[#222222] outline-none transition focus:border-[#684B5A] focus:ring-2 focus:ring-[#684B5A]/20 disabled:opacity-60"
           placeholder="Ví dụ: Outfit đi chơi"
         />
         {errors.name && <span className="text-xs font-medium text-[#A94B4B]">{errors.name}</span>}
       </label>
 
       <div className="grid gap-3">
-        {items.length === 0 ? (
-          <div className="rounded-lg bg-[#FAF8F5] px-4 py-6 text-sm font-medium text-[#6F6B67]">
-            Chưa có món nào trong outfit
-          </div>
+        {draft.items.length === 0 ? (
+          <div className="rounded-lg bg-[#FAF8F5] px-4 py-6 text-sm font-medium text-[#6F6B67]">Chưa có món nào trong outfit</div>
         ) : (
-          items.map(item => (
-            <article key={item.id} className="rounded-lg bg-[#FAF8F5] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-[#222222]">{item.product.name}</h3>
-                  <p className="mt-1 text-sm text-[#6F6B67]">
-                    {item.variant.color} · {item.variant.size}
-                  </p>
+          draft.items.map(item => {
+            const image = commerceImageUrl(item.imageUrl)
+            return (
+              <article key={item.variantId} className={`rounded-lg p-4 ${item.discontinued ? 'border border-dashed border-[#A94B4B] bg-[#FFF8F8]' : 'bg-[#FAF8F5]'}`}>
+                <div className="flex items-start gap-3">
+                  {image ? (
+                    <img src={image} alt={item.imageAlt || item.productName} className="h-20 w-16 flex-none rounded-md object-cover" />
+                  ) : (
+                    <div role="img" aria-label={`Chưa có ảnh ${item.productName}`} className="grid h-20 w-16 flex-none place-items-center rounded-md bg-[#EEE8E1] text-[10px] font-semibold text-[#8A8179]">
+                      Chưa có ảnh
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-[#222222]">{item.productName}</h3>
+                    <p className="mt-1 text-sm text-[#6F6B67]">{variantLabel(item)}</p>
+                    {item.discontinued && <p className="mt-1 text-sm font-semibold text-[#A94B4B]">Ngừng bán</p>}
+                  </div>
                 </div>
-                <span
-                  className="h-6 w-6 flex-none rounded-full border border-[#D8D0C6]"
-                  style={{ backgroundColor: item.variant.colorHex }}
-                  aria-hidden="true"
-                />
-              </div>
 
-              <label className="mt-4 grid gap-2 text-sm font-semibold text-[#3A3632]">
-                Đổi phiên bản draft {item.product.name}
-                <select
-                  value={item.variant.id}
-                  onChange={event => onVariantChange(item.id, event.target.value)}
-                  className="min-h-10 rounded-lg border border-[#D8D0C6] bg-white px-3 text-sm font-semibold text-[#222222] outline-none focus:border-[#684B5A] focus:ring-2 focus:ring-[#684B5A]/20"
-                >
-                  {item.activeVariants.map(variant => (
-                    <option key={variant.id} value={variant.id} aria-label={`${variant.color} ${variant.size}`}>
-                      Size {variant.size}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                {item.alternatives.length > 1 && (
+                  <label className="mt-4 grid gap-2 text-sm font-semibold text-[#3A3632]">
+                    Đổi phiên bản draft {item.productName}
+                    <select
+                      value={item.variantId}
+                      disabled={saving}
+                      onChange={event => {
+                        const next = item.alternatives.find(variant => variant.variant_id === event.target.value)
+                        if (next) onVariantChange(item.variantId, next)
+                      }}
+                      className="min-h-10 rounded-lg border border-[#D8D0C6] bg-white px-3 text-sm font-semibold text-[#222222] outline-none focus:border-[#684B5A] focus:ring-2 focus:ring-[#684B5A]/20"
+                    >
+                      {item.discontinued && <option value={item.variantId}>{variantLabel(item)} (ngừng bán)</option>}
+                      {item.alternatives.map(variant => (
+                        <option
+                          key={variant.variant_id}
+                          value={variant.variant_id}
+                          disabled={variant.variant_id !== item.variantId && draftVariantIds.has(variant.variant_id)}
+                        >
+                          {variantLabel(variant)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-[#222222]">{formatCurrency(item.price)}</span>
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#FCEAEA] px-3 text-sm font-semibold text-[#A94B4B] transition hover:bg-[#F7D8D8] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A94B4B]/30"
-                  onClick={() => onRemoveItem(item.id)}
-                >
-                  Xóa {item.product.name} khỏi draft
-                </button>
-              </div>
-            </article>
-          ))
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-[#222222]">{formatCurrency(item.unitPriceVnd)}</span>
+                  <Button variant="danger-soft" size="sm" disabled={saving} onClick={() => onRemoveItem(item.variantId)}>
+                    Xóa {item.productName} khỏi draft
+                  </Button>
+                </div>
+              </article>
+            )
+          })
         )}
         {errors.items && <span className="text-xs font-medium text-[#A94B4B]">{errors.items}</span>}
       </div>
 
+      {saveError && (
+        <p role="alert" className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#A94B4B]">
+          {saveError}
+        </p>
+      )}
+
       <div className="rounded-lg bg-[#EEE8E1] p-4">
         <div className="flex items-center justify-between gap-4 text-sm">
           <span className="font-medium text-[#6F6B67]">Tạm tính</span>
-          <span className="font-semibold text-[#222222]">{formatCurrency(total)}</span>
+          <span className="font-semibold text-[#222222]">{formatCurrency(draftTotal(draft))}</span>
         </div>
-        <button
-          type="button"
-          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#684B5A] px-4 text-sm font-semibold text-white transition hover:bg-[#563E4A] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]/30"
-          onClick={onSave}
-        >
+        <Button className="mt-4 w-full" disabled={saving} loading={saving} onClick={onSave}>
           Lưu outfit
-        </button>
+        </Button>
       </div>
     </section>
   )
