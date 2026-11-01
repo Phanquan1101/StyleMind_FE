@@ -89,12 +89,7 @@ export function ManualOutfitBuilderPage() {
             Chọn sản phẩm thật trong catalog, đổi phiên bản theo màu hoặc size rồi lưu vào tủ đồ cá nhân.
           </p>
         </div>
-        <Link
-          to={ROUTES.outfitNewAi}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#684B5A] px-4 text-sm font-semibold text-white transition hover:bg-[#563E4A] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A]/30"
-        >
-          Chuyển sang AI Stylist
-        </Link>
+        {/* TODO: mở lại "Chuyển sang AI Stylist" khi có AI Stylist BE. */}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">

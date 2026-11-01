@@ -22,7 +22,10 @@ export function CustomerHeader() {
   const cartCount = state.cartLines.reduce((total, line) => total + line.quantity, 0)
   const currentUserId = state.session?.userId ?? currentUser?.id ?? 'usr-customer-01'
   const unreadCount = selectUnreadNotificationCount(state, currentUserId)
-  const visibleNavItems = currentUser?.role === 'admin' ? [...navItems, { to: ROUTES.admin, label: 'Quản trị' }] : navItems
+  const isAdmin = currentUser?.role === 'admin'
+  const visibleNavItems = isAdmin
+    ? [...navItems.filter(item => item.to !== ROUTES.wardrobes), { to: ROUTES.admin, label: 'Quản trị' }]
+    : navItems
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

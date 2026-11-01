@@ -3,10 +3,13 @@ import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
 import { installIdentityMockBackend, resetIdentityMockBackend } from './identityMockBackend'
+import { installWardrobeMockBackend, resetWardrobeMockBackend } from './wardrobeMockBackend'
 
 installIdentityMockBackend()
+installWardrobeMockBackend()
 
 afterEach(() => {
   cleanup()
   resetIdentityMockBackend()
+  resetWardrobeMockBackend()
 })
