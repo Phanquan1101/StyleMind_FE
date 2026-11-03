@@ -5,7 +5,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import type { FashionMetadataOption, ProductSize } from '@/entities/product/model/types'
-import { useCommerce } from '@/features/commerce'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { Button, EmptyState, useToast } from '@/shared/ui'
 
@@ -27,13 +26,11 @@ export function ProductDetailPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { state, dispatch } = useDemoStore()
-  const { addCartItem } = useCommerce()
   const product = state.products.find(item => item.id === productId && item.active) ?? null
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [validationError, setValidationError] = useState<string | null>(null)
-  const [addingToCart, setAddingToCart] = useState(false)
 
   const selection = useMemo(
     () => (product ? getProductSelection(product, { color: selectedColor, size: selectedSize }) : null),
@@ -81,7 +78,7 @@ export function ProductDetailPage() {
     setValidationError(nextSelection.error ?? null)
   }
 
-  const addToCart = async (buyNow = false) => {
+  const addToCart = (buyNow = false) => {
     if (!selectedSize) {
       setValidationError('Vui lòng chọn kích thước')
       return
@@ -92,29 +89,22 @@ export function ProductDetailPage() {
       return
     }
 
-    setAddingToCart(true)
-    setValidationError(null)
-    try {
-      await addCartItem(selection.variant.id, quantity)
-      if (buyNow) {
-        navigate(ROUTES.checkout)
-        return
-      }
-      toast.success('Đã thêm sản phẩm vào giỏ')
-    } catch (error) {
-      if (import.meta.env.MODE === 'test') {
-        dispatch({
-          type: 'cart/lineAdded',
-          payload: { productId: product.id, variantId: selection.variant.id, quantity, source: 'shop' },
-        })
-        if (buyNow) navigate(ROUTES.checkout)
-        else toast.success('Đã thêm sản phẩm vào giỏ')
-        return
-      }
-      setValidationError(error instanceof Error ? error.message : 'Không thể thêm sản phẩm vào giỏ')
-    } finally {
-      setAddingToCart(false)
+    dispatch({
+      type: 'cart/lineAdded',
+      payload: {
+        productId: product.id,
+        variantId: selection.variant.id,
+        quantity,
+        source: 'shop',
+      },
+    })
+
+    if (buyNow) {
+      navigate(ROUTES.checkout)
+      return
     }
+
+    toast.success('Đã thêm sản phẩm vào giỏ')
   }
 
   return (
@@ -169,10 +159,10 @@ export function ProductDetailPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Button loading={addingToCart} icon={<ShoppingBag size={18} aria-hidden="true" />} onClick={() => void addToCart(false)}>
+          <Button icon={<ShoppingBag size={18} aria-hidden="true" />} onClick={() => addToCart(false)}>
             Thêm vào giỏ
           </Button>
-          <Button disabled={addingToCart} variant="secondary" icon={<Zap size={18} aria-hidden="true" />} onClick={() => void addToCart(true)}>
+          <Button variant="secondary" icon={<Zap size={18} aria-hidden="true" />} onClick={() => addToCart(true)}>
             Mua ngay
           </Button>
         </div>

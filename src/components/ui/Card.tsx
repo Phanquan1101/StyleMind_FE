@@ -24,33 +24,33 @@ export default function Card({
 
   const variantStyles: Record<string, React.CSSProperties> = {
     default: {
-      backgroundColor: "var(--color-surface-soft)",
-      borderColor: "var(--color-sand)",
-      boxShadow: "var(--shadow-card)",
+      backgroundColor: '#FDFCFA',
+      borderColor: '#EEE8E1',
+      boxShadow: '0 1px 6px rgba(0, 0, 0, 0.03)',
     },
     elevated: {
-      backgroundColor: "var(--color-surface)",
-      borderColor: "var(--color-sand)",
-      boxShadow: "var(--shadow-card-elevated)",
+      backgroundColor: '#FFFFFF',
+      borderColor: '#EEE8E1',
+      boxShadow: '0 8px 24px -6px rgba(34, 34, 34, 0.06)',
     },
     sand: {
-      backgroundColor: "var(--color-sand)",
-      borderColor: "var(--color-sand-dark)",
+      backgroundColor: '#EEE8E1',
+      borderColor: '#D8D0C6',
     },
     blush: {
-      backgroundColor: "var(--color-blush)",
-      borderColor: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
+      backgroundColor: '#F4E7E8',
+      borderColor: 'rgba(104, 75, 90, 0.15)',
     },
     outline: {
       backgroundColor: 'transparent',
-      borderColor: "var(--color-sand-dark)",
+      borderColor: '#D8D0C6',
     },
   }
 
   return (
     <div
       className={`rounded-2xl border transition-all duration-200 ${paddingClasses} ${
-        interactive ? 'cursor-pointer hover:border-accent/40 hover:shadow-md' : ''
+        interactive ? 'cursor-pointer hover:border-[#684B5A]/40 hover:shadow-md' : ''
       } ${className}`}
       style={{ ...variantStyles[variant], ...style }}
       {...props}

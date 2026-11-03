@@ -1,4 +1,4 @@
-import { Bell, LayoutDashboard, LogOut, MessageCircle, Search, ShoppingBag, UserRound } from 'lucide-react'
+import { Bell, LogOut, MessageCircle, Search, ShoppingBag, UserRound, UsersRound } from 'lucide-react'
 import { FormEvent, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
@@ -11,6 +11,7 @@ const navItems = [
   { to: ROUTES.home, label: 'Trang chủ' },
   { to: ROUTES.shop, label: 'Cửa hàng' },
   { to: ROUTES.wardrobes, label: 'Tủ đồ' },
+  { to: ROUTES.friends, label: 'Bạn bè' },
   { to: ROUTES.orders, label: 'Đơn hàng' },
 ]
 
@@ -22,7 +23,6 @@ export function CustomerHeader() {
   const cartCount = state.cartLines.reduce((total, line) => total + line.quantity, 0)
   const currentUserId = state.session?.userId ?? currentUser?.id ?? 'usr-customer-01'
   const unreadCount = selectUnreadNotificationCount(state, currentUserId)
-  const visibleNavItems = currentUser?.role === 'admin' ? [...navItems, { to: ROUTES.admin, label: 'Quản trị' }] : navItems
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -44,7 +44,7 @@ export function CustomerHeader() {
           <span className="font-display text-xl font-semibold text-[#222222]">StyleMind</span>
         </Link>
         <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 md:flex">
-          {visibleNavItems.map(item => (
+          {navItems.filter(item => item.to !== ROUTES.friends || currentUser?.role === 'customer').map(item => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -91,23 +91,9 @@ export function CustomerHeader() {
             </HeaderIconButton>
           )}
         </div>
-        {currentUser?.role === 'admin' && (
-          <Link
-            to={ROUTES.admin}
-            aria-label="Về trang quản trị"
-            title="Về trang quản trị"
-            className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#D8D0C6] px-3 text-sm font-semibold text-[#684B5A] transition hover:bg-[#F4E7E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] md:hidden"
-          >
-            <LayoutDashboard size={17} aria-hidden="true" />
-            <span>Quản trị</span>
-          </Link>
-        )}
+        {currentUser?.role === 'customer' && <Link to={ROUTES.friends} aria-label="Bạn bè" className="ml-auto inline-grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[#684B5A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] md:hidden"><UsersRound size={20} aria-hidden="true" /></Link>}
         {currentUser && (
-          <HeaderIconButton
-            label="Đăng xuất khỏi tài khoản"
-            className={`${currentUser.role === 'admin' ? '' : 'ml-auto'} md:ml-auto lg:hidden`}
-            onClick={handleLogout}
-          >
+          <HeaderIconButton label="Đăng xuất khỏi tài khoản" className="ml-auto lg:hidden" onClick={handleLogout}>
             <LogOut size={18} aria-hidden="true" />
           </HeaderIconButton>
         )}

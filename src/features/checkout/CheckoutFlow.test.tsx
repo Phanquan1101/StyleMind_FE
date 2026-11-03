@@ -1,10 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { commerceApi } from '@/api/commerce'
-import type { CheckoutInput, OrderResponse } from '@/api/commerce.types'
 import { createDemoSeed } from '@/app/data/demoSeed'
 import { AppProviders } from '@/app/providers/AppProviders'
 import { appRoutes } from '@/app/router/AppRouter'
@@ -15,51 +13,6 @@ import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
 import { CHECKOUT_QR_SESSION_KEY, createQrSession, confirmQrPayment, type QrSession } from './data/checkoutRepository'
 
 let router: ReturnType<typeof createMemoryRouter>
-
-function checkoutResponse(input: CheckoutInput): OrderResponse {
-  const isOffice = input.shipping_address_id === 'adr-customer-office'
-
-  return {
-    order_id: 'order-commerce-01',
-    order_number: 'SM-2026-0001',
-    customer_id: 'usr-customer-01',
-    checkout_key: input.checkout_key,
-    order_status: input.payment_method === 'COD' ? 'PLACED' : 'PENDING_PAYMENT',
-    payment_method: input.payment_method,
-    accepted_total_vnd: 650_000,
-    placed_at: '2026-09-25T06:00:00.000Z',
-    completed_at: null,
-    address: {
-      source_address_id: input.shipping_address_id,
-      recipient_name: 'Nguyen Minh Anh',
-      recipient_phone: '0901234567',
-      address_line: isOffice ? '18 Le Thanh Ton, Quan 1, TP. Ho Chi Minh' : '25 Nguyen Trai, Quan 5, TP. Ho Chi Minh',
-    },
-    items: [{
-      order_item_id: 'order-item-01',
-      variant_id: 'var-blouse-white-m',
-      sku_snapshot: 'BLOUSE-WHITE-M',
-      product_name_snapshot: 'Ao blouse trang',
-      brand_name_snapshot: 'StyleMind',
-      color_snapshot: 'Trang',
-      size_snapshot: 'M',
-      material_snapshot: null,
-      image_url_snapshot: null,
-      quantity: 1,
-      unit_price_vnd: 650_000,
-      line_total_vnd: 650_000,
-    }],
-    history: [{
-      history_id: 'history-01',
-      from_status: null,
-      to_status: input.payment_method === 'COD' ? 'PLACED' : 'PENDING_PAYMENT',
-      actor_user_id: 'usr-customer-01',
-      changed_at: '2026-09-25T06:00:00.000Z',
-      reason: null,
-    }],
-    cancellation_request: null,
-  }
-}
 
 function databaseWithCustomerAndCart(overrides: Partial<DemoDatabase> = {}): DemoDatabase {
   const database = createDemoSeed()
@@ -140,14 +93,6 @@ function renderExpiredQrSession() {
 }
 
 describe('Checkout flow', () => {
-  beforeEach(() => {
-    vi.spyOn(commerceApi.orders, 'checkout').mockImplementation(async input => checkoutResponse(input))
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('redirects an empty cart from checkout to cart', async () => {
     renderAt('/checkout', databaseWithCustomerAndCart({ cartLines: [] }))
 
@@ -159,7 +104,7 @@ describe('Checkout flow', () => {
     const user = userEvent.setup()
     renderCheckoutWithCustomerAndCart()
 
-    await user.click(await screen.findByLabelText('Thanh toán khi nhận hàng'))
+    await user.click(screen.getByLabelText('Thanh toán khi nhận hàng'))
     await user.click(screen.getByRole('button', { name: 'Đặt hàng' }))
 
     expect(await screen.findByText('Đặt hàng thành công')).toBeInTheDocument()
@@ -167,10 +112,10 @@ describe('Checkout flow', () => {
     expect(getDatabase().cartLines).toHaveLength(0)
   })
 
-  it('does not create an order when an expired QR is confirmed', async () => {
+  it('does not create an order when an expired QR is confirmed', () => {
     renderExpiredQrSession()
 
-    expect(await screen.findByText('Thanh toán đã hết hạn')).toBeInTheDocument()
+    expect(screen.getByText('Thanh toán đã hết hạn')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tôi đã thanh toán' })).not.toBeInTheDocument()
     expect(getDatabase().orders).toHaveLength(0)
   })
@@ -226,25 +171,20 @@ describe('Checkout flow', () => {
     const user = userEvent.setup()
     renderCheckoutWithCustomerAndCart()
 
-    expect(await screen.findByRole('link', { name: 'Quản lý địa chỉ' })).toHaveAttribute('href', '/account/addresses')
+    expect(screen.getByRole('link', { name: 'Quản lý địa chỉ' })).toHaveAttribute('href', '/account/addresses')
 
-    await user.selectOptions(await screen.findByLabelText('Chọn địa chỉ'), 'adr-customer-office')
+    await user.selectOptions(screen.getByLabelText('Chọn địa chỉ'), 'adr-customer-office')
     await user.click(screen.getByLabelText('Thanh toán khi nhận hàng'))
     await user.click(screen.getByRole('button', { name: 'Đặt hàng' }))
 
     await waitFor(() => expect(getDatabase().orders).toHaveLength(1))
 
-    expect(commerceApi.orders.checkout).toHaveBeenCalledWith(expect.objectContaining({
-      shipping_address_id: 'adr-customer-office',
-      payment_method: 'COD',
-    }))
-    expect(screen.queryByRole('textbox', { name: /uuid/i })).not.toBeInTheDocument()
-
     const placedDatabase = getDatabase()
     const order = placedDatabase.orders[0]
     expect(order.shippingAddress).toMatchObject({
       id: 'adr-customer-office',
-      line1: '18 Le Thanh Ton, Quan 1, TP. Ho Chi Minh',
+      line1: '18 Lê Thánh Tôn',
+      district: 'Quận 1',
     })
     expect('userId' in order.shippingAddress).toBe(false)
     expect('isDefault' in order.shippingAddress).toBe(false)
@@ -257,6 +197,6 @@ describe('Checkout flow', () => {
       payload: { ...officeAddress, line1: 'Địa chỉ đã thay đổi' },
     })
 
-    expect(nextDatabase.orders[0].shippingAddress.line1).toBe('18 Le Thanh Ton, Quan 1, TP. Ho Chi Minh')
+    expect(nextDatabase.orders[0].shippingAddress.line1).toBe('18 Lê Thánh Tôn')
   })
 })

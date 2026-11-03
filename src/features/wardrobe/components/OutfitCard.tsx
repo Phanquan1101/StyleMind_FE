@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 import type { Outfit } from '@/entities/outfit/model/types'
 import { formatDate } from '@/shared/lib/formatDate'
+import { visibilityLabels } from '@/features/sharing/model/outfitSharing'
 
 export function OutfitCard({ outfit }: { outfit: Outfit }) {
   return (
@@ -18,7 +19,7 @@ export function OutfitCard({ outfit }: { outfit: Outfit }) {
       {outfit.description && <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#6F6B67]">{outfit.description}</p>}
       <div className="mt-5 flex flex-wrap gap-3 text-sm text-[#3A3632]">
         <span>{outfit.items.length} món</span>
-        <span>{outfit.visibility === 'public' ? 'Công khai' : 'Riêng tư'}</span>
+        <span>{visibilityLabels[outfit.visibility]}</span>
         <span>{formatDate(outfit.updatedAt)}</span>
       </div>
     </Link>

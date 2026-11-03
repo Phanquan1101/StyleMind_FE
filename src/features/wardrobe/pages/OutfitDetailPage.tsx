@@ -8,6 +8,8 @@ import type { Outfit } from '@/entities/outfit/model/types'
 import { AiEditPanel } from '@/features/ai-stylist/components/AiEditPanel'
 import { useAuth } from '@/features/auth'
 import { canViewSharedOutfit } from '@/features/sharing/model/shareSelectors'
+import OutfitSharingDialog from '@/features/sharing/components/OutfitSharingDialog'
+import { visibilityLabels } from '@/features/sharing/model/outfitSharing'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 
@@ -33,13 +35,13 @@ function ReadOnlySharedOutfit({ detail }: { detail: OutfitDetail }) {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="max-w-3xl">
           <Link to={ROUTES.sharedWithMe} className="text-sm font-semibold text-[#684B5A] hover:underline">
-            Được chia sẻ với tôi
+            Outfit bạn bè
           </Link>
           <h1 className="mt-2 font-display text-4xl font-semibold leading-tight text-[#222222]">{detail.outfit.name}</h1>
           {detail.outfit.description && <p className="mt-3 text-sm leading-6 text-[#6F6B67]">{detail.outfit.description}</p>}
         </div>
         <div className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#3A3632] shadow-sm">
-          Được chia sẻ
+          {visibilityLabels[detail.outfit.visibility]} · Chỉ xem
         </div>
       </div>
 
@@ -208,8 +210,9 @@ export function OutfitDetailPage() {
           {detail.outfit.description && <p className="mt-3 text-sm leading-6 text-[#6F6B67]">{detail.outfit.description}</p>}
           <p className="mt-3 text-sm text-[#8A8179]">Cập nhật {formatDate(detail.outfit.updatedAt)}</p>
         </div>
-        <div className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#3A3632] shadow-sm">
-          {detail.outfit.visibility === 'public' ? 'Đang công khai' : 'Riêng tư'}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-lg border border-[#E3DAD0] bg-white px-4 py-3 text-sm font-semibold text-[#3A3632] shadow-sm">{visibilityLabels[detail.outfit.visibility]}</span>
+          <OutfitSharingDialog outfit={detail.outfit} />
         </div>
       </div>
 

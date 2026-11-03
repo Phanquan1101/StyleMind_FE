@@ -14,10 +14,16 @@ export function ProfileForm({ value, errors, onChange }: ProfileFormProps) {
       <h2 className="font-display text-2xl font-semibold text-[#222222]">Hồ sơ cá nhân</h2>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <TextField
-          label="Tên hiển thị"
-          value={value.displayName}
-          error={errors.displayName}
-          onChange={event => onChange({ ...value, displayName: event.target.value })}
+          label="Họ tên"
+          value={value.fullName}
+          error={errors.fullName}
+          onChange={event => onChange({ ...value, fullName: event.target.value })}
+        />
+        <TextField
+          label="Số điện thoại"
+          value={value.phone}
+          error={errors.phone}
+          onChange={event => onChange({ ...value, phone: event.target.value })}
         />
       </div>
     </section>

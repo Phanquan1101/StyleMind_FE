@@ -49,11 +49,11 @@ describe('customer routes', () => {
       ['/orders/missing-order', 'Không tìm thấy đơn hàng'],
       ['/notifications', 'Thông báo'],
       ['/wardrobes', 'Tủ đồ của tôi'],
-      ['/wardrobes/access', 'Quyền truy cập'],
+      ['/wardrobes/access', 'Quyền xem theo từng Outfit'],
       ['/wardrobes/new', 'Tạo outfit thủ công'],
       ['/wardrobes/new/ai', 'AI Stylist'],
       ['/outfits/outfit-ai-cafe', 'Cafe cuoi tuan'],
-      ['/shared-with-me', 'Tủ đồ được chia sẻ với tôi'],
+      ['/shared-with-me', 'Outfit bạn bè'],
       ['/messages', 'Tin nhắn'],
     ] as const
 

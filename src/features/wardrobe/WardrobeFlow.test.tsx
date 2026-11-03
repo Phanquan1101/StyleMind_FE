@@ -74,26 +74,20 @@ describe('Wardrobe flow', () => {
     expect(screen.getByRole('link', { name: /Cafe cuoi tuan/ })).toBeInTheDocument()
   })
 
-  it('shares the entire wardrobe from the wardrobe header', async () => {
+  it('opens a selected outfit from the wardrobe and shares it with all friends', async () => {
     const user = userEvent.setup()
     renderAt('/wardrobes')
 
-    await user.click(await screen.findByRole('button', { name: 'Chia sẻ tủ đồ' }))
-    await screen.findByRole('dialog', { name: 'Chia sẻ tủ đồ' })
-    await user.type(screen.getByLabelText('Email được chia sẻ'), 'banbe@example.com')
-    await user.click(screen.getByRole('button', { name: 'Xác nhận chia sẻ' }))
-
-    await waitFor(() => expect(screen.getAllByText(/banbe@example.com/).length).toBeGreaterThan(0))
+    await user.click(await screen.findByRole('link', { name: /Di lam toi gian/ }))
+    await user.click(screen.getByRole('button', { name: 'Chia sẻ outfit' }))
+    await user.click(screen.getByRole('radio', { name: /Bạn bè/ }))
+    await user.click(screen.getByRole('button', { name: 'Lưu chế độ' }))
     await waitFor(() => {
       const database = getDatabase()
-      const ownedOutfitIds = database.outfits
-        .filter(outfit => outfit.ownerId === 'usr-customer-01')
-        .map(outfit => outfit.id)
-      const sharedOutfitIds = database.outfitShares
-        .filter(share => share.viewerEmail === 'banbe@example.com' && share.active)
-        .map(share => share.outfitId)
-
-      expect(sharedOutfitIds.sort()).toEqual(ownedOutfitIds.sort())
+      expect(database.outfits.find(outfit => outfit.id === 'outfit-work-minimal')?.visibility).toBe('friends')
+      expect(database.outfits.find(outfit => outfit.id === 'outfit-ai-cafe')?.visibility).toBe('public')
+      expect(database.friendships).toEqual([])
+      expect(database.outfitShares).toEqual(createDemoSeed().outfitShares)
     })
   })
 
@@ -109,8 +103,7 @@ describe('Wardrobe flow', () => {
     const user = userEvent.setup()
     renderAt('/outfits/outfit-work-minimal')
 
-    const nameInput = await screen.findByDisplayValue('Di lam toi gian')
-    await user.clear(nameInput)
+    await user.clear(await screen.findByLabelText('Tên outfit'))
     await user.type(screen.getByLabelText('Tên outfit'), 'Đi làm thứ hai')
     await user.click(screen.getByRole('button', { name: 'Lưu tên outfit' }))
     await user.click(screen.getByRole('button', { name: 'Xóa món Áo blouse cổ vuông' }))

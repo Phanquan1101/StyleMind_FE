@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
-import { useAuth } from '@/features/auth'
 import type { UserRole } from '@/entities/user/model/types'
 
 interface AuthGuardProps {
@@ -14,10 +13,12 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children, roles, requireCart = false }: AuthGuardProps) {
   const location = useLocation()
-  const { state } = useDemoStore()
-  const { currentUser, isInitializing } = useAuth()
+  const { state, dispatch } = useDemoStore()
+  const currentUser = state.users.find(user => user.id === state.session?.userId && user.status === 'active') ?? null
 
-  if (isInitializing) return <p className="px-5 py-12 text-center text-sm text-[#6F6B67]" role="status">Đang kiểm tra phiên đăng nhập…</p>
+  useEffect(() => {
+    if (state.session && !currentUser) dispatch({ type: 'session/loggedOut' })
+  }, [currentUser, dispatch, state.session])
 
   if (!currentUser) return <Navigate to={ROUTES.login} replace state={{ from: location }} />
 

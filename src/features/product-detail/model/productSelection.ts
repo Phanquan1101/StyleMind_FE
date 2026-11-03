@@ -53,9 +53,8 @@ function uniqueColorOptions(variants: ProductVariant[]): ProductColorOption[] {
 }
 
 function colorImages(variants: ProductVariant[]) {
-  return Array.from(
-    new Map(variants.flatMap(variant => variant.images).map(image => [image.url, image])).values(),
-  )
+  return variants
+    .flatMap(variant => variant.images)
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.order - b.order)
 }
 

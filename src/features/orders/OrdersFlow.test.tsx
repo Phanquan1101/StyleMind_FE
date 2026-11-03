@@ -111,8 +111,7 @@ describe('Orders flow', () => {
     const user = userEvent.setup()
     renderAt('/orders/ORD-TEST-001', databaseWithOrders('pending'))
 
-    await screen.findByRole('heading', { name: 'Đơn ORD-TEST-001' })
-    await user.type(await screen.findByLabelText('Lý do hủy đơn'), 'Tôi đặt nhầm size')
+    await user.type(screen.getByLabelText('Lý do hủy đơn'), 'Tôi đặt nhầm size')
     await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu hủy' }))
 
     expect(await screen.findByText('Đã gửi yêu cầu hủy')).toBeInTheDocument()
@@ -142,8 +141,7 @@ describe('Orders flow', () => {
     const user = userEvent.setup()
     renderAt('/orders/ORD-TEST-001', databaseWithOrders('shipped'))
 
-    await screen.findByRole('heading', { name: 'Đơn ORD-TEST-001' })
-    await user.click(await screen.findByLabelText(/Áo blouse cổ vuông/))
+    await user.click(screen.getByLabelText(/Áo blouse cổ vuông/))
     await user.type(screen.getByLabelText('Lý do trả hàng'), 'Sản phẩm không vừa')
     await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu trả hàng' }))
 

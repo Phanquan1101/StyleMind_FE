@@ -3,10 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
-import { useCommerce } from '@/features/commerce'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
-import { useToast } from '@/shared/ui'
 
 import { CancellationRequestForm } from '../components/CancellationRequestForm'
 import { orderStatusLabel } from '../components/OrderCard'
@@ -21,8 +19,6 @@ export function OrderDetailPage() {
   const { orderId } = useParams()
   const { state, dispatch } = useDemoStore()
   const { currentUser } = useAuth()
-  const { requestCancellation } = useCommerce()
-  const toast = useToast()
 
   if (!currentUser) return null
 
@@ -47,24 +43,16 @@ export function OrderDetailPage() {
   const canReturn = returnableStatuses.has(order.status)
 
   const submitCancellation = (reason: string) => {
-    void requestCancellation(order.id, reason).then(() => {
-      toast.success('Đã gửi yêu cầu hủy đơn.')
-    }).catch(error => {
-      if (import.meta.env.MODE !== 'test') {
-        toast.error(error instanceof Error ? error.message : 'Không thể gửi yêu cầu hủy đơn')
-        return
-      }
-      dispatch({
-        type: 'cancellation/submitted',
-        payload: {
-          id: `cancel-${order.id}-${Date.now()}`,
-          orderId: order.id,
-          userId: currentUser.id,
-          reason,
-          status: 'submitted',
-          createdAt: new Date().toISOString(),
-        },
-      })
+    dispatch({
+      type: 'cancellation/submitted',
+      payload: {
+        id: `cancel-${order.id}-${Date.now()}`,
+        orderId: order.id,
+        userId: currentUser.id,
+        reason,
+        status: 'submitted',
+        createdAt: new Date().toISOString(),
+      },
     })
   }
 

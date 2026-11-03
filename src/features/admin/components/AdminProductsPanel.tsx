@@ -1,14 +1,14 @@
-import { ChevronDown, Pencil, Plus } from 'lucide-react'
-import { Fragment, useMemo, useState, type FormEvent } from 'react'
+import { Pencil, Plus } from 'lucide-react'
+import { useMemo, useState, type FormEvent } from 'react'
 
-import { commerceApi } from '@/api/commerce'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
 import type { Product, ProductSize } from '@/entities/product/model/types'
 import { selectAdminProducts } from '@/features/admin/model/adminSelectors'
 import type { AdminProductFilters } from '@/features/admin/model/adminTypes'
-import { commerceProductToEntity } from '@/features/commerce/data/commerceEntityAdapters'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
-import { Button, Modal, SelectField, TextField, ToggleSwitch, useToast } from '@/shared/ui'
+import { Button, Modal, SelectField, TextField, useToast } from '@/shared/ui'
+
+import { StatusBadge } from './AdminCommon'
 
 interface AdminProductsPanelProps {
   database: DemoDatabase
@@ -162,6 +162,10 @@ function buildProduct(form: ProductFormState, existingProduct?: Product): Produc
   }
 }
 
+function statusTone(active: boolean) {
+  return active ? 'success' : 'neutral'
+}
+
 export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelProps) {
   const toast = useToast()
   const firstCategoryId = database.categories.find(category => category.active)?.id ?? database.categories[0]?.id ?? ''
@@ -170,8 +174,6 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId, database))
   const [formError, setFormError] = useState<string | null>(null)
-  const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
 
   const rows = useMemo(() => selectAdminProducts(database, filters), [database, filters])
   const editingProduct = editingProductId ? database.products.find(product => product.id === editingProductId) : undefined
@@ -197,7 +199,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
     setForm(current => ({ ...current, [field]: value }))
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const productId = editingProductId ?? form.id.trim()
     const duplicate = database.products.some(product => product.id === productId && product.id !== editingProductId)
@@ -235,51 +237,9 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       return
     }
 
-    setSaving(true)
-    try {
-      const brands = await commerceApi.brands.listAdmin()
-      let brand = brands.items.find(item => item.name.trim().toLowerCase() === form.brand.trim().toLowerCase())
-      if (!brand) {
-        brand = await commerceApi.brands.create({
-          name: form.brand.trim(),
-          slug: toSlug(form.brand),
-          is_active: true,
-        })
-      }
-      const productInput = {
-        category_id: form.categoryId,
-        brand_id: brand.id,
-        name: form.name.trim(),
-        description: form.description.trim() || null,
-        demographic_segment: null,
-        product_status: form.productActive ? 'ACTIVE' : 'INACTIVE',
-      }
-      const savedProduct = editingProductId
-        ? await commerceApi.products.replace(editingProductId, productInput)
-        : await commerceApi.products.create(productInput)
-      const currentVariant = savedProduct.variants[0]
-      const variantInput = {
-        sku: currentVariant?.sku || `${toSlug(form.name)}-${toSlug(form.color)}-${form.size}`.toUpperCase(),
-        size: form.size,
-        color: form.color.trim(),
-        material: form.material.trim() || null,
-        unit_price_vnd: variantPriceOverride ?? basePrice,
-        variant_status: form.variantActive ? 'ACTIVE' : 'INACTIVE',
-      }
-      if (currentVariant) {
-        await commerceApi.products.replaceVariant(currentVariant.variant_id, variantInput)
-      } else {
-        await commerceApi.products.createVariant(savedProduct.product_id, variantInput)
-      }
-      const refreshed = await commerceApi.products.getAdmin(savedProduct.product_id)
-      dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(refreshed) })
-      toast.success(editingProductId ? 'Đã cập nhật sản phẩm.' : 'Đã thêm sản phẩm.')
-      setModalOpen(false)
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Không thể lưu sản phẩm')
-    } finally {
-      setSaving(false)
-    }
+    dispatch({ type: 'admin/productUpserted', payload: buildProduct(form, editingProduct) })
+    toast.success(editingProductId ? 'Đã cập nhật sản phẩm.' : 'Đã thêm sản phẩm demo.')
+    setModalOpen(false)
   }
 
   return (
@@ -329,156 +289,98 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
         </SelectField>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-[#E5E0D8] bg-white shadow-[0_8px_24px_rgba(58,54,50,0.06)]">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-            <thead className="bg-[#FAF8F5] text-xs font-semibold uppercase tracking-wide text-[#6F6B67]">
-              <tr>
-                <th scope="col" className="px-4 py-3">Sản phẩm</th>
-                <th scope="col" className="px-4 py-3">Danh mục</th>
-                <th scope="col" className="px-4 py-3 text-right">Giá bán</th>
-                <th scope="col" className="px-4 py-3">Biến thể</th>
-                <th scope="col" className="px-4 py-3 text-center">Trạng thái</th>
-                <th scope="col" className="px-4 py-3 text-right">Hành động</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E5E0D8]">
-              {rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-[#6F6B67]">Không có sản phẩm phù hợp.</td></tr>
-              ) : rows.map(row => {
-                const isExpanded = expandedProductId === row.id
-                const variantsTableId = `variants-${row.id}`
+      <div className="grid gap-3">
+        {rows.length === 0 ? (
+          <p className="rounded-lg bg-white p-4 text-sm text-[#6F6B67] shadow-[0_10px_28px_rgba(58,54,50,0.07)]">
+            Không có sản phẩm phù hợp.
+          </p>
+        ) : (
+          rows.map(row => (
+            <article key={row.id} className="grid gap-4 rounded-lg bg-white p-4 shadow-[0_10px_28px_rgba(58,54,50,0.07)]">
+              <div className="grid gap-4 lg:grid-cols-[88px_minmax(0,1fr)_auto] lg:items-start">
+                <div className="h-24 w-24 overflow-hidden rounded-lg bg-[#EEE8E1]">
+                  {row.imageUrl ? (
+                    <img src={row.imageUrl} alt={row.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full place-items-center text-xs font-semibold text-[#8A8179]">Chưa có ảnh</div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-display text-2xl font-semibold text-[#222222]">{row.name}</h2>
+                    <StatusBadge tone={statusTone(row.active)}>{row.active ? 'Đang bán' : 'Đã tắt'}</StatusBadge>
+                  </div>
+                  <p className="mt-1 break-all text-sm font-semibold text-[#684B5A]">{row.id}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#6F6B67]">
+                    {row.brand} · {row.categoryLabel} · {row.variantCount} biến thể
+                  </p>
+                  <p className="mt-2 text-base font-semibold tabular-nums text-[#222222]">{formatCurrency(row.basePrice)}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {row.colors.map(color => (
+                      <span key={`${row.id}-${color.color}`} className="inline-flex items-center gap-2 rounded-md bg-[#FAF8F5] px-2.5 py-1 text-xs font-semibold text-[#3A3632]">
+                        <span className="h-3 w-3 rounded-full border border-[#D8D0C6]" style={{ backgroundColor: color.colorHex }} />
+                        {color.color}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<Pencil size={16} aria-hidden="true" />}
+                    onClick={() => openEditModal(row.id)}
+                  >
+                    Sửa sản phẩm {row.id}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={row.active ? 'danger' : 'secondary'}
+                    onClick={() => {
+                      dispatch({ type: 'admin/productStatusChanged', payload: { productId: row.id, active: !row.active } })
+                      toast.info(row.active ? 'Đã tắt sản phẩm.' : 'Đã bật sản phẩm.')
+                    }}
+                  >
+                    {row.active ? `Tắt sản phẩm ${row.id}` : `Bật sản phẩm ${row.id}`}
+                  </Button>
+                </div>
+              </div>
 
-                return (
-                  <Fragment key={row.id}>
-                    <tr className="align-middle hover:bg-[#FAF8F5]/70">
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-56 items-center gap-3">
-                          {row.imageUrl ? (
-                            <img src={row.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
-                          ) : (
-                            <span aria-hidden="true" className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-[#F5F2EE] text-[10px] font-semibold text-[#6F6B67]">Ảnh</span>
-                          )}
-                          <span className="min-w-0">
-                            <span className="block truncate font-semibold text-[#222222]">{row.name}</span>
-                            <span className="mt-0.5 block truncate text-xs text-[#6F6B67]">{row.id} · {row.brand}</span>
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-[#3A3632]">{row.categoryLabel}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-[#222222]">{formatCurrency(row.basePrice)}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          aria-expanded={isExpanded}
-                          aria-controls={variantsTableId}
-                          onClick={() => setExpandedProductId(current => current === row.id ? null : row.id)}
-                          className="inline-flex h-9 items-center gap-2 rounded-md border border-[#E5E0D8] bg-[#FAF8F5] px-3 text-xs font-semibold text-[#3A3632] transition hover:bg-[#EEE8E1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#684B5A] focus-visible:ring-offset-2"
-                        >
-                          {row.variantCount} biến thể
-                          <ChevronDown aria-hidden="true" size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ToggleSwitch
-                          checked={row.active}
-                          label={`Sản phẩm ${row.name}`}
-                          onCheckedChange={active => {
-                            void commerceApi.products.getAdmin(row.id).then(product =>
-                              commerceApi.products.replace(row.id, {
-                                category_id: product.category_id,
-                                brand_id: product.brand_id,
-                                name: product.name,
-                                description: product.description,
-                                demographic_segment: product.demographic_segment,
-                                product_status: active ? 'ACTIVE' : 'INACTIVE',
-                              }),
-                            ).then(product => {
-                              dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(product) })
-                              toast.info(active ? 'Đã bật sản phẩm.' : 'Đã tắt sản phẩm.')
-                            }).catch(error => toast.error(error instanceof Error ? error.message : 'Không thể cập nhật sản phẩm'))
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-right">
+              <div className="grid gap-2 border-t border-[#E3DAD0] pt-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8A8179]">Biến thể</p>
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                  {row.variants.map(variant => (
+                    <div key={variant.id} className="grid gap-3 rounded-lg border border-[#E3DAD0] p-3">
+                      <div className="min-w-0">
+                        <p className="break-all text-sm font-semibold text-[#222222]">{variant.id}</p>
+                        <p className="mt-1 text-sm text-[#6F6B67]">
+                          {variant.color} · Cỡ {variant.size} · {formatCurrency(variant.price)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <StatusBadge tone={statusTone(variant.active)}>{variant.active ? 'Đang bật' : 'Đã tắt'}</StatusBadge>
                         <Button
                           type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="border border-[#E5E0D8]"
-                          icon={<Pencil size={14} aria-hidden="true" />}
-                          aria-label={`Sửa ${row.name}`}
-                          onClick={() => openEditModal(row.id)}
+                          variant={variant.active ? 'danger' : 'secondary'}
+                          className="min-h-9 px-3"
+                          onClick={() => {
+                            dispatch({
+                              type: 'admin/variantStatusChanged',
+                              payload: { productId: row.id, variantId: variant.id, active: !variant.active },
+                            })
+                            toast.info(variant.active ? 'Đã tắt biến thể.' : 'Đã bật biến thể.')
+                          }}
                         >
-                          Sửa
+                          {variant.active ? `Tắt biến thể ${variant.id}` : `Bật biến thể ${variant.id}`}
                         </Button>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={6} className="bg-[#FAF8F5] px-4 py-3">
-                          <div id={variantsTableId} className="overflow-x-auto rounded-lg border border-[#E5E0D8] bg-white">
-                            <table className="w-full min-w-[540px] text-left text-sm">
-                              <caption className="sr-only">Biến thể của {row.name}</caption>
-                              <thead className="bg-[#F5F2EE] text-xs font-semibold text-[#6F6B67]">
-                                <tr>
-                                  <th scope="col" className="px-3 py-2">Màu</th>
-                                  <th scope="col" className="px-3 py-2">Cỡ</th>
-                                  <th scope="col" className="px-3 py-2 text-right">Giá</th>
-                                  <th scope="col" className="px-3 py-2 text-center">Đang bán</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-[#E5E0D8]">
-                                {row.variants.map(variant => (
-                                  <tr key={variant.id}>
-                                    <td className="px-3 py-2.5">
-                                      <span className="inline-flex items-center gap-2 text-[#3A3632]">
-                                        <span aria-hidden="true" className="h-3.5 w-3.5 rounded-full border border-[#D8D0C6]" style={{ backgroundColor: variant.colorHex }} />
-                                        {variant.color}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2.5 font-medium text-[#3A3632]">{variant.size}</td>
-                                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-[#3A3632]">{formatCurrency(variant.price)}</td>
-                                    <td className="px-3 py-2.5 text-center">
-                                      <span className="inline-flex justify-center">
-                                        <ToggleSwitch
-                                          checked={variant.active}
-                                          label={`Biến thể màu ${variant.color}, cỡ ${variant.size} của ${row.name}`}
-                                          onCheckedChange={active => {
-                                            void commerceApi.products.getAdmin(row.id).then(async product => {
-                                              const source = product.variants.find(item => item.variant_id === variant.id)
-                                              if (!source) throw new Error('Không tìm thấy biến thể')
-                                              await commerceApi.products.replaceVariant(source.variant_id, {
-                                                sku: source.sku,
-                                                size: source.size,
-                                                color: source.color,
-                                                material: source.material,
-                                                unit_price_vnd: source.unit_price_vnd,
-                                                variant_status: active ? 'ACTIVE' : 'INACTIVE',
-                                              })
-                                              return commerceApi.products.getAdmin(row.id)
-                                            }).then(product => {
-                                              dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(product) })
-                                              toast.info(active ? 'Đã bật biến thể.' : 'Đã tắt biến thể.')
-                                            }).catch(error => toast.error(error instanceof Error ? error.message : 'Không thể cập nhật biến thể'))
-                                          }}
-                                        />
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </article>
+          ))
+        )}
       </div>
 
       <Modal
@@ -570,7 +472,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
             <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
               Hủy
             </Button>
-            <Button loading={saving} type="submit">Lưu sản phẩm</Button>
+            <Button type="submit">Lưu sản phẩm</Button>
           </div>
         </form>
       </Modal>
