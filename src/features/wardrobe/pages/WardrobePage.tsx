@@ -8,7 +8,7 @@ import { WardrobeSharePanel } from '@/features/sharing/components/WardrobeShareP
 import { getWardrobeSettings, getWardrobeVisibilityLabel, selectActiveWardrobeSharesForOwner } from '@/features/sharing/model/shareSelectors'
 import type { WardrobeVisibility } from '@/entities/share/model/types'
 
-import { OutfitCard } from '../components/OutfitCard'
+import { BackendOutfitList } from '../components/BackendOutfitList'
 import { selectOwnedOutfits } from '../model/outfitSelectors'
 
 export function WardrobePage() {
@@ -107,26 +107,11 @@ export function WardrobePage() {
           <Link to={ROUTES.outfitNew} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#EEE8E1] px-4 text-sm font-semibold text-[#222222]">
             Tạo tủ đồ
           </Link>
-          <Link to={ROUTES.outfitNewAi} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#684B5A] px-4 text-sm font-semibold text-white">
-            Tạo với AI
-          </Link>
+          {/* TODO: mở lại lối vào "Tạo với AI" khi có AI Stylist BE. */}
         </div>
       </div>
 
-      {outfits.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {outfits.map(outfit => (
-            <OutfitCard key={outfit.id} outfit={outfit} />
-          ))}
-        </div>
-      ) : (
-        <section className="rounded-lg border border-dashed border-[#D8D0C6] bg-white p-8">
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Tủ đồ đang trống</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6F6B67]">
-            Tạo outfit đầu tiên để lưu các món bạn muốn phối cùng nhau.
-          </p>
-        </section>
-      )}
+      <BackendOutfitList />
     </section>
   )
 }

@@ -289,7 +289,7 @@ function apiUrl(path: string): string {
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 }
 
-async function performRequest<T>(
+export async function performRequest<T>(
   path: string,
   init: RequestInit,
   authenticated: boolean,
@@ -350,7 +350,7 @@ async function rotateStoredRefreshToken(): Promise<IdentityTokenResponse> {
   return refreshInFlight
 }
 
-function jsonRequest(method: string, body?: unknown): RequestInit {
+export function jsonRequest(method: string, body?: unknown): RequestInit {
   return { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }
 }
 

@@ -46,7 +46,7 @@ function renderAt(initialEntry: string, database = databaseWithCustomer()) {
 }
 
 describe('complete customer flow smoke', () => {
-  it('updates body info creates a manual outfit adds it to cart checks out and views the order', async () => {
+  it('updates body info adds a product to cart checks out and views the order', async () => {
     const user = userEvent.setup()
     const router = renderAt('/account')
 
@@ -64,14 +64,10 @@ describe('complete customer flow smoke', () => {
     })
 
     await act(async () => {
-      await router.navigate('/wardrobes/new')
+      await router.navigate('/products/prd-blouse-01')
     })
-    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông' }))
-    await user.type(screen.getByLabelText('Tên outfit'), 'Outfit smoke đi làm')
-    await user.click(screen.getByRole('button', { name: 'Lưu outfit' }))
-
-    expect(await screen.findByRole('heading', { name: 'Outfit smoke đi làm' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Thêm toàn bộ outfit vào giỏ' }))
+    await user.click(await screen.findByRole('button', { name: 'Kích thước M' }))
+    await user.click(screen.getByRole('button', { name: 'Thêm vào giỏ' }))
     await user.click(await screen.findByLabelText(/Giỏ hàng/))
     await user.click(screen.getByRole('button', { name: 'Tiến hành thanh toán' }))
 

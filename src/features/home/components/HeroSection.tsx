@@ -20,12 +20,7 @@ export function HeroSection() {
             Mua sắm thời trang nữ với sản phẩm thật trong catalog StyleMind và xây dựng tủ đồ AI cá nhân hóa theo vóc dáng, dịp mặc và phong cách của bạn.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              to={ROUTES.aiWardrobe}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-white px-5 text-sm font-semibold text-[#222222] transition hover:bg-[#F4E7E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              Tạo tủ đồ của tôi
-            </Link>
+            {/* TODO: mở lại lối vào "Tạo tủ đồ của tôi" (AI Stylist) khi có AI Stylist BE. */}
             <Link
               to={ROUTES.shop}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/60 px-5 text-sm font-semibold text-white transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"

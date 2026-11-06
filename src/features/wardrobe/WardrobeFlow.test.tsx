@@ -10,6 +10,7 @@ import type { DemoDatabase } from '@/app/store/types'
 import type { Outfit } from '@/entities/outfit/model/types'
 import type { ProductVariant } from '@/entities/product/model/types'
 import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
+import { mockOutfitItem, seedWardrobeOutfits } from '@/test/wardrobeMockBackend'
 
 function databaseWithCustomer(overrides: Partial<DemoDatabase> = {}): DemoDatabase {
   return {
@@ -64,14 +65,39 @@ function databaseWithInactiveVariant(): DemoDatabase {
 }
 
 describe('Wardrobe flow', () => {
-  it('lists the current customers outfits as wardrobe cards', async () => {
+  it('lists the current customers outfits from the backend as wardrobe cards', async () => {
+    seedWardrobeOutfits('usr-customer-01', [
+      {
+        outfit_id: '11111111-1111-4111-8111-111111111111',
+        name: 'Đi làm tối giản',
+        creation_source: 'MANUAL',
+        created_at: '2026-10-01T08:00:00Z',
+        updated_at: '2026-10-02T08:00:00Z',
+        items: [mockOutfitItem({ outfit_item_id: '21111111-1111-4111-8111-111111111111', variant_id: '31111111-1111-4111-8111-111111111111' })],
+      },
+      {
+        outfit_id: '11111111-1111-4111-8111-222222222222',
+        name: 'Cà phê cuối tuần',
+        creation_source: 'AI',
+        created_at: '2026-10-03T08:00:00Z',
+        updated_at: '2026-10-04T08:00:00Z',
+        items: [],
+      },
+    ])
     renderAt('/wardrobes')
 
     expect(await screen.findByRole('heading', { name: 'Tủ đồ của tôi' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tạo tủ đồ' })).toHaveAttribute('href', '/wardrobes/new')
-    expect(screen.queryByRole('link', { name: 'Tạo thủ công' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Di lam toi gian/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Cafe cuoi tuan/ })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Đi làm tối giản/ })).toHaveAttribute(
+      'href',
+      '/outfits/11111111-1111-4111-8111-111111111111',
+    )
+    expect(screen.getByRole('link', { name: /Cà phê cuối tuần/ })).toBeInTheDocument()
+    // The outfits of the old demo store are no longer listed.
+    expect(screen.queryByRole('link', { name: /Di lam toi gian/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Cafe cuoi tuan/ })).not.toBeInTheDocument()
+    // The manual builder entrance is back; the AI Stylist entrance stays hidden until it is connected.
+    expect(screen.getByRole('link', { name: 'Tạo tủ đồ' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Tạo với AI' })).not.toBeInTheDocument()
   })
 
   it('shares the entire wardrobe from the wardrobe header', async () => {
