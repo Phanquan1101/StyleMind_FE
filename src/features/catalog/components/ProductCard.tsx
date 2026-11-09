@@ -7,6 +7,8 @@ import { ProductCardImage } from './ProductCardImage'
 
 interface ProductCardProps {
   product: Product
+  /** Heading level of the product name; sections that already own an h2 pass 'h3'. */
+  headingLevel?: 'h2' | 'h3'
 }
 
 function productPath(productId: string) {
@@ -17,7 +19,8 @@ function getPrimaryImage(product: Product) {
   return product.variants.flatMap(variant => variant.images).find(image => image.isPrimary) ?? product.variants[0]?.images[0]
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, headingLevel = 'h2' }: ProductCardProps) {
+  const Heading = headingLevel
   const image = getPrimaryImage(product)
   const colors = Array.from(new Map(product.variants.map(variant => [variant.color, variant.colorHex])).entries())
   const soldOut = !product.active || !product.variants.some(variant => variant.active && variant.stock > 0)
@@ -30,7 +33,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
         <div className="p-4 sm:p-5">
           <p className="text-xs font-semibold text-[#5E5F5D]">{product.brand}</p>
-          <h2 className="mt-1 break-words text-base font-semibold leading-snug text-[#222222]">{product.name}</h2>
+          <Heading className="mt-1 break-words text-base font-semibold leading-snug text-[#222222]">{product.name}</Heading>
           {soldOut && <p className="mt-2 text-sm font-semibold text-red-700">Hết hàng</p>}
           <p className="mt-2 text-base font-semibold text-[#1C1B1B]">{formatCurrency(product.basePrice)}</p>
           <div className="mt-3 flex gap-1.5" role="group" aria-label={`Màu của ${product.name}: ${colors.map(([color]) => color).join(', ')}`}>

@@ -20,6 +20,16 @@ function renderHome(database: DemoDatabase) {
 }
 
 describe('HomePage', () => {
+  it('renders rail products as shop product cards with level-3 names under the section heading', async () => {
+    renderHome(createDemoSeed())
+
+    await screen.findByRole('heading', { level: 2, name: 'Sản phẩm mới' })
+    const names = screen.getAllByRole('heading', { level: 3 }).filter(heading => heading.closest('a[href^="/products/"]'))
+    expect(names.length).toBeGreaterThan(0)
+    expect(names.length).toBeLessThanOrEqual(4)
+    expect(document.querySelector('a[href^="/products/"] [role="group"][aria-label^="Màu của"]')).not.toBeNull()
+  })
+
   it('hides inactive products and categories from customer rails', async () => {
     const database = createDemoSeed()
     renderHome({

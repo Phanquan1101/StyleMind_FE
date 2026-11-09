@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useCommerceDisplay } from '@/features/cart/model/GuestCommerceProvider'
-import { Button } from '@/shared/ui'
+import { Button, LoadingSkeleton } from '@/shared/ui'
 
 import { HeroSection } from '../components/HeroSection'
 import { ProductRail } from '../components/ProductRail'
@@ -21,8 +21,27 @@ export function HomePage() {
   return (
     <>
       <HeroSection />
-      {loading && <p role="status" className="p-8">Đang tải sản phẩm…</p>}
-      {error && <div className="mx-auto grid max-w-[var(--container-wide)] gap-4 px-8 py-6"><p role="alert">{error}</p><Button className="w-fit" onClick={retry}>Tải lại sản phẩm</Button></div>}
+      {loading && (
+        <div role="status" className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 py-14 md:px-8">
+          <span className="sr-only">Đang tải sản phẩm…</span>
+          <LoadingSkeleton className="h-8 w-64" />
+          <div className="grid gap-6 sm:grid-cols-2">
+            <LoadingSkeleton className="aspect-[4/3] w-full rounded-[24px]" />
+            <LoadingSkeleton className="aspect-[4/3] w-full rounded-[24px]" />
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => <LoadingSkeleton key={index} className="aspect-[3/4] w-full rounded-[24px]" />)}
+          </div>
+        </div>
+      )}
+      {error && (
+        <div className="mx-auto max-w-[var(--container-wide)] px-5 py-6 md:px-8">
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#FCEAEA] p-4 text-sm font-semibold text-[#A94B4B]">
+            <span>{error}</span>
+            <Button size="sm" variant="secondary" onClick={retry}>Tải lại sản phẩm</Button>
+          </div>
+        </div>
+      )}
       {!loading && !error && <>
       <section className="bg-[#FFFFFF] px-5 py-14 md:px-8">
         <div className="mx-auto max-w-[var(--container-wide)]">
