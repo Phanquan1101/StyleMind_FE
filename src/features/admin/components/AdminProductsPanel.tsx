@@ -41,6 +41,18 @@ interface ProductFormState {
 
 const productSizes: ProductSize[] = ['XS', 'S', 'M', 'L', 'XL']
 
+// Khớp BE commerce ProductRequestValidator.MAX_UNIT_PRICE_VND (giới hạn kỹ thuật chống tràn số khi tính tổng, FR chưa quy định).
+const MAX_UNIT_PRICE_VND = 1_000_000_000
+
+type PriceField = 'basePrice' | 'variantPrice'
+
+function priceError(value: number, label: string, zeroMessage: string): string | null {
+  if (!Number.isFinite(value) || value <= 0) return zeroMessage
+  if (!Number.isInteger(value)) return `${label} phải là số nguyên VND, không có phần lẻ.`
+  if (value > MAX_UNIT_PRICE_VND) return `${label} tối đa ${MAX_UNIT_PRICE_VND.toLocaleString('vi-VN')} VND.`
+  return null
+}
+
 function toSlug(value: string) {
   return (
     value
@@ -172,6 +184,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId, database))
   const [formError, setFormError] = useState<string | null>(null)
+  const [priceErrors, setPriceErrors] = useState<Partial<Record<PriceField, string>>>({})
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
   const [imageVariant, setImageVariant] = useState<{ productId: string; variantId: string; label: string } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -187,6 +200,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
     setEditingProductId(null)
     setForm(createInitialForm(firstCategoryId, database))
     setFormError(null)
+    setPriceErrors({})
     setModalOpen(true)
   }
 
@@ -198,11 +212,13 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
     setEditingProductId(productId)
     setForm(createFormFromProduct(product, database))
     setFormError(null)
+    setPriceErrors({})
     setModalOpen(true)
   }
 
   const updateField = <Field extends keyof ProductFormState>(field: Field, value: ProductFormState[Field]) => {
     setForm(current => ({ ...current, [field]: value }))
+    if (field === 'basePrice' || field === 'variantPriceOverride') setPriceErrors({})
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -229,15 +245,20 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       return
     }
 
-    if (!Number.isFinite(basePrice) || basePrice <= 0) {
-      setFormError('Giá cơ bản phải lớn hơn 0.')
+    const basePriceError = priceError(basePrice, 'Giá cơ bản', 'Giá cơ bản phải lớn hơn 0.')
+    if (basePriceError) {
+      setPriceErrors({ basePrice: basePriceError })
+      setFormError(basePriceError)
       return
     }
 
-    if (variantPriceOverride !== undefined && (!Number.isFinite(variantPriceOverride) || variantPriceOverride <= 0)) {
-      setFormError('Giá biến thể phải lớn hơn 0 hoặc để trống.')
+    const variantPriceError = variantPriceOverride === undefined ? null : priceError(variantPriceOverride, 'Giá biến thể', 'Giá biến thể phải lớn hơn 0 hoặc để trống.')
+    if (variantPriceError) {
+      setPriceErrors({ variantPrice: variantPriceError })
+      setFormError(variantPriceError)
       return
     }
+    setPriceErrors({})
 
     if (duplicate) {
       setFormError('Mã sản phẩm đã tồn tại.')
@@ -534,7 +555,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                 </option>
               ))}
             </SelectField>
-            <TextField label="Giá cơ bản" type="number" min="0" value={form.basePrice} onChange={event => updateField('basePrice', event.target.value)} />
+            <TextField label="Giá cơ bản" type="number" min="0" step="any" error={priceErrors.basePrice} value={form.basePrice} onChange={event => updateField('basePrice', event.target.value)} />
             <TextField label="Chất liệu" value={form.material} onChange={event => updateField('material', event.target.value)} />
             <TextField label="Phom dáng" value={form.fit} onChange={event => updateField('fit', event.target.value)} />
             <TextField label="Họa tiết" value={form.pattern} onChange={event => updateField('pattern', event.target.value)} />
@@ -570,6 +591,8 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
               label="Giá biến thể"
               type="number"
               min="0"
+              step="any"
+              error={priceErrors.variantPrice}
               value={form.variantPriceOverride}
               onChange={event => updateField('variantPriceOverride', event.target.value)}
             />
