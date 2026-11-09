@@ -7,7 +7,7 @@ import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import type { FashionMetadataOption, ProductSize } from '@/entities/product/model/types'
 import { useCommerce } from '@/features/commerce'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
-import { Button, EmptyState, useToast } from '@/shared/ui'
+import { Button, EmptyState, LoadingSkeleton, useToast } from '@/shared/ui'
 import { useCommerceDisplay, useGuestCommerce } from '@/features/cart/model/GuestCommerceProvider'
 import { useAuth } from '@/features/auth'
 import { useActiveCommerce } from '@/features/cart/model/AccountCommerceProvider'
@@ -53,7 +53,21 @@ export function ProductDetailPage() {
     setSelectedColor(current => current ?? selection.selectedColor)
   }, [selection])
 
-  if (loading) return <p role="status" className="p-8">Đang tải sản phẩm…</p>
+  if (loading) {
+    return (
+      <div role="status" className="mx-auto grid max-w-[1440px] gap-6 px-5 py-8 md:px-8 lg:grid-cols-2 lg:gap-14 lg:px-16">
+        <span className="sr-only">Đang tải sản phẩm…</span>
+        <LoadingSkeleton className="aspect-[4/5] w-full lg:aspect-[3/4]" />
+        <div className="grid content-start gap-4 lg:pt-4">
+          <LoadingSkeleton className="h-4 w-24" />
+          <LoadingSkeleton className="h-12 w-4/5" />
+          <LoadingSkeleton className="h-8 w-40" />
+          <LoadingSkeleton className="h-20 w-full" />
+          <LoadingSkeleton className="h-11 w-full" />
+        </div>
+      </div>
+    )
+  }
   if (error) return <div className="grid gap-4 p-8"><p role="alert">{error}</p><Button onClick={retry}>Tải lại sản phẩm</Button></div>
   if (!product || !selection) {
     return (
@@ -76,6 +90,14 @@ export function ProductDetailPage() {
 
   const styleLabels = labelsFor(state.fashionMetadata.styles, product.styleIds)
   const occasionLabels = labelsFor(state.fashionMetadata.occasions, product.occasionIds)
+  // Only show attributes the catalog actually provides; empty values would render a bare label.
+  const detailRows = [
+    { label: 'Chất liệu', value: product.material },
+    { label: 'Phom dáng', value: product.fit },
+    { label: 'Họa tiết', value: product.pattern },
+    { label: 'Phong cách', value: styleLabels.join(', ') },
+    { label: 'Dịp sử dụng', value: occasionLabels.join(', ') },
+  ].filter(row => row.value.trim() !== '')
   const handleColorChange = (color: string) => {
     const nextSelection = getProductSelection(product, { color, size: selectedSize })
     setSelectedColor(color)
@@ -126,10 +148,10 @@ export function ProductDetailPage() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-8 md:px-8 lg:grid-cols-2 lg:gap-14 lg:px-16">
+    <div className="mx-auto grid max-w-[1440px] gap-6 px-5 py-8 md:gap-10 md:px-8 lg:grid-cols-2 lg:gap-14 lg:px-16">
       <ProductGallery images={selection.images} productName={product.name} />
 
-      <section className="grid content-start gap-7 lg:pt-4">
+      <section className="grid content-start gap-5 md:gap-7 lg:pt-4">
         <div className="border-b border-[#E3E2E2] pb-6">
           <Link to={ROUTES.shop} className="text-sm font-semibold text-[#1C1B1B] hover:underline">
             Cửa hàng
@@ -186,13 +208,11 @@ export function ProductDetailPage() {
           </Button>
         </div>
 
-        <dl className="grid gap-3 border-t border-[#EFEDED] pt-6 text-sm">
-          <DetailRow label="Chất liệu" value={product.material} />
-          <DetailRow label="Phom dáng" value={product.fit} />
-          <DetailRow label="Họa tiết" value={product.pattern} />
-          <DetailRow label="Phong cách" value={styleLabels.join(', ')} />
-          <DetailRow label="Dịp sử dụng" value={occasionLabels.join(', ')} />
-        </dl>
+        {detailRows.length > 0 && (
+          <dl className="grid gap-3 border-t border-[#EFEDED] pt-6 text-sm">
+            {detailRows.map(row => <DetailRow key={row.label} label={row.label} value={row.value} />)}
+          </dl>
+        )}
       </section>
     </div>
   )

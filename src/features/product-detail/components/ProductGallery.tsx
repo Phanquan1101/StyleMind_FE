@@ -26,10 +26,10 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
   return (
     <section aria-label={`Hình ảnh ${productName}`} className="grid gap-3">
       <div className="overflow-hidden rounded-lg bg-[#EFEDED]">
-        <img src={selectedImage.url} alt={selectedImage.alt} className="aspect-[3/4] w-full object-cover" />
+        <img src={selectedImage.url} alt={selectedImage.alt} className="aspect-[4/5] w-full object-cover lg:aspect-[3/4]" />
       </div>
       {images.length > 1 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2 lg:grid-cols-4">
           {images.map((image, index) => (
             <button
               key={image.id}

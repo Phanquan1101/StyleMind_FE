@@ -10,8 +10,9 @@ import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
 
 let router: ReturnType<typeof createMemoryRouter>
 
-function renderProductDetail(productId: string) {
+function renderProductDetail(productId: string, edit?: (database: ReturnType<typeof createDemoSeed>) => void) {
   const database = createDemoSeed()
+  edit?.(database)
 
   window.localStorage.clear()
   window.localStorage.setItem(
@@ -39,6 +40,26 @@ describe('ProductDetailPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Thêm vào giỏ' }))
 
     expect(screen.getByText('Vui lòng chọn kích thước')).toBeInTheDocument()
+  })
+
+  it('shows the attribute list when the product has attributes', async () => {
+    renderProductDetail('prd-blouse-01')
+
+    await screen.findByRole('button', { name: 'Thêm vào giỏ' })
+    expect(screen.getByText('Chất liệu')).toBeInTheDocument()
+  })
+
+  it('hides attribute rows and the whole list when the catalog provides no values', async () => {
+    renderProductDetail('prd-blouse-01', database => {
+      const product = database.products.find(item => item.id === 'prd-blouse-01')!
+      Object.assign(product, { material: '', fit: '', pattern: '', styleIds: [], occasionIds: [] })
+    })
+
+    await screen.findByRole('button', { name: 'Thêm vào giỏ' })
+    for (const label of ['Chất liệu', 'Phom dáng', 'Họa tiết', 'Phong cách', 'Dịp sử dụng']) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument()
+    }
+    expect(document.querySelector('dl')).toBeNull()
   })
 
   it('buy now keeps the cart unchanged and navigates to checkout', async () => {
