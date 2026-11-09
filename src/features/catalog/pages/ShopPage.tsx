@@ -9,7 +9,7 @@ import { useCommerceDisplay } from '@/features/cart/model/GuestCommerceProvider'
 import type { ProductSize } from '@/entities/product/model/types'
 import type { Product } from '@/entities/product/model/types'
 import { commerceProductToEntity } from '@/features/commerce/data/commerceEntityAdapters'
-import { Button, EmptyState, useToast } from '@/shared/ui'
+import { Button, EmptyState, LoadingSkeleton } from '@/shared/ui'
 
 import { FilterPanel } from '../components/FilterPanel'
 import { MobileFilterSheet } from '../components/MobileFilterSheet'
@@ -75,7 +75,6 @@ function pageFromSearchParams(searchParams: URLSearchParams) {
 }
 
 export function ShopPage() {
-  const toast = useToast()
   const { state, loading, error, retry } = useCommerceDisplay()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filters, setFilters] = useState(() => filtersFromSearchParams(searchParams))
@@ -184,7 +183,17 @@ export function ShopPage() {
     updateFilters({ ...filters, query: filters.query.trim() })
   }
 
-  if (loading) return <p role="status" className="p-8">Đang tải sản phẩm…</p>
+  if (loading) {
+    return (
+      <div role="status" className="mx-auto grid max-w-[var(--container-wide)] gap-6 px-5 py-10 md:px-8 lg:px-16">
+        <span className="sr-only">Đang tải sản phẩm…</span>
+        <LoadingSkeleton className="h-10 w-64" />
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => <LoadingSkeleton key={index} className="aspect-[3/4] w-full rounded-[24px]" />)}
+        </div>
+      </div>
+    )
+  }
   if (error) return <div className="grid gap-4 p-8"><p role="alert">{error}</p><Button onClick={retry}>Tải lại sản phẩm</Button></div>
   const goToPage = (page: number) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -260,7 +269,7 @@ export function ShopPage() {
                 {appliedCount ? `${appliedCount} bộ lọc đang áp dụng` : 'Tất cả sản phẩm đang có sẵn'}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3"><label className="text-sm text-[#5E5F5D]">Sắp xếp sản phẩm<select aria-label="Sắp xếp sản phẩm" value="" onChange={() => toast.info('Chức năng chưa hỗ trợ.')} className="ml-2 min-h-11 rounded-lg border border-[#C4C7C7] bg-white px-3 text-sm text-[#222222]"><option value="">Mặc định</option><option value="newest">Mới nhất</option><option value="price_asc">Giá tăng dần</option><option value="price_desc">Giá giảm dần</option></select></label><MobileFilterSheet
+            <div className="flex flex-wrap items-center gap-3"><MobileFilterSheet
               filters={filters}
               emptyFilters={emptyFilters}
               categories={categories}
@@ -283,9 +292,11 @@ export function ShopPage() {
               </div>
 
               {totalPages > 1 && (
-                <nav aria-label="Phân trang sản phẩm" className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <nav aria-label="Phân trang sản phẩm" className="mt-8 grid justify-items-center gap-4">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
                   <Button
                     variant="secondary"
+                    className="border border-[#C4C7C7] disabled:border-[#E3E2E2] disabled:bg-transparent disabled:text-[#8B8B89]"
                     disabled={requestedPage === 1}
                     onClick={() => goToPage(requestedPage - 1)}
                   >
@@ -296,12 +307,14 @@ export function ShopPage() {
                   </span>
                   <Button
                     variant="secondary"
+                    className="border border-[#C4C7C7] disabled:border-[#E3E2E2] disabled:bg-transparent disabled:text-[#8B8B89]"
                     disabled={requestedPage === totalPages}
                     onClick={() => goToPage(requestedPage + 1)}
                   >
                     Trang sau
                   </Button>
-                  <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); const target = Number(pageInput); if (Number.isInteger(target) && target >= 1 && target <= totalPages) { goToPage(target); setPageInput('') } }}>
+                  </div>
+                  <form className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-[#E3E2E2] bg-white px-3 py-2" onSubmit={event => { event.preventDefault(); const target = Number(pageInput); if (Number.isInteger(target) && target >= 1 && target <= totalPages) { goToPage(target); setPageInput('') } }}>
                     <label htmlFor="shop-page-number" className="text-sm text-[#5E5F5D]">Đi đến trang</label>
                     <input id="shop-page-number" type="number" inputMode="numeric" min={1} max={totalPages} required value={pageInput} onChange={event => setPageInput(event.target.value)} className="min-h-11 w-20 rounded-lg border border-[#C4C7C7] bg-white px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]" />
                     <Button type="submit" variant="secondary">Đi</Button>

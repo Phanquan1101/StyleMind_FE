@@ -80,13 +80,11 @@ describe('ShopPage', () => {
     vi.unstubAllEnvs()
   })
 
-  it('reports unsupported sorting without pretending to apply it', async () => {
-    const user = userEvent.setup()
+  it('does not offer sorting, which the backend and FR do not support (no pretend control)', async () => {
     renderShop()
-    const sort = await screen.findByLabelText('Sắp xếp sản phẩm')
-    await user.selectOptions(sort, 'price_asc')
-    expect(await screen.findByText('Chức năng chưa hỗ trợ.')).toBeInTheDocument()
-    expect(sort).toHaveValue('')
+    await screen.findByRole('heading', { name: 'Cửa hàng' })
+    expect(screen.queryByLabelText('Sắp xếp sản phẩm')).not.toBeInTheDocument()
+    expect(screen.queryByText('Chức năng chưa hỗ trợ.')).not.toBeInTheDocument()
   })
 
   it('clears all active filters and restores the catalog', async () => {
