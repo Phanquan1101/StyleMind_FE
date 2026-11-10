@@ -8,6 +8,7 @@ import type {
   CheckoutInput,
   CheckoutPriceResponse,
   CommerceProduct,
+  CreateVariantInput,
   ImageOrderInput,
   OrderListQuery,
   OrderListResponse,
@@ -60,7 +61,7 @@ export const commerceApi = {
     getAdmin: (id: UUID) => get<CommerceProduct>(`/api/v1/admin/products/${id}`),
     replace: (id: UUID, input: ProductInput) => put<CommerceProduct>(`/api/v1/admin/products/${id}`, input),
     remove: (id: UUID) => del(`/api/v1/admin/products/${id}`),
-    createVariant: (productId: UUID, input: VariantInput) =>
+    createVariant: (productId: UUID, input: CreateVariantInput) =>
       post<ProductVariant>(`/api/v1/admin/products/${productId}/variants`, input),
     replaceVariant: (variantId: UUID, input: VariantInput) =>
       put<ProductVariant>(`/api/v1/admin/variants/${variantId}`, input),

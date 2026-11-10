@@ -95,7 +95,7 @@ export function getProductSelection(product: Product, selection: ProductSelectio
     : null
   const displayVariant = requestedVariant ?? variantsByColor[0] ?? fallbackVariant
   const images = colorImages(variantsByColor.length ? variantsByColor : variants, selectedColor)
-  const canPurchase = Boolean(requestedVariant?.active)
+  const canPurchase = Boolean(requestedVariant?.active && requestedVariant.stock > 0)
 
   return {
     selectedColor,
