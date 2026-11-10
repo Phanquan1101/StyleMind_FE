@@ -1,0 +1,256 @@
+import { useEffect, useRef, useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { ensureGuestSessionKey, readGuestSessionKey } from "@/features/cart/model/guestSession"
+import { rememberOrder } from '@/features/payments/model/orderReferences'
+import { useGuestCommerce } from '@/features/cart/model/GuestCommerceProvider'
+import { Button, TextField } from "@/shared/ui"
+import AddressAutocomplete from '@/shared/ui/AddressAutocomplete'
+import { formatCurrency } from "@/shared/lib/formatCurrency"
+import { PaymentApiError } from "@/features/payments/api/paymentApi"
+import { PaymentMethodSection } from "../components/PaymentMethodSection"
+import {
+  guestCheckoutApi,
+  guestErrorMessage,
+  type GuestPrices,
+  type GuestShippingAddress,
+} from "../data/guestCheckoutApi"
+import {
+  GUEST_LATEST_ORDER,
+  loadGuestDraft,
+  saveGuestDraft,
+  trimGuestAddress,
+  validateGuestAddress,
+} from "../model/guestCheckout"
+
+export default function GuestCheckoutPage() {
+  const guest = useGuestCommerce()
+  const navigate = useNavigate()
+  const [draft, setDraft] = useState(loadGuestDraft)
+  const [key] = useState(() => draft.submitted || draft.recoveryRequired || draft.orderId ? readGuestSessionKey() : ensureGuestSessionKey())
+  const [prices, setPrices] = useState<GuestPrices | null>(null)
+  const [error, setError] = useState("")
+  const [errors, setErrors] =
+    useState<Partial<Record<keyof GuestShippingAddress, string>>>({})
+  const [busy, setBusy] = useState(false)
+  const [priceVersion, setPriceVersion] = useState(0)
+  const inFlight = useRef(false)
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setPrices(null)
+    const selection = draft.selection
+    const priceRequest = selection?.kind === 'selected' ? guestCheckoutApi.previewSelection(key, { cart_item_ids: selection.cart_item_ids }, controller.signal)
+      : selection?.kind === 'buy-now' ? guestCheckoutApi.previewBuyNow(key, { variant_id: selection.variant_id, quantity: selection.quantity }, controller.signal)
+      : guestCheckoutApi.prices(key, controller.signal)
+    void priceRequest
+      .then((value) => {
+        if (!controller.signal.aborted) {
+          setPrices(value)
+          setError("")
+        }
+      })
+      .catch((failure) => {
+        if (!controller.signal.aborted) setError(guestErrorMessage(failure))
+        if (failure instanceof PaymentApiError && failure.code === 'EMPTY_CART') void guest.refreshCart().catch(() => undefined)
+      })
+    return () => controller.abort()
+  }, [key, priceVersion])
+
+  useEffect(() => {
+    if (draft.orderId)
+      navigate("/guest/orders/" + encodeURIComponent(draft.orderId), {
+        replace: true,
+      })
+  }, [draft.orderId, navigate])
+
+  useEffect(() => {
+    if (draft.qrCheckoutId) navigate('/guest/checkout/qr/' + encodeURIComponent(draft.qrCheckoutId), { replace: true })
+  }, [draft.qrCheckoutId, navigate])
+
+  const update = (next: typeof draft) => {
+    saveGuestDraft(next)
+    setDraft(next)
+  }
+  const recoverOrder = async () => {
+    if (inFlight.current || !key) return
+    inFlight.current = true; setBusy(true); setError('')
+    try {
+      if (draft.method === 'vietqr') {
+        const checkout = await guestCheckoutApi.recoverQr(key, draft.checkoutKey)
+        update({ ...draft, qrCheckoutId: checkout.checkoutId })
+        if (mounted.current) navigate('/guest/checkout/qr/' + encodeURIComponent(checkout.checkoutId), { replace: true })
+        return
+      }
+      const order = await guestCheckoutApi.recoverCheckout(key, draft.checkoutKey)
+      if (!order.order_id) throw new Error('Missing order id')
+      window.localStorage.setItem(GUEST_LATEST_ORDER, order.order_id)
+      rememberOrder({ orderId: order.order_id, owner: 'guest' })
+      update({ ...draft, orderId: order.order_id })
+      void guest.refreshCart().catch(() => undefined)
+      if (mounted.current) navigate('/guest/orders/' + encodeURIComponent(order.order_id), { replace: true })
+    } catch { if (mounted.current) setError('Chưa tìm thấy kết quả lần đặt này. Hãy chờ rồi kiểm tra lại hoặc liên hệ hỗ trợ.') }
+    finally { inFlight.current = false; if (mounted.current) setBusy(false) }
+  }
+  const submit = async () => {
+    if (inFlight.current || !key || draft.orderId || (draft.recoveryRequired && !draft.submitted) || (!prices && !draft.submitted))
+      return
+    const address = trimGuestAddress(draft.address)
+    const validation = validateGuestAddress(address)
+    setErrors(validation)
+    if (Object.keys(validation).length) return
+    inFlight.current = true
+    setBusy(true)
+    setError("")
+    try {
+      const body = draft.submitted ?? {
+        checkout_key: draft.checkoutKey,
+        payment_method:
+          draft.method === "cod" ? "COD" as const : "SEPAY_VIETQR" as const,
+        shipping_address: address,
+      }
+      const selection = draft.selection ?? (prices ? { kind: 'selected' as const, cart_item_ids: prices.items.map(item => item.cart_item_id) } : undefined)
+      const pending = { ...draft, address, submitted: body, ...(body.payment_method === 'SEPAY_VIETQR' ? { selection } : {}) }
+      update(pending)
+      if (body.payment_method === 'SEPAY_VIETQR') {
+        if (!selection) throw new Error('Chưa có sản phẩm để thanh toán')
+        const checkout = selection.kind === 'buy-now'
+          ? await guestCheckoutApi.prepareQrBuyNow(key, { ...body, variant_id: selection.variant_id, quantity: selection.quantity })
+          : await guestCheckoutApi.prepareQrSelection(key, { ...body, cart_item_ids: selection.cart_item_ids })
+        update({ ...pending, qrCheckoutId: checkout.checkoutId })
+        if (mounted.current) navigate('/guest/checkout/qr/' + encodeURIComponent(checkout.checkoutId), { replace: true })
+        return
+      }
+      const order = draft.selection?.kind === 'selected' ? await guestCheckoutApi.checkoutSelection(key, { ...body, cart_item_ids: draft.selection.cart_item_ids })
+        : draft.selection?.kind === 'buy-now' ? await guestCheckoutApi.checkoutBuyNow(key, { ...body, variant_id: draft.selection.variant_id, quantity: draft.selection.quantity })
+        : await guestCheckoutApi.createOrder(key, body)
+      if (!order.order_id) throw new Error("Missing order id")
+      // Persist before clearing the cart or navigating, so refresh cannot submit a new order.
+      window.localStorage.setItem(GUEST_LATEST_ORDER, order.order_id)
+      rememberOrder({ orderId: order.order_id, owner: 'guest' })
+      update({ ...pending, orderId: order.order_id })
+      void guest.refreshCart().catch(() => undefined)
+      if (mounted.current) navigate("/guest/orders/" + encodeURIComponent(order.order_id), {
+        replace: true,
+      })
+    } catch (failure) {
+      if (!mounted.current) return
+      if (failure instanceof PaymentApiError && failure.code === 'DUPLICATE_CHECKOUT') {
+        inFlight.current = false
+        await recoverOrder()
+        return
+      }
+      if (failure instanceof PaymentApiError && failure.status === 400)
+        update({ ...draft, address, submitted: undefined, recoveryRequired: false })
+      if (failure instanceof PaymentApiError && ['EMPTY_CART', 'INSUFFICIENT_STOCK', 'INVALID_CART_ITEM'].includes(failure.code ?? '')) {
+        update({ ...draft, address, submitted: undefined, recoveryRequired: false })
+        void guest.refreshCart().catch(() => undefined)
+        setPriceVersion(value => value + 1)
+      }
+      setError(guestErrorMessage(failure))
+    } finally {
+      inFlight.current = false
+      if (mounted.current) setBusy(false)
+    }
+  }
+
+  return (
+    <main className="mx-auto grid max-w-[1440px] gap-8 px-5 py-10 sm:px-8 lg:px-16 lg:py-14">
+      <h1 className="font-display text-4xl font-semibold">
+        Thanh toán không cần đăng nhập
+      </h1>
+      {busy && <section role="status" className="rounded-2xl border border-[#E3E2E2] bg-white p-6 text-center"><p className="font-display text-2xl">Đang xử lý đơn hàng</p><p className="mt-2 text-sm text-secondary">Vui lòng chờ trong khi hệ thống xác nhận yêu cầu.</p></section>}
+      <form
+        className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] lg:gap-10"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void submit()
+        }}
+      >
+        <fieldset
+          disabled={busy || Boolean(draft.submitted)}
+          className="grid gap-4 rounded-2xl border border-[#E3E2E2] bg-white p-6"
+        >
+          <legend className="font-semibold">Thông tin giao hàng</legend>
+          {([
+            ["recipient_name", "Tên người nhận", 100, "name"],
+            ["recipient_phone", "Số điện thoại", 64, "tel"],
+          ] as const).map(([field, label, limit, autoComplete]) => (
+            <TextField
+              key={field}
+              label={label}
+              required
+              autoComplete={autoComplete}
+              type={field === "recipient_phone" ? "tel" : "text"}
+              value={draft.address[field]}
+              error={errors[field]}
+              onChange={(event) =>
+                update({
+                  ...draft,
+                  address: { ...draft.address, [field]: event.target.value },
+                })
+              }
+            />
+          ))}
+          <AddressAutocomplete label="Địa chỉ giao hàng đầy đủ" required value={draft.address.address_line} error={errors.address_line} onChange={value => update({ ...draft, address: { ...draft.address, address_line: value } })} />
+          <PaymentMethodSection
+            value={draft.method}
+            onChange={(method) => update({ ...draft, method })}
+          />
+        </fieldset>
+        <section
+          className="grid gap-3 rounded-2xl border border-[#E3E2E2] bg-white p-6"
+          aria-label="Giá hiện tại"
+        >
+          <h2 className="font-semibold">Giá hiện tại</h2>
+          {prices?.items.map((item) => {
+            return (
+              <p key={item.variant_id}>
+                {item.product_name} × {item.quantity} — {formatCurrency(item.unit_price_vnd)}/sản phẩm
+              </p>
+            )
+          })}
+          {prices ? (
+            <p>
+              Tổng tiền: {formatCurrency(prices.total_vnd)}
+            </p>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPriceVersion((value) => value + 1)}
+            >
+              Tải lại giá hiện tại
+            </Button>
+          )}
+        </section>
+        {draft.submitted && (
+          <p role="status">
+            Đã gửi yêu cầu. Thử lại sẽ dùng nguyên thông tin và mã checkout để
+            tránh tạo trùng đơn.
+          </p>
+        )}
+        {draft.recoveryRequired && !draft.submitted && <div className="grid gap-3"><p role="alert">Phiên nhập thông tin trước đã đóng và kết quả đặt hàng chưa rõ. Hãy kiểm tra đơn đã gửi.</p><Button type="button" disabled={busy || !key} onClick={() => void recoverOrder()}>Kiểm tra đơn đã gửi</Button></div>}
+        {error && (
+          <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">
+            {error}
+          </p>
+        )}
+        <Button
+          className="lg:col-span-2"
+          type="submit"
+          loading={busy}
+          disabled={
+            busy || !key || (draft.recoveryRequired && !draft.submitted) || (!prices?.items.length && !draft.submitted) || Boolean(draft.orderId)
+          }
+        >
+          {draft.submitted ? "Thử lại đặt hàng" : "Đặt hàng"}
+        </Button>
+      </form>
+      <Link to="/cart" className="underline">
+        Quay lại giỏ hàng
+      </Link>
+    </main>
+  )
+}

@@ -1,12 +1,20 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
-import siteConfiguration from './.figma/make/site.json'
+import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
+
+const srcPath = fileURLToPath(new URL('./src', import.meta.url))
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  if (mode !== 'test' && !existsSync(path.resolve(process.cwd(), '.env'))) {
+    throw new Error('Thiếu file .env. Hãy sao chép .env.example thành .env và điền cấu hình trước khi chạy FE.')
+  }
+  const env = loadEnv(mode, process.cwd(), '')
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
 
@@ -26,13 +34,30 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(srcPath),
       },
     },
     server: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: 3000,
       strictPort: true,
+      proxy: {
+        '/commerce': { target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080', changeOrigin: true },
+        '^/payment(?:/|\\?|$)': { target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080', changeOrigin: true },
+        '/wardrobe-community': {
+          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+          changeOrigin: true,
+          ws: true,
+        },
+        '/stylist': {
+          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+          changeOrigin: true,
+        },
+        '/api': {
+          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
       watch: {
         ignored: [
           '**/.figma/**',

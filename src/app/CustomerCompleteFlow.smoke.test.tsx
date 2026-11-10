@@ -1,0 +1,99 @@
+import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { describe, expect, it, vi } from 'vitest'
+
+import { createDemoSeed } from '@/app/data/demoSeed'
+import { AppProviders } from '@/app/providers/AppProviders'
+import { appRoutes } from '@/app/router/AppRouter'
+import type { DemoDatabase } from '@/app/store/types'
+import { DEMO_STORAGE_KEY } from '@/shared/storage/demoStorage'
+
+vi.mock('@/shared/api/http', async importOriginal => ({
+  ...await importOriginal<typeof import('@/shared/api/http')>(),
+  apiMode: () => false,
+}))
+
+function databaseWithCustomer(overrides: Partial<DemoDatabase> = {}): DemoDatabase {
+  return {
+    ...createDemoSeed(),
+    session: { userId: 'usr-customer-01', persistent: true },
+    orders: [],
+    cancellationRequests: [],
+    returnRequests: [],
+    ...overrides,
+  }
+}
+
+function persistDatabase(database: DemoDatabase) {
+  window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(database))
+}
+
+function getDatabase() {
+  const raw = window.localStorage.getItem(DEMO_STORAGE_KEY)
+  if (!raw) throw new Error('Expected demo database in localStorage')
+  return JSON.parse(raw) as DemoDatabase
+}
+
+function renderAt(initialEntry: string, database = databaseWithCustomer()) {
+  window.localStorage.clear()
+  window.sessionStorage.clear()
+  persistDatabase(database)
+  const router = createMemoryRouter(appRoutes, { initialEntries: [initialEntry] })
+
+  render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  )
+
+  return router
+}
+
+describe('complete customer flow smoke', () => {
+  it('updates body info creates a manual outfit adds it to cart checks out and views the order', async () => {
+    const user = userEvent.setup()
+    const router = renderAt('/account')
+
+    const heightInput = await screen.findByDisplayValue('160')
+    await user.clear(heightInput)
+    await user.type(screen.getByLabelText('Chiều cao (cm)'), '166')
+    const weightInput = await screen.findByDisplayValue('52')
+    await user.clear(weightInput)
+    await user.type(screen.getByLabelText('Cân nặng (kg)'), '53')
+    await user.click(screen.getByRole('button', { name: 'Lưu thông tin phong cách' }))
+
+    await waitFor(() => {
+      const customer = getDatabase().users.find(userRecord => userRecord.id === 'usr-customer-01')
+      expect(customer).toMatchObject({ heightCm: 166, weightKg: 53 })
+    })
+
+    await act(async () => {
+      await router.navigate('/wardrobes/new')
+    })
+    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông' }))
+    await user.type(screen.getByLabelText('Tên outfit'), 'Outfit smoke đi làm')
+    await user.click(screen.getByRole('button', { name: 'Lưu outfit' }))
+
+    expect(await screen.findByRole('heading', { name: 'Outfit smoke đi làm' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Thêm toàn bộ outfit vào giỏ' }))
+    await user.click(await screen.findByLabelText(/Giỏ hàng/))
+    await user.click(screen.getByRole('link', { name: 'Tiến hành thanh toán' }))
+
+    await user.click(await screen.findByLabelText('Thanh toán khi nhận hàng'))
+    await user.click(screen.getByRole('button', { name: 'Đặt hàng' }))
+
+    expect(await screen.findByText(/Đặt hàng thành công/)).toBeInTheDocument()
+    expect(router.state.location.pathname).toMatch(/^\/payments\/[\da-f-]{36}$/)
+    expect(getDatabase().orders).toHaveLength(0)
+  }, 10_000)
+
+  it('keeps the AI route on the API flow instead of creating a local mock outfit', async () => {
+    renderAt('/wardrobes/new/ai')
+
+    expect(await screen.findByRole('heading', { name: 'AI Stylist' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Mô tả nhu cầu')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Gợi ý outfit từ AI' })).not.toBeInTheDocument()
+    expect(getDatabase().outfits).toHaveLength(createDemoSeed().outfits.length)
+  })
+})
