@@ -18,7 +18,7 @@ export interface QrCheckout {
   checkoutId: string
   customerId: string
   totalVnd: number
-  status: 'PREPARING' | 'AWAITING_PAYMENT' | 'CANCELLED' | 'EXPIRED' | 'ORDER_CREATED' | 'RECONCILIATION_REQUIRED'
+  status: 'PREPARING' | 'AWAITING_PAYMENT' | 'CANCELLED' | 'EXPIRED' | 'ORDER_CREATED' | 'REQUIRES_RECONCILIATION' | 'RECONCILIATION_REQUIRED'
   expiresAt: string
 }
 

@@ -10,11 +10,13 @@ function setup() {
 }
 
 describe('Payment backend API integration', () => {
-  it('confirms delivered COD by order with the admin session and no client amount', async () => {
+  it('reads QR checkout status from Commerce with the current JWT', async () => {
     const { api, fetch } = setup()
-    await api.confirmDeliveredCod('order/id')
-    expect(fetch).toHaveBeenCalledWith('http://localhost:8080/payment/api/v1/admin/orders/order%2Fid/cod-collection', expect.objectContaining({ method: 'POST', cache: 'no-store' }))
-    expect(fetch.mock.calls[0][1]).not.toHaveProperty('body')
+    await api.getQrCheckout('checkout/id')
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8080/commerce/api/v1/qr-checkouts/checkout%2Fid',
+      expect.objectContaining({ method: 'GET', cache: 'no-store', headers: expect.objectContaining({ Authorization: 'Bearer test-access-token' }) }),
+    )
   })
   it('lists pending account QR checkouts with a GET and paging parameters', async () => {
     const { api, fetch } = setup()
