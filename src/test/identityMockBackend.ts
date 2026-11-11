@@ -185,6 +185,10 @@ async function handleRequest(input: RequestInfo | URL, init: RequestInit = {}): 
     if (unauthorizedOnce.delete(`${method} ${url.pathname}`)) return problem(401, 'INVALID_BEARER_TOKEN')
     const user = currentUser(headers)
     const owner = user?.id ?? headers.get('X-Guest-Session-Key')
+    if (url.pathname === '/commerce/api/v1/qr-checkouts/pending' && method === 'GET') {
+      if (!user) return problem(401, 'UNAUTHENTICATED')
+      return jsonResponse(200, { items: [], page: Number(url.searchParams.get('page') ?? 0), size: Number(url.searchParams.get('size') ?? 10), total_elements: 0, total_pages: 0 })
+    }
     const cartPath = url.pathname.match(/^\/commerce\/api\/v1\/cart(?:\/items(?:\/([^/]+))?)?$/)
     const pricesPath = url.pathname === '/commerce/api/v1/checkout/prices'
     const selectionPrices = url.pathname.match(/^\/commerce\/api\/v1\/checkout\/(selected|buy-now)\/prices$/)

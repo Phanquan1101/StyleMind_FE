@@ -22,6 +22,22 @@ export interface QrCheckout {
   expiresAt: string
 }
 
+export interface PendingQrCheckout {
+  checkoutId: string
+  status: 'PREPARING' | 'AWAITING_PAYMENT'
+  totalVnd: number
+  createdAt: string
+  expiresAt: string
+}
+
+export interface PendingQrCheckoutPage {
+  items: PendingQrCheckout[]
+  page: number
+  size: number
+  total_elements: number
+  total_pages: number
+}
+
 export interface CheckoutRequest {
   checkout_key: string
   shipping_address_id: string
@@ -77,7 +93,7 @@ export interface OrderResponse {
     reviewed_by_user_id: string | null
     reviewed_at: string | null
     decision_reason: string | null
-    refund_status?: 'PENDING_REFUND' | null
+    refund_status?: 'PENDING_REFUND' | 'REFUNDED' | null
   } | null
 }
 

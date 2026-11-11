@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,13 +18,17 @@ describe('Friends real API controls', () => {
     const fetcher = vi.fn(async (path: string, options: RequestInit) => {
       if (path === '/api/v1/me') return response({ account_id: actor, email: 'real@example.test', profile: null })
       if (path.endsWith('/accept')) { expect(options.method).toBe('POST'); accepted = true; return response({ status: 'ACCEPTED', outcome: 'INVITATION_ACCEPTED', delivery_status: 'SMTP_ACCEPTED', retry_after_seconds: 0 }) }
-      if (path.includes('/incoming?')) return response(page(accepted ? [] : [{ friend_invitation_id: invitation, sender_account_id: peer, sender_display_name: 'Bạn trên server', created_at: '2026-10-30', expires_at: '2026-11-07' }]))
+      if (path.includes('/incoming?')) return response(page(accepted ? [] : [
+        { friend_invitation_id: invitation, sender_account_id: peer, sender_email: 'peer@example.test', sender_display_name: 'Bạn trên server', created_at: '2026-10-30', expires_at: '2026-11-07' },
+        { friend_invitation_id: '40000000-0000-0000-0000-000000000004', sender_account_id: '50000000-0000-0000-0000-000000000005', sender_email: 'unnamed@example.test', sender_display_name: null, created_at: '2026-10-30', expires_at: '2026-11-07' },
+      ]))
       return response(page([]))
     }); vi.stubGlobal('fetch', fetcher); renderFriends(); const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: /Đã nhận/ }))
-    expect(await screen.findByText('Bạn trên server')).toBeInTheDocument()
+    const namedSender = await screen.findByRole('heading', { name: 'peer@example.test (Bạn trên server)' })
+    expect(screen.getByRole('heading', { name: 'unnamed@example.test' })).toBeInTheDocument()
     expect(accepted).toBe(false)
-    await user.click(screen.getByRole('button', { name: 'Chấp nhận' }))
+    await user.click(within(namedSender.closest('article')!).getByRole('button', { name: 'Chấp nhận' }))
     await waitFor(() => expect(accepted).toBe(true))
     expect(JSON.parse(localStorage.getItem('stylemind.demo.database')!).friendships).toEqual([])
   })

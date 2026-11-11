@@ -5,7 +5,6 @@ import { commerceApi } from '@/api/commerce'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 import { apiMode } from '@/shared/api/http'
-import { UnavailableFeature } from '@/shared/ui/UnavailableFeature'
 import { Button } from '@/shared/ui'
 import { AdminNotificationsUnavailable } from '@/features/admin/components/AdminNotificationsUnavailable'
 import { AdminSettingsUnavailable } from '@/features/admin/components/AdminSettingsUnavailable'
@@ -27,7 +26,7 @@ import {
 import { loadAllCommerceProducts } from '@/features/commerce/data/loadCommerceProducts'
 import { loadAdminOrders } from '@/features/commerce/data/loadAdminOrders'
 
-const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'requests', 'customers', 'notifications', 'settings', 'ai'])
+const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'requests', 'customers', 'notifications', 'settings'])
 
 function resolveSection(value: string | null): AdminSection {
   return value && sections.has(value as AdminSection) ? (value as AdminSection) : 'overview'
@@ -43,7 +42,6 @@ function sectionPlaceholder(section: AdminSection) {
     customers: 'Quản lý khách hàng',
     notifications: 'Quản lý thông báo',
     settings: 'Cài đặt hệ thống',
-    ai: 'Quản lý dữ liệu AI',
   }
 
   return (
@@ -130,7 +128,6 @@ export function AdminPage() {
     if (activeSection === 'customers') return <AdminCustomersPanel />
     if (activeSection === 'notifications') return <AdminNotificationsUnavailable />
     if (activeSection === 'settings') return <AdminSettingsUnavailable />
-    if (activeSection === 'ai') return <UnavailableFeature title="Quản lý AI" backTo="/admin" backLabel="Về tổng quan" />
     return sectionPlaceholder(activeSection)
   }, [activeSection, currentUser?.id, dispatch, state, summary, commerceLoading])
 

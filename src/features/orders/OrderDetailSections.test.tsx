@@ -5,6 +5,23 @@ import type { OrderResponse } from '@/features/payments/api/types'
 const api = vi.hoisted(() => ({ cancelOrder: vi.fn() }))
 vi.mock('@/features/payments/api/paymentClient', () => ({ paymentApi: api, paymentErrorMessage: () => 'Không gửi được yêu cầu' }))
 
+it('giữ mốc cửa hàng xác nhận giữa thanh toán VietQR và chuẩn bị đơn', () => {
+  const order = {
+    order_id: 'order', payment_method: 'SEPAY_VIETQR', confirmation_state: 'CONFIRMED', order_status: 'PROCESSING',
+    history: [
+      { history_id: 'paid', to_status: 'PAID', changed_at: '2026-11-11T01:00:00Z' },
+      { history_id: 'processing', to_status: 'PROCESSING', changed_at: '2026-11-11T01:10:00Z' },
+    ],
+  } as OrderResponse
+  render(<OrderDetailSections order={order} onRefresh={vi.fn()} />)
+
+  const [paid, confirmation, processing] = screen.getAllByRole('listitem')
+  expect(paid).toHaveTextContent('Đã thanh toán')
+  expect(confirmation).toHaveTextContent('Cửa hàng đã xác nhận đơn')
+  expect(confirmation.querySelector('time')).toBeNull()
+  expect(processing).toHaveTextContent('Đang chuẩn bị')
+})
+
 it('hủy ngay đơn đủ điều kiện và chỉ báo thành công khi BE xác nhận', async () => {
   api.cancelOrder.mockResolvedValue({ order_status: 'CANCELLED' })
   const refresh = vi.fn()

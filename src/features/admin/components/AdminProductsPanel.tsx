@@ -1,5 +1,5 @@
-import { ChevronDown, Pencil, Plus } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
+import { ChevronDown, Pencil, Plus, RefreshCw } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import { commerceApi } from '@/api/commerce'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
@@ -23,9 +23,41 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
   const [imageVariant, setImageVariant] = useState<{ productId: string; variantId: string; label: string } | null>(null)
+  const [stock, setStock] = useState<{ productId: string; quantities: Record<string, number> } | null>(null)
+  const [stockLoading, setStockLoading] = useState(false)
+  const [stockError, setStockError] = useState('')
+  const [stockVersion, setStockVersion] = useState(0)
+  const expandedProduct = database.products.find(product => product.id === expandedProductId)
   const rows = useMemo(() => selectAdminProducts(database, filters), [database, filters])
   const openCreateModal = () => { setEditingProductId(null); setModalOpen(true) }
   const openEditModal = (productId: string) => { setEditingProductId(productId); setModalOpen(true) }
+
+  useEffect(() => {
+    if (!expandedProduct) return
+    const controller = new AbortController()
+    setStockLoading(true)
+    setStockError('')
+    void commerceApi.products.getAdmin(expandedProduct.id, controller.signal).then(product => {
+      if (controller.signal.aborted) return
+      setStock({
+        productId: product.product_id,
+        quantities: Object.fromEntries(product.variants.map(variant => [variant.variant_id, variant.available_quantity])),
+      })
+    }).catch(error => {
+      if (!controller.signal.aborted) {
+        setStock(null)
+        setStockError(error instanceof Error ? error.message : 'Không tải được tồn kho hiện tại.')
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setStockLoading(false)
+    })
+    const refresh = () => setStockVersion(value => value + 1)
+    window.addEventListener('focus', refresh)
+    return () => {
+      controller.abort()
+      window.removeEventListener('focus', refresh)
+    }
+  }, [expandedProduct, stockVersion])
 
   return (
     <section className="grid gap-5">
@@ -163,6 +195,14 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                     {isExpanded && (
                       <tr>
                         <td colSpan={6} className="bg-[#FBF9F9] px-4 py-3">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            {stockLoading && <p role="status" className="text-xs text-secondary">Đang cập nhật tồn kho…</p>}
+                            {stockError && <p role="alert" className="text-sm text-error">{stockError}</p>}
+                            <Button type="button" size="sm" variant="secondary" className="ml-auto" disabled={stockLoading}
+                              icon={<RefreshCw size={14} aria-hidden="true" />} onClick={() => setStockVersion(value => value + 1)}>
+                              Tải lại tồn kho
+                            </Button>
+                          </div>
                           <div id={variantsTableId} className="overflow-x-auto rounded-lg border border-[#E5E0D8] bg-white">
                             <table className="w-full min-w-[540px] text-left text-sm">
                               <caption className="sr-only">Biến thể của {row.name}</caption>
@@ -187,7 +227,9 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                     </td>
                                     <td className="px-3 py-2.5 font-medium text-[#3A3632]">{variant.size}</td>
                                     <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-[#3A3632]">{formatCurrency(variant.price)}</td>
-                                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-[#3A3632]">{variant.stock}</td>
+                                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-[#3A3632]">
+                                      {stockLoading ? '…' : stock?.productId === row.id ? stock.quantities[variant.id] ?? '—' : '—'}
+                                    </td>
                                     <td className="px-3 py-2.5 text-center">
                                       <span className="inline-flex justify-center">
                                         <ToggleSwitch

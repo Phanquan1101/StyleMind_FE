@@ -9,7 +9,6 @@ import {
   PanelLeftOpen,
   ShoppingBag,
   Settings,
-  Sparkles,
   Store,
   Tags,
   LogOut,
@@ -37,7 +36,6 @@ const navItems = [
   { id: 'customers', label: 'Khách hàng', Icon: UsersRound },
   { id: 'notifications', label: 'Thông báo', Icon: Bell },
   { id: 'settings', label: 'Cài đặt', Icon: Settings },
-  { id: 'ai', label: 'AI', Icon: Sparkles },
 ] satisfies { id: AdminSection; label: string; Icon: typeof LayoutDashboard }[]
 
 export function AdminShell({ activeSection, adminName, adminEmail, onLogout, children }: AdminShellProps) {

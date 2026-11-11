@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
@@ -12,7 +12,7 @@ import { ArrowRight, RefreshCw, ShoppingBag } from 'lucide-react'
 import { commerceApi } from '@/api/commerce'
 import { unavailableVariants } from '../model/cartAvailability'
 import { useAuth } from '@/features/auth'
-import { beginAccountSelection } from '@/features/checkout/model/accountSelection'
+import { accountSelectionRoute } from '@/features/checkout/model/accountSelection'
 
 export default function GuestCartPage() {
   const guest = useActiveCommerce()
@@ -20,6 +20,8 @@ export default function GuestCartPage() {
   const navigate = useNavigate()
   const [selectedIds, setSelectedIds] = useState<string[] | null>(null)
   const [selectionError, setSelectionError] = useState('')
+  const [checkingCheckout, setCheckingCheckout] = useState(false)
+  const checkoutLocked = useRef(false)
   const { state } = useDemoStore()
   const [removing, setRemoving] = useState<GuestCartItem | null>(null)
   const [availability, setAvailability] = useState<{ unavailable: string[]; loading: boolean; error: boolean }>({ unavailable: [], loading: false, error: false })
@@ -39,6 +41,25 @@ export default function GuestCartPage() {
   const latest = window.localStorage.getItem(GUEST_LATEST_ORDER)
   const legacyCart = state.cartLines.some(line => !/^[\da-f-]{36}$/i.test(line.variantId))
   const selected = guest.cart.items.filter(item => (selectedIds === null || selectedIds.includes(item.cart_item_id)) && !availability.unavailable.includes(item.variant_id))
+  const startCheckout = async () => {
+    if (checkoutLocked.current) return
+    if (!currentUser) {
+      navigate(ROUTES.login, { state: { from: { pathname: ROUTES.cart }, checkoutLoginRequired: true } })
+      return
+    }
+    checkoutLocked.current = true
+    setCheckingCheckout(true)
+    setSelectionError('')
+    try {
+      const choice = { kind: 'selected' as const, cart_item_ids: selected.map(item => item.cart_item_id) }
+      navigate(await accountSelectionRoute(currentUser.id, choice))
+    } catch (failure) {
+      setSelectionError(failure instanceof Error ? failure.message : 'Không thể mở trang đặt hàng.')
+    } finally {
+      checkoutLocked.current = false
+      setCheckingCheckout(false)
+    }
+  }
   return <div className="mx-auto grid max-w-[var(--container-wide)] gap-6 px-6 py-10 md:px-16">
     <div className="border-b border-[#E3E2E2] pb-6"><p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#735C00]">StyleMind</p><h1 className="font-display text-4xl font-semibold">Giỏ hàng</h1></div>
     {latest && <Link className="text-[#1C1B1B] underline" to={ROUTES.guestOrder.replace(':orderId', encodeURIComponent(latest))}>Xem đơn hàng khách gần nhất</Link>}
@@ -74,16 +95,8 @@ export default function GuestCartPage() {
       <aside className="grid content-start gap-5 rounded-2xl border border-[#E3E2E2] bg-white p-6 shadow-sm lg:sticky lg:top-28">
         <h2 className="font-display text-2xl font-semibold">Tóm tắt đơn hàng</h2>
         <div className="flex items-center justify-between gap-4 border-t border-[#E3E2E2] pt-5"><span className="text-sm text-secondary">Tạm tính</span><p className="text-xl font-bold text-[#1C1B1B]">{formatCurrency(selected.reduce((sum, item) => sum + item.line_total_vnd, 0))}</p></div>
-        <Button disabled={Boolean(guest.busy || guest.cartError || availability.loading || availability.error || !selected.length)} onClick={() => {
-          if (!currentUser) {
-            navigate(ROUTES.login, { state: { from: { pathname: ROUTES.cart }, checkoutLoginRequired: true } })
-            return
-          }
-          const choice = { kind: 'selected' as const, cart_item_ids: selected.map(item => item.cart_item_id) }
-          const started = beginAccountSelection(currentUser.id, choice)
-          if (!started) { setSelectionError('Có yêu cầu đặt hàng trước đó chưa rõ kết quả. Vui lòng kiểm tra đơn trước khi tạo lần mới.'); return }
-          navigate(ROUTES.checkout)
-        }}>Tiến hành thanh toán</Button>
+        <Button loading={checkingCheckout} disabled={Boolean(guest.busy || guest.cartError || availability.loading || availability.error || !selected.length)}
+          onClick={() => void startCheckout()}>Tiến hành thanh toán</Button>
       </aside>
     </div>}
     <Modal open={Boolean(removing)} title="Xóa sản phẩm khỏi giỏ?" onClose={() => { if (!guest.busy) setRemoving(null) }} footer={<>

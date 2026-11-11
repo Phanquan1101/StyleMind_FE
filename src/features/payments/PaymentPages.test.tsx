@@ -46,6 +46,27 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers() })
 
 describe('Live customer Payment page', () => {
+  it('hiển thị xác nhận của cửa hàng khi kiểm tra lại đơn COD vẫn ở trạng thái PLACED', async () => {
+    const placed = {
+      ...order,
+      payment_method: 'COD',
+      order_status: 'PLACED',
+      confirmation_state: 'UNCONFIRMED',
+      history: [{ history_id: 'placed', to_status: 'PLACED', changed_at: '2026-11-11T01:00:00Z' }],
+    }
+    api.getOrder.mockResolvedValueOnce(placed).mockResolvedValue({ ...placed, confirmation_state: 'CONFIRMED' })
+    customer()
+
+    expect(await screen.findByRole('heading', { name: 'Đặt hàng thành công' })).toBeInTheDocument()
+    expect(screen.queryByText('Cửa hàng đã xác nhận đơn')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra trạng thái đơn' }))
+
+    expect(await screen.findByRole('heading', { name: 'Đơn hàng đã được xác nhận' })).toBeInTheDocument()
+    expect(screen.getByText('Cửa hàng đã xác nhận đơn')).toBeInTheDocument()
+    expect(screen.getByText(/Đã cập nhật lúc/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Yêu cầu hủy đơn' })).toBeInTheDocument()
+  })
+
   it('không báo hủy ngay khi đơn VietQR chỉ mới gửi yêu cầu', async () => {
     api.requestCancellation.mockResolvedValue({ request_status: 'PENDING' })
     customer()

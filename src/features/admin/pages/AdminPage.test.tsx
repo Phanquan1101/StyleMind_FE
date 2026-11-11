@@ -454,8 +454,12 @@ describe('AdminPage', () => {
         ? { ...item, variant_status: 'INACTIVE' }
         : item),
     }
-    vi.spyOn(commerceApi.products, 'getAdmin').mockResolvedValueOnce(source).mockResolvedValueOnce(updated)
-    const replaceVariant = vi.spyOn(commerceApi.products, 'replaceVariant').mockResolvedValue({ ...target, variant_status: 'INACTIVE' })
+    let currentProduct = source
+    vi.spyOn(commerceApi.products, 'getAdmin').mockImplementation(async () => currentProduct)
+    const replaceVariant = vi.spyOn(commerceApi.products, 'replaceVariant').mockImplementation(async () => {
+      currentProduct = updated
+      return { ...target, variant_status: 'INACTIVE' }
+    })
     renderAt('/admin?section=products', database)
 
     const productRow = await screen.findByRole('row', { name: /prd-blouse-01/ })
@@ -641,15 +645,12 @@ describe('AdminPage', () => {
     expect(updateUserStatus).toHaveBeenNthCalledWith(2, 'usr-customer-01', 'ACTIVE')
   })
 
-  it('shows unsupported AI administration without modifying demo metadata', async () => {
-    const database = adminDatabase()
-    renderAt('/admin?section=ai', database)
+  it('opens the overview for the retired AI section without offering an AI menu item', async () => {
+    renderAt('/admin?section=ai', adminDatabase())
 
-    expect(await screen.findByRole('heading', { name: 'Quản lý AI' })).toBeInTheDocument()
-    expect(await screen.findByText('Chức năng chưa hỗ trợ.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Thêm thuộc tính AI' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Thêm luật' })).not.toBeInTheDocument()
-    expect(getDatabase().fashionMetadata).toEqual(database.fashionMetadata)
-    expect(getDatabase().compatibilityRules).toEqual(database.compatibilityRules)
+    expect(await screen.findByRole('heading', { name: 'Tổng quan quản trị' })).toBeInTheDocument()
+    const navigation = screen.getByRole('navigation', { name: 'Khu vực quản trị' })
+    expect(within(navigation).getByRole('link', { name: 'Tổng quan' })).toHaveAttribute('aria-current', 'page')
+    expect(within(navigation).queryByRole('link', { name: 'AI' })).not.toBeInTheDocument()
   })
 })

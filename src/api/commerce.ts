@@ -58,7 +58,8 @@ export const commerceApi = {
     lookupVariants: (variantIds: UUID[]) =>
       commerceRequest<{ items: ProductVariant[] }>('/api/v1/variants/batch-lookup', { method: 'POST', body: { variant_ids: variantIds }, auth: false }),
     create: (input: ProductInput) => post<CommerceProduct>('/api/v1/admin/products', input),
-    getAdmin: (id: UUID) => get<CommerceProduct>(`/api/v1/admin/products/${id}`),
+    getAdmin: (id: UUID, signal?: AbortSignal) =>
+      commerceRequest<CommerceProduct>(`/api/v1/admin/products/${id}`, { signal, cache: 'no-store' }),
     replace: (id: UUID, input: ProductInput) => put<CommerceProduct>(`/api/v1/admin/products/${id}`, input),
     remove: (id: UUID) => del(`/api/v1/admin/products/${id}`),
     createVariant: (productId: UUID, input: CreateVariantInput) =>

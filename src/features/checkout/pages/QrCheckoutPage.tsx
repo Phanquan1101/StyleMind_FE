@@ -25,6 +25,13 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
   const owner = currentUser?.id ?? ''
   const guestKey = guest ? readGuestSessionKey() : null
 
+  const clearAccountCheckout = () => {
+    const draft = loadAccountDraft(owner)
+    if (draft.qrCheckoutId === checkoutId) {
+      saveAccountDraft(owner, { checkoutKey: crypto.randomUUID(), addressId: draft.addressId, method: draft.method })
+    }
+  }
+
   useEffect(() => {
     const controller = new AbortController()
     closed.current = false
@@ -55,7 +62,7 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
           setAttempt(null)
           if (state.status === 'CANCELLED' || state.status === 'EXPIRED') {
             if (guest) saveGuestDraft({ checkoutKey: crypto.randomUUID(), address: { recipient_name: '', recipient_phone: '', address_line: '' }, method: 'cod' })
-            else saveAccountDraft(owner, { checkoutKey: crypto.randomUUID(), addressId: '', method: 'COD' })
+            else clearAccountCheckout()
           }
         }
       } catch (failure) { if (!controller.signal.aborted && !closed.current) setError(paymentErrorMessage(failure)) }
@@ -75,7 +82,7 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
       const state = guest ? await guestCheckoutApi.cancelQr(guestKey, checkoutId) : await paymentApi.cancelQrCheckout(checkoutId)
       closed.current = true; setCheckout(state); setAttempt(null)
       if (guest) saveGuestDraft({ checkoutKey: crypto.randomUUID(), address: { recipient_name: '', recipient_phone: '', address_line: '' }, method: 'cod' })
-      else saveAccountDraft(owner, { checkoutKey: crypto.randomUUID(), addressId: '', method: 'COD' })
+      else clearAccountCheckout()
     } catch (failure) {
       setError(paymentErrorMessage(failure))
       try { const state = guest ? await guestCheckoutApi.getQr(guestKey, checkoutId) : await paymentApi.getQrCheckout(checkoutId); setCheckout(state) } catch { /* Keep the uncertain result visible. */ }

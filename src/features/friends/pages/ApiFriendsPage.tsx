@@ -66,7 +66,15 @@ export default function ApiFriendsPage() {
       </div>}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {section === 'friends' && friends.data?.items.map(friend => <article key={friend.friendship_id} className="min-w-0 rounded-[24px] border border-[#E3E2E2] bg-white p-6"><div className="flex items-center gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#EFEDED] text-[#444746]"><UserRound size={21} aria-hidden="true" /></span><h2 className="min-w-0 break-words font-display text-2xl [overflow-wrap:anywhere]">{friendLabel(friend)}</h2></div><div className="mt-5 flex flex-wrap gap-3"><Link className="inline-flex min-h-11 items-center rounded-lg bg-[#EFEDED] px-4 text-sm font-semibold" to={`/shared-with-me/${friend.friend_account_id}`}>Xem Outfit</Link><Button variant="secondary" disabled={busy} onClick={() => { void (async () => { setBusy(true); setError(''); const token = accessToken(); try { const chat = await chatApi.open(friend.friend_account_id); if (!mounted.current || !token || accessToken() !== token) return; navigate(`/messages?conversation=${chat.chat_session_id}`) } catch (e) { setError(e instanceof Error ? e.message : 'Không mở được hội thoại.') } finally { setBusy(false) } })() }}>Nhắn tin</Button><Button variant="ghost" disabled={busy} onClick={() => { setError(''); setRemove({ id: friend.friend_account_id, name: friendLabel(friend) }) }}>Hủy kết bạn</Button></div></article>)}
-        {section === 'incoming' && incoming.data?.items.map(invitation => <article key={invitation.friend_invitation_id} className="rounded-lg border border-[#E3E2E2] bg-white p-6"><h2 className="font-display text-2xl">{invitation.sender_display_name || 'Một người bạn'}</h2><p className="my-3 text-xs text-[#5E5F5D]">Hết hạn: {new Date(invitation.expires_at).toLocaleString('vi-VN')}</p><Button loading={busy} onClick={() => void run(() => communityApi.accept(invitation.friend_invitation_id))}>Chấp nhận</Button></article>)}
+        {section === 'incoming' && incoming.data?.items.map(invitation => (
+          <article key={invitation.friend_invitation_id} className="min-w-0 rounded-lg border border-[#E3E2E2] bg-white p-6">
+            <h2 className="font-display text-2xl [overflow-wrap:anywhere]">
+              {friendLabel({ email: invitation.sender_email, display_name: invitation.sender_display_name })}
+            </h2>
+            <p className="my-3 text-xs text-[#5E5F5D]">Hết hạn: {new Date(invitation.expires_at).toLocaleString('vi-VN')}</p>
+            <Button loading={busy} onClick={() => void run(() => communityApi.accept(invitation.friend_invitation_id))}>Chấp nhận</Button>
+          </article>
+        ))}
         {section === 'outgoing' && outgoing.data?.items.map(invitation => {
           const countdown = Math.max(0, Math.ceil(((retry[invitation.friend_invitation_id] ?? 0) - now) / 1000))
           const canRetry = invitation.status === 'EXPIRED' || (invitation.status === 'PENDING' && retry[invitation.friend_invitation_id] !== undefined)

@@ -51,7 +51,7 @@ export interface Order {
 }
 
 export interface CancellationRequest {
-  refundStatus?: 'PENDING_REFUND'
+  refundStatus?: 'PENDING_REFUND' | 'REFUNDED'
   id: string
   orderId: string
   userId: string

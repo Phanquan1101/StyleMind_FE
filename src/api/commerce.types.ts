@@ -177,7 +177,7 @@ export interface CancellationRequestResponse {
   reviewed_by_user_id: UUID | null
   reviewed_at: string | null
   decision_reason: string | null
-  refund_status?: 'PENDING_REFUND' | null
+  refund_status?: 'PENDING_REFUND' | 'REFUNDED' | null
 }
 
 export interface OrderResponse {

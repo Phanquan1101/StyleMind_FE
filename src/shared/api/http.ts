@@ -48,8 +48,8 @@ function requestWithTimeout<T>(request: (signal: AbortSignal) => Promise<T>, ext
 }
 
 export async function apiRequest<T = unknown>(path: string, options: { method?: string; body?: unknown; auth?: boolean; signal?: AbortSignal; responseType?: 'blob'; timeoutMs?: number } = {}, retried = false): Promise<T> {
-  if (!/^\/(identity|wardrobe-community|stylist)\/api\/v1\//.test(path) || path.includes('://') || path.includes('\\')) throw new ApiError(0, 'INVALID_PATH', 'Đường dẫn API không hợp lệ.')
-  const headers: Record<string, string> = { Accept: 'application/json, application/problem+json' }
+  if (!/^\/(identity|wardrobe-community|stylist|commerce|payment)\/api\/v1\//.test(path) || path.includes('://') || path.includes('\\')) throw new ApiError(0, 'INVALID_PATH', 'Đường dẫn API không hợp lệ.')
+  const headers: Record<string, string> = { Accept: options.responseType === 'blob' ? '*/*' : 'application/json, application/problem+json' }
   let requestToken: string | null = null
   if (options.auth !== false) {
     const token = accessToken()

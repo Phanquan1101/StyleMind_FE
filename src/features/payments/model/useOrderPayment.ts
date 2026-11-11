@@ -21,7 +21,7 @@ export default function useOrderPayment(owner: 'guest' | 'account', orderId: str
   const [pollTimedOut, setPollTimedOut] = useState(false)
   const [now, setNow] = useState(Date.now())
   const [lastCheck, setLastCheck] = useState<PaymentStatusCheck | null>(null)
-  const statusRef = useRef<string | undefined>(undefined)
+  const orderRef = useRef<OrderResponse | null>(null)
   const lifetime = useRef<AbortController | null>(null)
   const locked = useRef(false)
   const reading = useRef(false)
@@ -58,7 +58,7 @@ export default function useOrderPayment(owner: 'guest' | 'account', orderId: str
     }
   }, [getAttempt, getOrder, orderId, owner, accountId])
 
-  useEffect(() => { statusRef.current = order?.order_status }, [order])
+  useEffect(() => { orderRef.current = order }, [order])
   useEffect(() => {
     const controller = new AbortController()
     lifetime.current = controller
@@ -128,11 +128,16 @@ export default function useOrderPayment(owner: 'guest' | 'account', orderId: str
     locked.current = true; setBusy(true); setError('')
     try {
       // Checking status is always GET-only. Recovery never creates another order.
-      const before = statusRef.current
+      const before = orderRef.current
       const latest = await getOrder(controller.signal)
       if (controller.signal.aborted) return
       setOrder(latest)
-      if (!recover) setLastCheck({ at: Date.now(), changed: before !== undefined && before !== latest.order_status })
+      if (!recover) {
+        const changed = before !== null && (
+          before.order_status !== latest.order_status || before.confirmation_state !== latest.confirmation_state
+        )
+        setLastCheck({ at: Date.now(), changed })
+      }
       if (recover && latest.order_status === 'PENDING_PAYMENT') await loadAttempt(controller.signal)
     } catch (failure) {
       if (!controller.signal.aborted) setError(message(failure))

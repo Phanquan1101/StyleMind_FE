@@ -1,6 +1,6 @@
 import type {
   CheckoutRequest, CodCollectionRequest, OrderResponse, PaymentAttempt,
-  PaymentExceptionList, PaymentExceptionQuery, QrCheckout,
+  PaymentExceptionList, PaymentExceptionQuery, QrCheckout, PendingQrCheckoutPage,
 } from './types'
 import type { GuestCart } from '@/features/cart/data/guestCartApi'
 import type { GuestPrices } from '@/features/checkout/data/guestCheckoutApi'
@@ -95,6 +95,10 @@ export function createPaymentApi(options: PaymentApiOptions) {
   }
 
   return {
+    listPendingQrCheckouts: (query: { page: number; size: number }, requestOptions?: RequestOptions) => {
+      const params = new URLSearchParams({ page: String(query.page), size: String(query.size) })
+      return request<PendingQrCheckoutPage>(`/commerce/api/v1/qr-checkouts/pending?${params}`, 'GET', undefined, requestOptions)
+    },
     prepareQrSelection: (body: CheckoutRequest & { cart_item_ids: string[] }) => request<QrCheckout>('/commerce/api/v1/qr-checkouts/selected', 'POST', body),
     prepareQrBuyNow: (body: CheckoutRequest & { variant_id: string; quantity: number }) => request<QrCheckout>('/commerce/api/v1/qr-checkouts/buy-now', 'POST', body),
     recoverQrCheckout: (key: string) => request<QrCheckout>('/commerce/api/v1/qr-checkouts/recover', 'POST', { checkout_key: key }),

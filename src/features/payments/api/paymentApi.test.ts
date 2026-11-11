@@ -10,6 +10,16 @@ function setup() {
 }
 
 describe('Payment backend API integration', () => {
+  it('lists pending account QR checkouts with a GET and paging parameters', async () => {
+    const { api, fetch } = setup()
+    const controller = new AbortController()
+    await api.listPendingQrCheckouts({ page: 2, size: 10 }, { signal: controller.signal })
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8080/commerce/api/v1/qr-checkouts/pending?page=2&size=10',
+      expect.objectContaining({ method: 'GET', cache: 'no-store' }),
+    )
+    expect(fetch.mock.calls[0][1]).not.toHaveProperty('body')
+  })
   it('refreshes an expired JWT once and resends the exact checkout body', async () => {
     let token = 'expired-token'
     const fetch = vi.fn<typeof globalThis.fetch>()

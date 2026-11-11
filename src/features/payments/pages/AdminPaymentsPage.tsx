@@ -108,7 +108,7 @@ export default function AdminPaymentsPage() {
           <Button variant="secondary" disabled={loading || result.items.length < 20} onClick={() => setQuery(current => ({ ...current, offset: current.offset + 20 }))}>Trang sau</Button>
         </div>
       </>}
-      <p className="text-sm text-[#5E5F5D]">Hiện chưa hỗ trợ xử lý đối soát hoặc hoàn tiền trên giao diện.</p>
+      <p className="text-sm text-[#5E5F5D]">Giao dịch QR đến muộn xuất hiện tại đây để đối soát. Xử lý hoàn tiền cho yêu cầu trả hàng hoặc yêu cầu hủy đơn đã thanh toán và được duyệt tại <Link to="/admin?section=requests" className="font-semibold text-accent underline">Yêu cầu</Link>.</p>
     </section>
   </main>
 }

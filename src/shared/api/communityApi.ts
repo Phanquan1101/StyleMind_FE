@@ -3,7 +3,7 @@ export type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC'
 export interface Page<T> { items: T[]; page: number; size: number; total_elements: number; total_pages: number }
 export interface FriendDto { friendship_id: string; friend_account_id: string; email?: string | null; display_name: string | null; established_at: string }
 export interface InvitationDto { friend_invitation_id: string; recipient_email: string; status: string; created_at: string; expires_at: string; accepted_at: string | null }
-export interface IncomingDto { friend_invitation_id: string; sender_account_id: string; sender_display_name: string | null; created_at: string; expires_at: string }
+export interface IncomingDto { friend_invitation_id: string; sender_account_id: string; sender_email?: string | null; sender_display_name: string | null; created_at: string; expires_at: string }
 export interface InvitationResult { friend_invitation_id: string; status: string; outcome: string; delivery_status: string | null; retry_after_seconds: number; expires_at: string | null }
 export interface OutfitSummaryDto { outfit_id: string; name: string; visibility: Visibility; item_count: number; updated_at: string; owner_display_name?: string | null }
 export interface OutfitItemDto { outfit_item_id: string; variant_id: string; product_id: string | null; product_name: string | null; color: string | null; size: string | null; unit_price_vnd: number | null; image_url: string | null; available: boolean }

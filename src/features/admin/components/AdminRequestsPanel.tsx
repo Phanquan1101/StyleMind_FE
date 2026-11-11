@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RotateCcw } from 'lucide-react'
+import RefundPanel from '@/features/returns/RefundPanel'
+import AdminReturnsPanel from './AdminReturnsPanel'
 
 import { commerceApi } from '@/api/commerce'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
@@ -44,6 +45,7 @@ export function AdminRequestsPanel({ database, dispatch, reviewerId }: AdminRequ
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [reviewing, setReviewing] = useState(false)
+  const [openRefund, setOpenRefund] = useState<string | null>(null)
 
   const cancellations = useMemo(
     () => [...database.cancellationRequests].sort((first, second) => second.createdAt.localeCompare(first.createdAt)),
@@ -108,7 +110,7 @@ export function AdminRequestsPanel({ database, dispatch, reviewerId }: AdminRequ
           Quản lý yêu cầu
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#5E5F5D]">
-          Xem và xử lý yêu cầu hủy đơn.
+          Xem và xử lý yêu cầu hủy đơn, trả hàng và hoàn tiền.
         </p>
       </div>
 
@@ -121,15 +123,7 @@ export function AdminRequestsPanel({ database, dispatch, reviewerId }: AdminRequ
         </Button>
       </div>
 
-      {activeTab === 'returns' && apiMode() ? <section className="space-y-5 rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E3E2E2] pb-5">
-          <div><h2 className="flex items-center gap-2 font-display text-2xl"><RotateCcw size={20} aria-hidden="true" /> Trả hàng & Hoàn tiền</h2><p className="mt-2 text-sm text-secondary">Quản lý yêu cầu, kiểm định và hoàn tiền.</p></div>
-          <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="secondary" onClick={() => toast.info('Chức năng chưa hỗ trợ.')}>Yêu cầu trả hàng</Button><Button type="button" variant="secondary" onClick={() => toast.info('Chức năng chưa hỗ trợ.')}>Hoàn tiền</Button>
-            <label className="sr-only" htmlFor="return-status-filter">Lọc trạng thái trả hàng</label><select id="return-status-filter" value="" onChange={() => toast.info('Chức năng chưa hỗ trợ.')} className="min-h-11 max-w-full rounded-lg border border-[#C4C7C7] bg-white px-3 text-sm text-[#222222] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"><option value="">Tất cả trạng thái</option><option value="REQUESTED">Chờ duyệt</option><option value="APPROVED">Đã chấp nhận</option><option value="RETURN_IN_TRANSIT">Đang vận chuyển</option><option value="QC_PASSED">Chờ hoàn tiền</option><option value="QC_FAILED">Kiểm định thất bại</option><option value="REJECTED">Bị từ chối</option></select>
-          </div>
-        </div>
-        <div className="grid justify-items-center gap-3 rounded-xl bg-[#FBF9F9] px-5 py-12 text-center text-sm text-secondary"><RotateCcw size={32} aria-hidden="true" className="opacity-50" /><p>Quản lý yêu cầu đổi/trả hiện chưa được hỗ trợ.</p></div>
-      </section> : activeTab === 'cancellations' ? (
+      {activeTab === 'returns' && apiMode() ? <AdminReturnsPanel /> : activeTab === 'cancellations' ? (
         <div className="min-w-0 overflow-hidden rounded-xl border border-[#E3E2E2] bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E3E2E2] px-5 py-4">
             <h2 className="text-sm font-semibold text-[#222222]">Yêu cầu hủy đơn <span className="ml-1 text-[#5E5F5D]">({cancellations.length})</span></h2>
@@ -184,7 +178,7 @@ export function AdminRequestsPanel({ database, dispatch, reviewerId }: AdminRequ
                       <td className="px-4 py-5">
                         <p className="whitespace-pre-wrap leading-6 text-[#3A3632] [overflow-wrap:anywhere]">{request.reason}</p>
                       </td>
-                      <td className="px-4 py-5"><StatusBadge tone={statusTone(request.status)}>{cancellationStatusLabel[request.status]}</StatusBadge>{request.refundStatus === 'PENDING_REFUND' && <p className="mt-2 text-sm leading-5 text-warning-ink">Đang chờ hoàn tiền</p>}</td>
+                      <td className="px-4 py-5"><StatusBadge tone={statusTone(request.status)}>{cancellationStatusLabel[request.status]}</StatusBadge>{request.refundStatus === 'PENDING_REFUND' && openRefund !== request.id && <p className="mt-2 text-sm leading-5 text-warning-ink">Đang chờ hoàn tiền</p>}{request.refundStatus === 'REFUNDED' && <p className="mt-2 text-sm leading-5">Đã hoàn tiền</p>}</td>
                       <td className="px-4 py-5">
                         <div className="flex flex-col items-stretch gap-2">
                           {request.status === 'submitted' ? (
@@ -192,10 +186,18 @@ export function AdminRequestsPanel({ database, dispatch, reviewerId }: AdminRequ
                               <Button type="button" size="sm" className="whitespace-nowrap shadow-none" disabled={reviewing || rejecting === request.id} onClick={() => void reviewCancellation(request.id, 'approved')}>Duyệt yêu cầu</Button>
                               <Button type="button" size="sm" variant="danger-soft" className="whitespace-nowrap" aria-expanded={rejecting === request.id} aria-controls={`reject-${request.id}`} disabled={reviewing} onClick={() => { setRejecting(request.id); setRejectReason('') }}>Từ chối</Button>
                             </>
+                          ) : apiMode() && (request.refundStatus === 'PENDING_REFUND' || request.refundStatus === 'REFUNDED') ? (
+                            <Button type="button" size="sm" variant="secondary" aria-expanded={openRefund === request.id} aria-controls={"refund-" + request.id}
+                              onClick={() => setOpenRefund(value => value === request.id ? null : request.id)}>
+                              {openRefund === request.id ? 'Đóng hoàn tiền' : 'Xem hoàn tiền'}
+                            </Button>
                           ) : <span className="text-right text-xs font-medium text-[#5E5F5D]">Đã xử lý</span>}
                         </div>
                       </td>
                     </tr>
+                    {openRefund === request.id && (
+                      <tr id={"refund-" + request.id}><td colSpan={7} className="px-5 pb-5"><RefundPanel source="CANCELLATION" sourceId={request.id} admin /></td></tr>
+                    )}
                     {rejecting === request.id && request.status === 'submitted' && (
                       <tr id={`reject-${request.id}`} className="bg-[#FBF9F9]">
                         <td colSpan={7} className="px-5 py-5">

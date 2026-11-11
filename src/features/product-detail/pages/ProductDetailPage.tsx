@@ -1,5 +1,5 @@
 import { Minus, Plus, ShoppingBag, Zap } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
@@ -12,7 +12,7 @@ import { useCommerceDisplay, useGuestCommerce } from '@/features/cart/model/Gues
 import { useAuth } from '@/features/auth'
 import { useActiveCommerce } from '@/features/cart/model/AccountCommerceProvider'
 import { guestCartErrorMessage } from '@/features/cart/data/guestCartApi'
-import { beginAccountSelection } from '@/features/checkout/model/accountSelection'
+import { accountSelectionRoute } from '@/features/checkout/model/accountSelection'
 
 import { ColorSelector } from '../components/ColorSelector'
 import { ProductGallery } from '../components/ProductGallery'
@@ -40,7 +40,8 @@ export function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [validationError, setValidationError] = useState<string | null>(null)
-  const [addingToCart, setAddingToCart] = useState(false)
+  const [checkingCheckout, setCheckingCheckout] = useState(false)
+  const checkoutLocked = useRef(false)
 
   const selection = useMemo(
     () => (product ? getProductSelection(product, { color: selectedColor, size: selectedSize }) : null),
@@ -91,6 +92,7 @@ export function ProductDetailPage() {
   }
 
   const addToCart = async (buyNow = false) => {
+    if (checkoutLocked.current) return
     if (!selectedSize) {
       setValidationError('Vui lòng chọn kích thước')
       return
@@ -112,12 +114,17 @@ export function ProductDetailPage() {
         return
       }
       const choice = { kind: 'buy-now' as const, variant_id: selection.variant.id, quantity }
-      const started = beginAccountSelection(currentUser.id, choice)
-      if (!started) {
-        setValidationError('Có yêu cầu đặt hàng trước đó chưa rõ kết quả. Vui lòng kiểm tra đơn trước khi tạo lần mới.')
-        return
+      checkoutLocked.current = true
+      setCheckingCheckout(true)
+      setValidationError(null)
+      try {
+        navigate(await accountSelectionRoute(currentUser.id, choice))
+      } catch (failure) {
+        setValidationError(failure instanceof Error ? failure.message : 'Không thể mở trang đặt hàng.')
+      } finally {
+        checkoutLocked.current = false
+        setCheckingCheckout(false)
       }
-      navigate(ROUTES.checkout)
       return
     }
 
@@ -187,10 +194,10 @@ export function ProductDetailPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Button loading={guest.busy} icon={<ShoppingBag size={18} aria-hidden="true" />} onClick={() => void addToCart(false)}>
+          <Button loading={guest.busy} disabled={checkingCheckout} icon={<ShoppingBag size={18} aria-hidden="true" />} onClick={() => void addToCart(false)}>
             Thêm vào giỏ
           </Button>
-          <Button disabled={guest.busy} variant="secondary" icon={<Zap size={18} aria-hidden="true" />} onClick={() => void addToCart(true)}>
+          <Button loading={checkingCheckout} disabled={guest.busy} variant="secondary" icon={<Zap size={18} aria-hidden="true" />} onClick={() => void addToCart(true)}>
             Mua ngay
           </Button>
         </div>

@@ -54,7 +54,9 @@ export default function GuestPaymentView({
   const amount = showQr && attempt ? attempt.amountVnd : order?.accepted_total_vnd
   const codStatus: Record<string, { title: string; detail: string }> = {
     PENDING_PAYMENT: { title: 'Đang tiếp nhận đơn hàng', detail: 'Cửa hàng đang xử lý thông tin đơn hàng của bạn.' },
-    PLACED: { title: 'Đặt hàng thành công', detail: 'Cửa hàng sẽ xác nhận đơn hàng trước khi chuẩn bị.' },
+    PLACED: order?.confirmation_state === 'CONFIRMED'
+      ? { title: 'Đơn hàng đã được xác nhận', detail: 'Cửa hàng sẽ chuẩn bị đơn hàng của bạn.' }
+      : { title: 'Đặt hàng thành công', detail: 'Cửa hàng sẽ xác nhận đơn hàng trước khi chuẩn bị.' },
     PROCESSING: { title: 'Đơn hàng đang được chuẩn bị', detail: 'Cửa hàng đang chuẩn bị các sản phẩm của bạn.' },
     SHIPPED: { title: 'Đơn hàng đang được giao', detail: 'Nhân viên cửa hàng đang giao đơn hàng đến bạn.' },
     COMPLETED: { title: 'Đơn hàng đã giao thành công', detail: 'Cảm ơn bạn đã mua sắm tại StyleMind.' },

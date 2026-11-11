@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
 import QrCheckoutPage from './pages/QrCheckoutPage'
+import { loadAccountDraft, saveAccountDraft } from './model/accountCheckout'
 
 const api = vi.hoisted(() => ({ getQrCheckout: vi.fn(), getQrAttempt: vi.fn(), cancelQrCheckout: vi.fn() }))
 const guestApi = vi.hoisted(() => ({ getQr: vi.fn(), qrAttempt: vi.fn(), cancelQr: vi.fn() }))
@@ -47,6 +48,14 @@ it('không hiển thị lại QR khi phản hồi tạo mã về sau khi hủy',
   await screen.findByText('Thanh toán đã được hủy.')
   finish(attempt)
   await waitFor(() => expect(screen.queryByRole('img')).not.toBeInTheDocument())
+})
+
+it('keeps a newer checkout when an old QR page observes expiry', async () => {
+  saveAccountDraft('account', { checkoutKey: 'new-key', addressId: 'address', method: 'COD' })
+  api.getQrCheckout.mockResolvedValue({ ...state, status: 'EXPIRED' })
+  page()
+  expect(await screen.findByText('Phiên thanh toán đã hết hạn.')).toBeInTheDocument()
+  expect(loadAccountDraft('account').checkoutKey).toBe('new-key')
 })
 
 it('cập nhật trạng thái đối soát nếu tiền đến sau khi hủy', async () => {
