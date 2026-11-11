@@ -95,6 +95,7 @@ export function createPaymentApi(options: PaymentApiOptions) {
   }
 
   return {
+    confirmDeliveredCod: (orderId: string) => request<PaymentAttempt>(`/payment/api/v1/admin/orders/${encodeURIComponent(orderId)}/cod-collection`, 'POST'),
     listPendingQrCheckouts: (query: { page: number; size: number }, requestOptions?: RequestOptions) => {
       const params = new URLSearchParams({ page: String(query.page), size: String(query.size) })
       return request<PendingQrCheckoutPage>(`/commerce/api/v1/qr-checkouts/pending?${params}`, 'GET', undefined, requestOptions)

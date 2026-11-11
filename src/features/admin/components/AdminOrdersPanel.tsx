@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { commerceApi } from '@/api/commerce'
+import { paymentApi, paymentErrorMessage } from '@/features/payments/api/paymentClient'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
 import type { Order, OrderStatus } from '@/entities/order/model/types'
 import { orderStatusLabel, paymentMethodLabel, paymentStatusLabel } from '@/features/admin/model/adminLabels'
@@ -123,17 +124,45 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
     finally { setConfirming(null) }
   }
 
+  const [updating, setUpdating] = useState<string | null>(null)
+  const [collectedCod, setCollectedCod] = useState<Set<string>>(() => new Set())
+  const collectCod = async (orderId: string) => {
+    const result = await paymentApi.confirmDeliveredCod(orderId)
+    if (result.status !== 'PAID' || result.orderId !== orderId || result.method !== 'COD') {
+      throw new Error('Chưa nhận được xác nhận thu COD từ máy chủ.')
+    }
+    setCollectedCod(current => new Set(current).add(orderId))
+  }
+  const retryCod = async (orderId: string) => {
+    if (updating) return
+    setUpdating(orderId)
+    try {
+      await collectCod(orderId)
+      toast.success('Đã ghi nhận thu COD. Quyền trả hàng cập nhật sau khi hệ thống đồng bộ thanh toán.')
+      onReload?.()
+    } catch (error) { toast.error(paymentErrorMessage(error)) }
+    finally { setUpdating(null) }
+  }
   const changeStatus = async (orderId: string, status: OrderStatus) => {
+    if (updating) return
+    setUpdating(orderId)
+    let delivered = false
     try {
       await commerceApi.orders.updateStatus(orderId, commerceStatus[status])
       dispatch({
         type: 'admin/orderStatusChanged',
         payload: { orderId, status, at: new Date().toISOString() },
       })
+      const order = database.orders.find(item => item.id === orderId)
+      if (status === 'completed' && order?.paymentMethod === 'cod') {
+        delivered = true
+        await collectCod(orderId)
+      }
       toast.success('Đã cập nhật trạng thái đơn hàng.')
+      onReload?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Không thể cập nhật trạng thái đơn hàng')
-    }
+      toast.error(delivered ? 'Đã lưu giao hàng thành công nhưng chưa xác nhận thu COD. Bấm “Xác nhận đã thu COD” để thử lại trên cùng đơn.' : error instanceof Error ? error.message : 'Không thể cập nhật trạng thái đơn hàng')
+    } finally { setUpdating(null) }
   }
 
   if (selectedOrder) {
@@ -262,6 +291,7 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                         >
                           Chi tiết
                         </Button>
+                        {original?.status === 'completed' && original.paymentMethod === 'cod' && !collectedCod.has(row.id) && <Button type="button" size="sm" disabled={Boolean(updating)} onClick={() => void retryCod(row.id)}>Xác nhận đã thu COD</Button>}
                         {needsConfirmation ? <Button type="button" size="sm" disabled={Boolean(confirming)} onClick={() => void confirmOrder(row.id)}>Xác nhận đơn</Button> : next.length === 0 ? (
                           <span className="whitespace-nowrap text-xs font-medium text-[#5E5F5D]">{original?.confirmationState === 'LEGACY_UNKNOWN' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '') ? 'Đơn cũ cần kiểm tra' : 'Trạng thái cuối'}</span>
                         ) : next.map(status => (
@@ -271,8 +301,9 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                             size="sm"
                             variant={status === 'cancelled' ? 'secondary' : 'primary'}
                             onClick={() => void changeStatus(row.id, status)}
+                            disabled={Boolean(updating)}
                           >
-                            {actionLabel[status]}
+                            {status === 'completed' && original?.paymentMethod === 'cod' ? 'Giao thành công và thu COD' : actionLabel[status]}
                           </Button>
                         ))}
                       </div>

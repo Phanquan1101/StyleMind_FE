@@ -15,6 +15,14 @@ const request = { return_id: returnId, order_id: orderId, order_number: 'SM-1001
 const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } })
 afterEach(() => { vi.unstubAllGlobals(); sessionStorage.clear() })
 
+it('giải thích thiếu khoản thu thay vì báo hết món trả hàng', async () => {
+  saveApiSession('owner-token', Date.now() + 60000)
+  vi.stubGlobal('fetch', vi.fn(async () => json({ eligible: false, ineligible_reason: 'PAYMENT_NOT_CONFIRMED', available_items: [], items: [] })))
+  render(<OrderDetailSections order={order} onRefresh={vi.fn()} />)
+  expect(await screen.findByText(/hệ thống chưa xác nhận khoản thu/)).toBeVisible()
+  expect(screen.queryByText('Đơn hàng hiện không còn sản phẩm đủ điều kiện trả.')).not.toBeInTheDocument()
+})
+
 it('gửi đúng số lượng và ảnh trả hàng rồi hiển thị trạng thái máy chủ', async () => {
   saveApiSession('owner-token', Date.now() + 60000)
   const NativeURL = URL

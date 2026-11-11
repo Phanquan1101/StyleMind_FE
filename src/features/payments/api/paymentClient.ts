@@ -24,6 +24,8 @@ export function paymentErrorMessage(error: unknown): string {
       ORDER_NOT_PAYABLE: 'Đơn hàng không còn ở trạng thái có thể lấy mã thanh toán.',
       PAYMENT_METHOD_MISMATCH: 'Phương thức thanh toán không khớp.',
       PAYMENT_AMOUNT_MISMATCH: 'Số tiền thu phải bằng đúng số tiền của đơn hàng.',
+      COD_ATTEMPT_REQUIRED: 'Đơn chưa có khoản thanh toán COD. Cần khôi phục khoản thanh toán gốc trước khi xác nhận thu tiền.',
+      COD_DELIVERY_REQUIRED: 'Chỉ xác nhận thu COD sau khi giao hàng thành công.',
       PAYMENT_ATTEMPT_NOT_PENDING: 'Khoản thanh toán không còn chờ thu. Không ghi nhận lại.',
       PAYMENT_ALREADY_CONFIRMED: 'Khoản thanh toán đã được ghi nhận. Không ghi nhận lại.',
       CANCELLATION_REVIEW_REQUIRED: 'Đơn cần được cửa hàng xem xét trước khi hủy. Vui lòng tải lại đơn hàng.',

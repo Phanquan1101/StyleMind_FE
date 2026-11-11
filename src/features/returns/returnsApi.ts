@@ -36,6 +36,7 @@ export interface ReturnRequest {
 
 export interface OrderReturns {
   eligible: boolean
+  ineligible_reason?: string | null
   available_items: ReturnLine[]
   items: ReturnRequest[]
 }

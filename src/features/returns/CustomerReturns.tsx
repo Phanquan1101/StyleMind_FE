@@ -195,7 +195,7 @@ export default function CustomerReturns({ orderId }: { orderId: string }) {
       </header>
       {loading && <p role="status" className="text-sm text-secondary">Đang tải thông tin trả hàng…</p>}
       {loadError && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
-      {!loading && !loadError && data && !data.eligible && <p className="rounded-xl bg-ivory px-4 py-3 text-sm text-secondary">Đơn hàng hiện không còn sản phẩm đủ điều kiện trả.</p>}
+      {!loading && !loadError && data && !data.eligible && <p className="rounded-xl bg-ivory px-4 py-3 text-sm text-secondary">{data.ineligible_reason === 'PAYMENT_NOT_CONFIRMED' ? 'Đơn đã giao nhưng hệ thống chưa xác nhận khoản thu. Vui lòng liên hệ cửa hàng xác nhận thu COD, sau đó tải lại trang.' : data.ineligible_reason === 'RETURN_WINDOW_EXPIRED' ? 'Đơn hàng đã quá thời hạn trả hàng 7 ngày.' : data.ineligible_reason === 'NOT_DELIVERED' ? 'Bạn có thể yêu cầu trả hàng sau khi đơn được giao thành công.' : 'Đơn hàng hiện không còn sản phẩm đủ điều kiện trả.'}</p>}
       {open && data?.eligible && !loadError && (
         <form onSubmit={submit} className="grid gap-5 rounded-xl border border-divider p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(230px,0.46fr)]">
           <div className="grid min-w-0 gap-5">

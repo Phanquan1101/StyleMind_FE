@@ -10,6 +10,12 @@ function setup() {
 }
 
 describe('Payment backend API integration', () => {
+  it('confirms delivered COD by order with the admin session and no client amount', async () => {
+    const { api, fetch } = setup()
+    await api.confirmDeliveredCod('order/id')
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8080/payment/api/v1/admin/orders/order%2Fid/cod-collection', expect.objectContaining({ method: 'POST', cache: 'no-store' }))
+    expect(fetch.mock.calls[0][1]).not.toHaveProperty('body')
+  })
   it('lists pending account QR checkouts with a GET and paging parameters', async () => {
     const { api, fetch } = setup()
     const controller = new AbortController()
