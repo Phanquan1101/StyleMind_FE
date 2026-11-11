@@ -15,7 +15,17 @@ import {
 import { Button, Modal } from '@/shared/ui'
 
 import { AddressCard } from '../components/AddressCard'
+import { fieldErrorsFromProblem, mapFieldErrors, problemOf } from '@/shared/lib/apiFieldErrors'
 import { AddressForm, type AddressFormValue } from '../components/AddressForm'
+import type { AddressField, AddressFieldErrors } from '../model/addressValidation'
+
+const ADDRESS_SERVER_FIELDS: Record<string, AddressField> = {
+  label: 'label',
+  recipient_name: 'recipientName',
+  recipient_phone: 'recipientPhone',
+  address_line: 'addressLine',
+  ward_code: 'wardCode',
+}
 
 export function AddressBookPage() {
   const { currentUser } = useAuth()
@@ -28,6 +38,7 @@ export function AddressBookPage() {
   const [loadError, setLoadError] = useState('')
   const [loadVersion, setLoadVersion] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [serverFieldErrors, setServerFieldErrors] = useState<AddressFieldErrors | undefined>()
   const [deletingAddress, setDeletingAddress] = useState<IdentityAddress | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [wardLoading, setWardLoading] = useState(false)
@@ -77,6 +88,7 @@ export function AddressBookPage() {
   const handleSubmit = async (value: AddressFormValue) => {
     setSaving(true)
     setMessage('')
+    setServerFieldErrors(undefined)
     try {
       if (editingAddress) {
         const payload: AddressPatchPayload = {
@@ -106,8 +118,14 @@ export function AddressBookPage() {
       setEditingAddress(null)
       setWards([])
     } catch (error) {
-      setMessage(identityErrorMessage(error, 'Không thể lưu địa chỉ.'))
-      setMessageIsError(true)
+      const { fields } = mapFieldErrors<AddressField>(fieldErrorsFromProblem(problemOf(error)), ADDRESS_SERVER_FIELDS)
+      if (Object.keys(fields).length > 0) {
+        setServerFieldErrors(fields as AddressFieldErrors)
+        setMessage('')
+      } else {
+        setMessage(identityErrorMessage(error, 'Không thể lưu địa chỉ.'))
+        setMessageIsError(true)
+      }
     } finally {
       setSaving(false)
     }
@@ -189,6 +207,7 @@ export function AddressBookPage() {
           wardLoading={wardLoading}
           saving={saving}
           serverError={messageIsError ? message : ''}
+          serverFieldErrors={serverFieldErrors}
           onProvinceChange={handleProvinceChange}
           onSubmit={handleSubmit}
           onCancel={() => { setCreating(false); setEditingAddress(null); setWards([]) }}

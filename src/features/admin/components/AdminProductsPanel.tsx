@@ -1,14 +1,16 @@
-import { ChevronDown, Pencil, Plus } from 'lucide-react'
-import { Fragment, useMemo, useState, type FormEvent } from 'react'
+import { AlertCircle, CheckCircle2, ChevronDown, Loader2, Pencil, Plus } from 'lucide-react'
+import { Fragment, useMemo, useRef, useState, type FormEvent } from 'react'
 
 import { commerceApi } from '@/api/commerce'
 import { CommerceApiError } from '@/api/http'
+import type { CommerceProduct } from '@/api/commerce.types'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
-import type { Product, ProductSize } from '@/entities/product/model/types'
 import { selectAdminProducts } from '@/features/admin/model/adminSelectors'
 import type { AdminProductFilters } from '@/features/admin/model/adminTypes'
 import { commerceProductToEntity } from '@/features/commerce/data/commerceEntityAdapters'
+import { fieldErrorsFromProblem, focusFirstInvalid, mapFieldErrors } from '@/shared/lib/apiFieldErrors'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
+import { MAX_IMAGE_BYTES, prepareImageForUpload, validateImageFile } from '@/shared/lib/imageUpload'
 import { Button, Modal, SelectField, TextField, ToggleSwitch, useToast } from '@/shared/ui'
 import VariantImagesManager from './VariantImagesManager'
 
@@ -17,155 +19,134 @@ interface AdminProductsPanelProps {
   dispatch: React.Dispatch<DemoAction>
 }
 
+/** Only fields the commerce API actually stores. */
 interface ProductFormState {
-  id: string
   name: string
   brand: string
   categoryId: string
-  basePrice: string
+  price: string
   description: string
   material: string
-  fit: string
-  pattern: string
-  styleId: string
-  occasionId: string
-  tags: string
   productActive: boolean
   color: string
-  colorHex: string
-  size: ProductSize
-  variantPriceOverride: string
+  size: string
   quantity: string
   variantActive: boolean
   imageUrl: string
 }
 
-const productSizes: ProductSize[] = ['XS', 'S', 'M', 'L', 'XL']
+type FieldKey = 'name' | 'brand' | 'categoryId' | 'price' | 'description' | 'material' | 'color' | 'size' | 'quantity' | 'image'
+type FieldErrors = Partial<Record<FieldKey, string>>
+type StepKey = 'product' | 'variant' | 'image'
+type StepStatus = 'idle' | 'running' | 'done' | 'error'
+interface StepState { status: StepStatus; message?: string }
+type Steps = Record<StepKey, StepState>
+
+/** API field name -> form field. Fields not listed here are shown in the banner. */
+const SERVER_FIELD_MAP: Record<string, FieldKey> = {
+  category_id: 'categoryId',
+  brand_id: 'brand',
+  name: 'name',
+  description: 'description',
+  size: 'size',
+  color: 'color',
+  material: 'material',
+  unit_price_vnd: 'price',
+  quantity: 'quantity',
+  file: 'image',
+}
+
+const SIZE_SUGGESTIONS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'Một cỡ']
+const STEP_LABEL: Record<StepKey, string> = {
+  product: '1. Lưu thông tin sản phẩm',
+  variant: '2. Lưu phiên bản (màu, size, giá, tồn kho)',
+  image: '3. Tải ảnh lên',
+}
+const freshSteps = (): Steps => ({ product: { status: 'idle' }, variant: { status: 'idle' }, image: { status: 'idle' } })
 
 function toSlug(value: string) {
   return (
     value
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[̀-ͯ]/g, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'mau'
   )
 }
 
-function parseTags(value: string) {
-  return value
-    .split(',')
-    .map(item => item.trim())
-    .filter(Boolean)
-}
-
-function firstActiveOptionId(database: DemoDatabase, group: 'styles' | 'occasions') {
-  return database.fashionMetadata[group].find(option => option.active)?.id ?? database.fashionMetadata[group][0]?.id ?? ''
-}
-
-function createInitialForm(categoryId: string, database: DemoDatabase): ProductFormState {
+function createInitialForm(categoryId: string): ProductFormState {
   return {
-    id: '',
-    name: '',
-    brand: '',
-    categoryId,
-    basePrice: '',
-    description: '',
-    material: '',
-    fit: '',
-    pattern: '',
-    styleId: firstActiveOptionId(database, 'styles'),
-    occasionId: firstActiveOptionId(database, 'occasions'),
-    tags: '',
-    productActive: true,
-    color: '',
-    colorHex: '#FFFFFF',
-    size: 'M',
-    variantPriceOverride: '',
-    quantity: '10',
-    variantActive: true,
-    imageUrl: '',
+    name: '', brand: '', categoryId, price: '', description: '', material: '', productActive: true,
+    color: '', size: 'M', quantity: '10', variantActive: true, imageUrl: '',
   }
 }
 
-function createFormFromProduct(product: Product, database: DemoDatabase): ProductFormState {
+/** Builds the form from the raw API product so nothing is lost (sizes such as "2XL" or "Một cỡ" stay as they are). */
+function createFormFromProduct(product: CommerceProduct): ProductFormState {
   const variant = product.variants[0]
-  const primaryImage = variant?.images.find(image => image.isPrimary) ?? variant?.images[0]
-
+  const image = variant?.images.find(item => item.is_primary) ?? variant?.images[0]
   return {
-    id: product.id,
     name: product.name,
-    brand: product.brand,
-    categoryId: product.categoryId,
-    basePrice: String(product.basePrice),
-    description: product.description,
-    material: product.material,
-    fit: product.fit,
-    pattern: product.pattern,
-    styleId: product.styleIds[0] ?? firstActiveOptionId(database, 'styles'),
-    occasionId: product.occasionIds[0] ?? firstActiveOptionId(database, 'occasions'),
-    tags: product.tags.join(', '),
-    productActive: product.active,
+    brand: product.brand_name,
+    categoryId: product.category_id,
+    price: variant ? String(variant.unit_price_vnd) : '',
+    description: product.description ?? '',
+    material: variant?.material ?? '',
+    productActive: product.product_status === 'ACTIVE',
     color: variant?.color ?? '',
-    colorHex: variant?.colorHex ?? '#FFFFFF',
-    size: variant?.size ?? 'M',
-    // The API always returns a variant price; only show it as an override when it differs from the
-    // base price, otherwise editing "Giá cơ bản" would be silently ignored.
-    variantPriceOverride: variant?.priceOverride && variant.priceOverride !== product.basePrice ? String(variant.priceOverride) : '',
-    quantity: String(variant?.stock ?? 0),
-    variantActive: variant?.active ?? true,
-    imageUrl: primaryImage?.url ?? '',
+    size: variant?.size ?? '',
+    quantity: variant ? String(variant.available_quantity) : '0',
+    variantActive: variant ? variant.variant_status === 'ACTIVE' : true,
+    imageUrl: image?.image_url ?? '',
   }
 }
 
-function buildProduct(form: ProductFormState, existingProduct?: Product): Product {
-  const productId = existingProduct?.id ?? form.id.trim()
-  const color = form.color.trim()
-  const size = form.size
-  const variant = existingProduct?.variants[0]
-  const variantId = variant?.id ?? `${productId.replace(/^prd-/, 'var-')}-${toSlug(color)}-${size.toLowerCase()}`
-  const explicitTags = parseTags(form.tags)
-  const fallbackTags = [color, form.material, form.fit].map(item => item.trim()).filter(Boolean)
-  const priceOverride = form.variantPriceOverride.trim() ? Number(form.variantPriceOverride) : undefined
+function validateForm(form: ProductFormState, requireImage: boolean, imageFile: File | null): FieldErrors {
+  const errors: FieldErrors = {}
+  if (!form.name.trim()) errors.name = 'Vui lòng nhập tên sản phẩm.'
+  else if ([...form.name.trim()].length > 160) errors.name = 'Tên sản phẩm tối đa 160 ký tự.'
+  if (!form.brand.trim()) errors.brand = 'Vui lòng nhập thương hiệu.'
+  else if ([...form.brand.trim()].length > 120) errors.brand = 'Thương hiệu tối đa 120 ký tự.'
+  if (!form.categoryId) errors.categoryId = 'Vui lòng chọn danh mục.'
+  if ([...form.description.trim()].length > 2000) errors.description = 'Mô tả tối đa 2000 ký tự.'
+  if ([...form.material.trim()].length > 64) errors.material = 'Chất liệu tối đa 64 ký tự.'
+  if (!form.color.trim()) errors.color = 'Vui lòng nhập màu sắc.'
+  else if ([...form.color.trim()].length > 64) errors.color = 'Màu sắc tối đa 64 ký tự.'
+  if (!form.size.trim()) errors.size = 'Vui lòng nhập hoặc chọn kích thước.'
+  else if ([...form.size.trim()].length > 64) errors.size = 'Kích thước tối đa 64 ký tự.'
+  const price = Number(form.price)
+  if (form.price.trim() === '' || !Number.isFinite(price)) errors.price = 'Vui lòng nhập giá bán (VND).'
+  else if (!Number.isInteger(price) || price <= 0) errors.price = 'Giá bán phải là số nguyên lớn hơn 0.'
+  else if (price > 1_000_000_000) errors.price = 'Giá bán tối đa 1.000.000.000 VND.'
+  const quantity = Number(form.quantity)
+  if (form.quantity.trim() === '' || !Number.isInteger(quantity) || quantity < 0) errors.quantity = 'Tồn kho phải là số nguyên từ 0 trở lên.'
+  else if (quantity > 1_000_000) errors.quantity = 'Tồn kho tối đa 1.000.000.'
+  if (imageFile) {
+    const imageError = validateImageFile(imageFile)
+    if (imageError) errors.image = imageError
+  } else if (requireImage) {
+    errors.image = 'Vui lòng chọn ảnh sản phẩm.'
+  }
+  return errors
+}
 
-  return {
-    id: productId,
-    categoryId: form.categoryId,
-    name: form.name.trim(),
-    brand: form.brand.trim(),
-    description: form.description.trim(),
-    basePrice: Number(form.basePrice),
-    material: form.material.trim(),
-    fit: form.fit.trim(),
-    pattern: form.pattern.trim(),
-    styleIds: form.styleId ? [form.styleId] : [],
-    occasionIds: form.occasionId ? [form.occasionId] : [],
-    tags: explicitTags.length > 0 ? explicitTags : fallbackTags,
-    active: form.productActive,
-    featured: existingProduct?.featured ?? false,
-    createdAt: existingProduct?.createdAt ?? new Date().toISOString(),
-    variants: [
-      {
-        id: variantId,
-        color,
-        colorHex: form.colorHex.trim() || '#FFFFFF',
-        size,
-        stock: variant?.stock ?? 0,
-        active: form.variantActive,
-        ...(priceOverride ? { priceOverride } : {}),
-        images: [
-          {
-            id: variant?.images[0]?.id ?? `img-${variantId}-primary`,
-            url: form.imageUrl.trim(),
-            alt: form.name.trim(),
-            isPrimary: true,
-            order: 1,
-          },
-        ],
-      },
-      ...(existingProduct?.variants.slice(1) ?? []),
-    ],
+function isUnknownOutcome(error: unknown) {
+  return !(error instanceof CommerceApiError) || error.status >= 500
+}
+
+function describeError(error: unknown) {
+  if (error instanceof CommerceApiError) {
+    if (error.status === 413) return `Ảnh quá lớn (tối đa ${MAX_IMAGE_BYTES / (1024 * 1024)} MB).`
+    if (error.status === 401 || error.status === 403) return 'Phiên đăng nhập đã hết hạn hoặc không đủ quyền. Hãy đăng nhập lại.'
+    return error.message
+  }
+  return error instanceof Error ? error.message : 'Lỗi không xác định.'
+}
+
+class StepFailure extends Error {
+  constructor(readonly step: StepKey, readonly cause: unknown, readonly outcomeUnknown = false) {
+    super(describeError(cause))
   }
 }
 
@@ -175,100 +156,74 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const [filters, setFilters] = useState<AdminProductFilters>({ query: '', categoryId: 'all', status: 'all' })
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
-  const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId, database))
+  const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId))
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const [steps, setSteps] = useState<Steps>(freshSteps)
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
   const [imageVariant, setImageVariant] = useState<{ productId: string; variantId: string; label: string } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loadingEdit, setLoadingEdit] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState('')
   const [saveUncertain, setSaveUncertain] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  // Ids created so far. A retry resumes from them instead of creating the product again.
+  const saved = useRef<{ productId: string | null; variantId: string | null; sku: string | null; uploaded: File | null }>({ productId: null, variantId: null, sku: null, uploaded: null })
 
   const rows = useMemo(() => selectAdminProducts(database, filters), [database, filters])
-  const editingProduct = editingProductId ? database.products.find(product => product.id === editingProductId) : undefined
+
+  const resetSaveState = () => {
+    saved.current = { productId: null, variantId: null, sku: null, uploaded: null }
+    setSteps(freshSteps())
+    setFieldErrors({})
+    setFormError(null)
+    setSaveUncertain(false)
+    setImageFile(null)
+    setImagePreview('')
+  }
 
   const openCreateModal = () => {
-    setImageFile(null); setImagePreview(''); setSaveUncertain(false)
+    resetSaveState()
     setEditingProductId(null)
-    setForm(createInitialForm(firstCategoryId, database))
-    setFormError(null)
+    setForm(createInitialForm(firstCategoryId))
     setModalOpen(true)
   }
 
-  const openEditModal = (productId: string) => {
-    const product = database.products.find(item => item.id === productId)
-    if (!product) return
-    setImageFile(null); setImagePreview(''); setSaveUncertain(false)
-
-    setEditingProductId(productId)
-    setForm(createFormFromProduct(product, database))
-    setFormError(null)
-    setModalOpen(true)
+  const openEditModal = async (productId: string) => {
+    setLoadingEdit(true)
+    try {
+      const product = await commerceApi.products.getAdmin(productId)
+      resetSaveState()
+      saved.current = { productId: product.product_id, variantId: product.variants[0]?.variant_id ?? null, sku: product.variants[0]?.sku ?? null, uploaded: null }
+      setEditingProductId(productId)
+      setForm(createFormFromProduct(product))
+      setModalOpen(true)
+    } catch (error) {
+      toast.error(`Không mở được sản phẩm: ${describeError(error)}`)
+    } finally {
+      setLoadingEdit(false)
+    }
   }
 
   const updateField = <Field extends keyof ProductFormState>(field: Field, value: ProductFormState[Field]) => {
     setForm(current => ({ ...current, [field]: value }))
+    setFieldErrors(current => (field in current ? { ...current, [field]: undefined } : current))
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (saveUncertain) return
-    const productId = editingProductId ?? form.id.trim()
-    const duplicate = database.products.some(product => product.id === productId && product.id !== editingProductId)
-    const basePrice = Number(form.basePrice)
-    const variantPriceOverride = form.variantPriceOverride.trim() ? Number(form.variantPriceOverride) : undefined
+  const setStep = (key: StepKey, state: StepState) => setSteps(current => ({ ...current, [key]: state }))
+  const publish = async (productId: string) => {
+    const refreshed = await commerceApi.products.getAdmin(productId)
+    dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(refreshed) })
+    return refreshed
+  }
 
-    if (
-      !productId ||
-      !form.name.trim() ||
-      !form.brand.trim() ||
-      !form.categoryId ||
-      // Phom dáng / Họa tiết are not stored by the commerce API (products loaded from it have them empty),
-      // and description/material are optional there, so requiring them made every edit of an API product fail.
-      !form.color.trim() ||
-      (!editingProductId && !imageFile)
-    ) {
-      setFormError('Vui lòng nhập đủ thông tin bắt buộc của sản phẩm và biến thể.')
-      return
-    }
-
-    if (!Number.isFinite(basePrice) || basePrice <= 0) {
-      setFormError('Giá cơ bản phải lớn hơn 0.')
-      return
-    }
-
-    if (variantPriceOverride !== undefined && (!Number.isFinite(variantPriceOverride) || variantPriceOverride <= 0)) {
-      setFormError('Giá biến thể phải lớn hơn 0 hoặc để trống.')
-      return
-    }
-
-    const quantity = Number(form.quantity)
-    if (form.quantity.trim() === '' || !Number.isInteger(quantity) || quantity < 0) {
-      setFormError('Tồn kho phải là số nguyên từ 0 trở lên.')
-      return
-    }
-
-    if (duplicate) {
-      setFormError('Mã sản phẩm đã tồn tại.')
-      return
-    }
-
-    setSaving(true)
-    let createStarted = false
-    let createdId: string | null = null
-    let variantCreateStarted = false
-    let imageUploadStarted = false
-    try {
+  const runSaveSteps = async () => {
+    const productInput = async () => {
       const brands = await commerceApi.brands.listAdmin()
       let brand = brands.items.find(item => item.name.trim().toLowerCase() === form.brand.trim().toLowerCase())
-      if (!brand) {
-        brand = await commerceApi.brands.create({
-          name: form.brand.trim(),
-          slug: toSlug(form.brand),
-          is_active: true,
-        })
-      }
-      const productInput = {
+      if (!brand) brand = await commerceApi.brands.create({ name: form.brand.trim(), slug: toSlug(form.brand), is_active: true })
+      return {
         category_id: form.categoryId,
         brand_id: brand.id,
         name: form.name.trim(),
@@ -276,37 +231,123 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
         demographic_segment: null,
         product_status: form.productActive ? 'ACTIVE' : 'INACTIVE',
       }
-      createStarted = !editingProductId
-      const savedProduct = editingProductId
-        ? await commerceApi.products.replace(editingProductId, productInput)
-        : await commerceApi.products.create(productInput)
-      createdId = savedProduct.product_id
-      if (!editingProductId) setEditingProductId(savedProduct.product_id)
-      const currentVariant = savedProduct.variants[0]
+    }
+
+    // Step 1 - product (create once, then always replace).
+    setStep('product', { status: 'running' })
+    try {
+      const input = await productInput()
+      const existingId = saved.current.productId
+      const product = existingId ? await commerceApi.products.replace(existingId, input) : await commerceApi.products.create(input)
+      saved.current.productId = product.product_id
+      if (!existingId) saved.current.variantId = product.variants[0]?.variant_id ?? null
+      setStep('product', { status: 'done' })
+    } catch (error) {
+      setStep('product', { status: 'error', message: describeError(error) })
+      throw new StepFailure('product', error, !saved.current.productId && isUnknownOutcome(error))
+    }
+    const productId = saved.current.productId as string
+
+    // Step 2 - variant (create once, then always replace; if a create outcome is unknown, look the variant up).
+    setStep('variant', { status: 'running' })
+    try {
       const variantInput = {
-        // SKU must match [A-Za-z0-9][A-Za-z0-9_-]{0,63} and be unique on the server.
-        sku: currentVariant?.sku || `${`${toSlug(form.name)}-${toSlug(form.color)}-${form.size}`.slice(0, 54)}-${Date.now().toString(36).slice(-8)}`.toUpperCase(),
-        size: form.size,
+        sku: saved.current.sku || `${`${toSlug(form.name)}-${toSlug(form.color)}-${toSlug(form.size)}`.slice(0, 54)}-${Date.now().toString(36).slice(-8)}`.toUpperCase(),
+        size: form.size.trim(),
         color: form.color.trim(),
         material: form.material.trim() || null,
-        unit_price_vnd: variantPriceOverride ?? basePrice,
-        quantity,
+        unit_price_vnd: Number(form.price),
+        quantity: Number(form.quantity),
         variant_status: form.variantActive ? 'ACTIVE' : 'INACTIVE',
       }
-      variantCreateStarted = !currentVariant
-      const savedVariant = currentVariant
-        ? await commerceApi.products.replaceVariant(currentVariant.variant_id, variantInput)
-        : await commerceApi.products.createVariant(savedProduct.product_id, variantInput)
-      variantCreateStarted = false
-      if (imageFile) { imageUploadStarted = true; await commerceApi.products.uploadImage(savedVariant.variant_id, imageFile, form.name.trim()); imageUploadStarted = false; setImageFile(null) }
-      const refreshed = await commerceApi.products.getAdmin(savedProduct.product_id)
-      dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(refreshed) })
-      toast.success(editingProductId ? 'Đã cập nhật sản phẩm.' : 'Đã thêm sản phẩm.')
+      let variantId = saved.current.variantId
+      if (variantId) {
+        await commerceApi.products.replaceVariant(variantId, variantInput)
+      } else {
+        try {
+          const created = await commerceApi.products.createVariant(productId, variantInput)
+          variantId = created.variant_id
+        } catch (error) {
+          if (!isUnknownOutcome(error)) throw error
+          const current = await commerceApi.products.getAdmin(productId)
+          const adopted = current.variants.find(item => item.sku === variantInput.sku)
+          if (!adopted) throw error
+          variantId = adopted.variant_id
+        }
+      }
+      saved.current.variantId = variantId
+      saved.current.sku = variantInput.sku
+      setStep('variant', { status: 'done' })
+    } catch (error) {
+      await publish(productId).catch(() => undefined)
+      setStep('variant', { status: 'error', message: describeError(error) })
+      throw new StepFailure('variant', error)
+    }
+    await publish(productId).catch(() => undefined)
+
+    // Step 3 - image (only when a new file was picked and not uploaded yet).
+    if (imageFile && saved.current.uploaded !== imageFile) {
+      setStep('image', { status: 'running' })
+      try {
+        const file = await prepareImageForUpload(imageFile)
+        await commerceApi.products.uploadImage(saved.current.variantId as string, file, form.name.trim())
+        saved.current.uploaded = imageFile
+        setStep('image', { status: 'done' })
+        await publish(productId).catch(() => undefined)
+      } catch (error) {
+        setStep('image', { status: 'error', message: describeError(error) })
+        throw new StepFailure('image', error)
+      }
+    } else {
+      setStep('image', { status: imageFile ? 'done' : 'idle' })
+    }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (saving || saveUncertain) return
+    const errors = validateForm(form, !editingProductId && !saved.current.productId, imageFile)
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      setFormError('Vui lòng sửa các ô được đánh dấu đỏ.')
+      // Wait for aria-invalid to render before focusing.
+      setTimeout(() => focusFirstInvalid(formRef.current), 0)
+      return
+    }
+
+    setSaving(true)
+    setFormError(null)
+    setSteps(current => ({
+      product: current.product.status === 'done' ? current.product : { status: 'idle' },
+      variant: { status: 'idle' },
+      image: { status: 'idle' },
+    }))
+    try {
+      await runSaveSteps()
+      toast.success('Đã lưu sản phẩm.')
       setModalOpen(false)
     } catch (error) {
-      const uncertain = (!(error instanceof CommerceApiError) || error.status >= 500) && ((createStarted && !createdId) || variantCreateStarted || imageUploadStarted)
-      if (uncertain) setSaveUncertain(true)
-      setFormError(uncertain ? 'Chưa xác định được kết quả lưu. Vui lòng đóng biểu mẫu, tải lại danh sách và kiểm tra sản phẩm/ảnh trước khi thử tiếp.' : error instanceof Error ? `Không thể hoàn tất lưu sản phẩm: ${error.message}. Nếu sản phẩm đã được tạo, hãy thử lại trong biểu mẫu này.` : 'Không thể lưu sản phẩm. Vui lòng thử lại trong biểu mẫu này.')
+      if (!(error instanceof StepFailure)) {
+        setFormError(describeError(error))
+        return
+      }
+      const problemErrors = fieldErrorsFromProblem(error.cause instanceof CommerceApiError ? error.cause.problem : undefined)
+      const { fields, unmapped } = mapFieldErrors<FieldKey>(problemErrors, SERVER_FIELD_MAP)
+      if (Object.keys(fields).length > 0) {
+        setFieldErrors(fields)
+        setTimeout(() => focusFirstInvalid(formRef.current), 0)
+      }
+      if (error.outcomeUnknown) {
+        setSaveUncertain(true)
+        setFormError('Chưa xác định được sản phẩm đã được tạo hay chưa. Hãy đóng biểu mẫu, tải lại danh sách và kiểm tra trước khi thử lại để tránh tạo trùng.')
+      } else if (Object.keys(fields).length > 0 && unmapped.length === 0) {
+        setFormError('Vui lòng sửa các ô được đánh dấu đỏ.')
+      } else {
+        const detail = unmapped.map(item => item.message).join(' ') || error.message
+        setFormError(error.step === 'image'
+          ? `Sản phẩm đã được lưu nhưng chưa tải được ảnh: ${detail} Bạn có thể thử lại bước này hoặc đóng biểu mẫu.`
+          : `Chưa hoàn tất lưu sản phẩm (${STEP_LABEL[error.step].slice(3)}): ${detail}`)
+      }
     } finally {
       setSaving(false)
     }
@@ -439,7 +480,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                           className="border border-[#E5E0D8]"
                           icon={<Pencil size={14} aria-hidden="true" />}
                           aria-label={`Sửa ${row.name}`}
-                          onClick={() => openEditModal(row.id)}
+                          onClick={() => void openEditModal(row.id)}
                         >
                           Sửa
                         </Button>
@@ -524,75 +565,58 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
         layout="drawer"
         title={editingProductId ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}
         description="Điền thông tin sản phẩm và phiên bản để hiển thị trong cửa hàng."
-        onClose={() => setModalOpen(false)}
+        onClose={() => { if (!saving) setModalOpen(false) }}
       >
-        <form className="grid gap-5" onSubmit={handleSubmit}>
+        <form ref={formRef} className="grid gap-5" onSubmit={handleSubmit} noValidate>
           {formError && <p role="alert" className="rounded-lg border border-[#E7BBBB] bg-[#FCEAEA] p-3 text-sm font-semibold text-[#A94B4B]">{formError}</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="border-b border-[#E3E2E2] pb-3 sm:col-span-2"><h3 className="font-display text-xl font-semibold">Thông tin sản phẩm</h3><p className="mt-1 text-sm text-[#5E5F5D]">Tên, danh mục và thông tin hiển thị trong cửa hàng.</p></div>
-            <TextField
-              label="ID sản phẩm"
-              value={form.id}
-              readOnly={Boolean(editingProductId)}
-              className={editingProductId ? 'bg-[#F5F2EE]' : ''}
-              onChange={event => updateField('id', event.target.value)}
-            />
-            <TextField label="Tên sản phẩm" value={form.name} onChange={event => updateField('name', event.target.value)} />
-            <TextField label="Thương hiệu" value={form.brand} onChange={event => updateField('brand', event.target.value)} />
-            <SelectField label="Danh mục" value={form.categoryId} onChange={event => updateField('categoryId', event.target.value)}>
+            {editingProductId && (
+              <p className="text-xs text-[#5E5F5D] sm:col-span-2">Mã sản phẩm (tự sinh, không sửa được): <span className="select-all font-mono">{editingProductId}</span></p>
+            )}
+            <TextField label="Tên sản phẩm" value={form.name} error={fieldErrors.name} onChange={event => updateField('name', event.target.value)} />
+            <TextField label="Thương hiệu" value={form.brand} error={fieldErrors.brand} onChange={event => updateField('brand', event.target.value)} />
+            <SelectField label="Danh mục" value={form.categoryId} error={fieldErrors.categoryId} onChange={event => updateField('categoryId', event.target.value)}>
               {database.categories.map(category => (
                 <option key={category.id} value={category.id}>
                   {category.label}
                 </option>
               ))}
             </SelectField>
-            <TextField label="Giá cơ bản" type="number" min="0" value={form.basePrice} onChange={event => updateField('basePrice', event.target.value)} />
-            <TextField label="Chất liệu" value={form.material} onChange={event => updateField('material', event.target.value)} />
-            <TextField label="Phom dáng" value={form.fit} onChange={event => updateField('fit', event.target.value)} />
-            <TextField label="Họa tiết" value={form.pattern} onChange={event => updateField('pattern', event.target.value)} />
-            <div className="mt-2 border-b border-[#E3E2E2] pb-3 sm:col-span-2"><h3 className="font-display text-xl font-semibold">Phong cách và tìm kiếm</h3></div>
-            <SelectField label="Phong cách" value={form.styleId} onChange={event => updateField('styleId', event.target.value)}>
-              <option value="">Chưa chọn</option>
-              {database.fashionMetadata.styles.map(option => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField label="Dịp sử dụng" value={form.occasionId} onChange={event => updateField('occasionId', event.target.value)}>
-              <option value="">Chưa chọn</option>
-              {database.fashionMetadata.occasions.map(option => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </SelectField>
-            <TextField label="Thẻ tìm kiếm" value={form.tags} onChange={event => updateField('tags', event.target.value)} />
-            <div className="mt-2 border-b border-[#E3E2E2] pb-3 sm:col-span-2"><h3 className="font-display text-xl font-semibold">Phiên bản sản phẩm</h3><p className="mt-1 text-sm text-[#5E5F5D]">Màu sắc, kích thước, giá và hình ảnh.</p></div>
-            <TextField label="Màu" value={form.color} onChange={event => updateField('color', event.target.value)} />
-            <TextField label="Mã màu" value={form.colorHex} onChange={event => updateField('colorHex', event.target.value)} />
-            <SelectField label="Size" value={form.size} onChange={event => updateField('size', event.target.value as ProductSize)}>
-              {productSizes.map(size => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </SelectField>
-            <TextField
-              label="Giá biến thể"
-              type="number"
-              min="0"
-              value={form.variantPriceOverride}
-              onChange={event => updateField('variantPriceOverride', event.target.value)}
-            />
-            <TextField label="Tồn kho" type="number" min="0" step="1" value={form.quantity} onChange={event => updateField('quantity', event.target.value)} />
-            <label className="grid gap-2 text-sm font-semibold">Ảnh sản phẩm<input aria-label="Ảnh sản phẩm" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {
-              const file = event.target.files?.[0] ?? null
-              setImageFile(file); setImagePreview('')
-              if (file) { const reader = new FileReader(); reader.onload = () => setImagePreview(typeof reader.result === 'string' ? reader.result : ''); reader.readAsDataURL(file) }
-            }} className="block w-full rounded-lg border p-3 text-sm" />{(imagePreview || form.imageUrl) && <img src={imagePreview || form.imageUrl} alt="Ảnh sản phẩm xem trước" className="h-28 w-28 rounded-lg object-cover" />}</label>
+            <TextField label="Chất liệu" value={form.material} error={fieldErrors.material} onChange={event => updateField('material', event.target.value)} />
+            <div className="mt-2 border-b border-[#E3E2E2] pb-3 sm:col-span-2">
+              <h3 className="font-display text-xl font-semibold">Phiên bản sản phẩm</h3>
+              <p className="mt-1 text-sm text-[#5E5F5D]">Màu sắc, kích thước, giá, tồn kho và hình ảnh. Các phiên bản khác được quản lý trong bảng sản phẩm.</p>
+            </div>
+            <TextField label="Màu" value={form.color} error={fieldErrors.color} onChange={event => updateField('color', event.target.value)} />
+            <TextField label="Size" list="admin-size-options" value={form.size} error={fieldErrors.size} onChange={event => updateField('size', event.target.value)} />
+            <datalist id="admin-size-options">{SIZE_SUGGESTIONS.map(size => <option key={size} value={size} />)}</datalist>
+            <TextField label="Giá bán (VND)" type="number" min="0" step="1" value={form.price} error={fieldErrors.price} onChange={event => updateField('price', event.target.value)} />
+            <TextField label="Tồn kho" type="number" min="0" step="1" value={form.quantity} error={fieldErrors.quantity} onChange={event => updateField('quantity', event.target.value)} />
+            <div className="grid gap-2 sm:col-span-2">
+              <label className="grid gap-2 text-sm font-semibold" htmlFor="admin-product-image">
+                Ảnh sản phẩm
+                <input
+                  id="admin-product-image"
+                  aria-label="Ảnh sản phẩm"
+                  aria-invalid={fieldErrors.image ? true : undefined}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={event => {
+                    const file = event.target.files?.[0] ?? null
+                    setImageFile(file); setImagePreview('')
+                    setFieldErrors(current => ({ ...current, image: file ? validateImageFile(file) ?? undefined : undefined }))
+                    if (file) { const reader = new FileReader(); reader.onload = () => setImagePreview(typeof reader.result === 'string' ? reader.result : ''); reader.readAsDataURL(file) }
+                  }}
+                  className="block w-full rounded-lg border p-3 text-sm"
+                />
+              </label>
+              {fieldErrors.image && <span className="text-xs font-medium text-[#A94B4B]">{fieldErrors.image}</span>}
+              <span className="text-xs text-[#5E5F5D]">JPG, PNG hoặc WebP. Ảnh lớn được tự thu nhỏ trước khi tải lên.</span>
+              {(imagePreview || form.imageUrl) && <img src={imagePreview || form.imageUrl} alt="Ảnh sản phẩm xem trước" className="h-28 w-28 rounded-lg object-cover" />}
+            </div>
           </div>
-          <TextField label="Mô tả" value={form.description} onChange={event => updateField('description', event.target.value)} />
+          <TextField label="Mô tả" value={form.description} error={fieldErrors.description} onChange={event => updateField('description', event.target.value)} />
           <div className="grid gap-2 rounded-lg border border-[#E3E2E2] bg-white p-3 sm:grid-cols-2">
             <label className="inline-flex items-center gap-3 text-sm font-semibold text-[#3A3632]">
               <input
@@ -613,11 +637,36 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
               Biến thể đang bật
             </label>
           </div>
+          {Object.values(steps).some(step => step.status !== 'idle') && (
+            <ol aria-label="Tiến trình lưu" className="grid gap-2 rounded-lg border border-[#E3E2E2] bg-[#FBF9F9] p-3 text-sm">
+              {(Object.keys(STEP_LABEL) as StepKey[]).map(key => {
+                const step = steps[key]
+                if (key === 'image' && step.status === 'idle' && !imageFile) return null
+                return (
+                  <li key={key} className="flex items-start gap-2">
+                    {step.status === 'running' && <Loader2 size={16} className="mt-0.5 animate-spin" aria-hidden="true" />}
+                    {step.status === 'done' && <CheckCircle2 size={16} className="mt-0.5 text-[#3C7A4B]" aria-hidden="true" />}
+                    {step.status === 'error' && <AlertCircle size={16} className="mt-0.5 text-[#A94B4B]" aria-hidden="true" />}
+                    {step.status === 'idle' && <span className="mt-1 h-3 w-3 rounded-full border border-[#C4C7C7]" aria-hidden="true" />}
+                    <span>
+                      <span className="font-semibold">{STEP_LABEL[key]}</span>
+                      <span className="ml-2 text-[#5E5F5D]">
+                        {step.status === 'running' ? 'Đang lưu…' : step.status === 'done' ? 'Đã xong' : step.status === 'error' ? 'Lỗi' : 'Chờ'}
+                      </span>
+                      {step.message && <span className="mt-0.5 block text-xs text-[#A94B4B]">{step.message}</span>}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
           <div className="flex flex-wrap justify-end gap-3 border-t border-[#E3E2E2] pt-5">
-            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
-              Hủy
+            <Button type="button" variant="ghost" disabled={saving} onClick={() => setModalOpen(false)}>
+              {Object.values(steps).some(step => step.status === 'done') ? 'Đóng' : 'Hủy'}
             </Button>
-            <Button loading={saving} disabled={saveUncertain} type="submit">Lưu sản phẩm</Button>
+            <Button loading={saving} disabled={saveUncertain} type="submit">
+              {Object.values(steps).some(step => step.status === 'error') ? 'Thử lại' : 'Lưu sản phẩm'}
+            </Button>
           </div>
         </form>
       </Modal>

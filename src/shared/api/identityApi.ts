@@ -7,6 +7,7 @@ export interface IdentityProblem {
   code?: string
   timestamp?: string
   correlationId?: string
+  errors?: Array<{ field: string; code?: string; message: string }>
 }
 
 export class IdentityApiError extends Error {

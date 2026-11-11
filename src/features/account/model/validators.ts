@@ -1,3 +1,5 @@
+import { BOTTOM_SIZES, HEIGHT_RANGE, SHOE_SIZES, TOP_SIZES, WEIGHT_RANGE } from './sizeOptions'
+
 export interface ProfileInput {
   displayName: string
 }
@@ -59,18 +61,16 @@ function validateCodeList(value: string, label: string) {
 
 export function validateStyleProfileInput(input: StyleProfileInput): FieldErrors<StyleProfileInput> {
   const errors: FieldErrors<StyleProfileInput> = {}
-  errors.heightCm = validateDecimal(input.heightCm, 50, 250, 'Chiều cao') || undefined
-  errors.weightKg = validateDecimal(input.weightKg, 20, 300, 'Cân nặng') || undefined
+  errors.heightCm = validateDecimal(input.heightCm, HEIGHT_RANGE.min, HEIGHT_RANGE.max, 'Chiều cao') || undefined
+  errors.weightKg = validateDecimal(input.weightKg, WEIGHT_RANGE.min, WEIGHT_RANGE.max, 'Cân nặng') || undefined
 
-  for (const [key, label] of [
-    ['usualTopSize', 'Cỡ áo'],
-    ['usualBottomSize', 'Cỡ quần/váy'],
-    ['shoeSize', 'Cỡ giày'],
+  for (const [key, label, options] of [
+    ['usualTopSize', 'Cỡ áo', TOP_SIZES],
+    ['usualBottomSize', 'Cỡ quần/váy', BOTTOM_SIZES],
+    ['shoeSize', 'Cỡ giày', SHOE_SIZES],
   ] as const) {
     const value = input[key].trim()
-    if (value && ([...value].length > 32 || /[\u0000-\u001F\u007F-\u009F]/.test(value))) {
-      errors[key] = `${label} tối đa 32 ký tự và không chứa ký tự điều khiển`
-    }
+    if (value && !options.includes(value.toUpperCase())) errors[key] = `${label} chưa hợp lệ, hãy chọn lại từ danh sách`
   }
 
   errors.fitPreference = input.fitPreference.trim() && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(input.fitPreference.trim())

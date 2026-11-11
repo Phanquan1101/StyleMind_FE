@@ -11,6 +11,8 @@ export interface User {
   phone?: string
   heightCm?: number
   weightKg?: number
+  usualTopSize?: string
+  usualBottomSize?: string
   avatarUrl?: string
   avatarInitials: string
   createdAt: string

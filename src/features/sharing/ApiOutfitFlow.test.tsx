@@ -24,15 +24,13 @@ it('does not expose the retired email access controls in live mode', async () =>
   expect(await screen.findByText('Quyền xem được quản lý theo từng Outfit và danh sách bạn bè.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Thu hồi' })).not.toBeInTheDocument()
 })
-it('shows that notifications are unavailable instead of demo notifications', async () => {
+it('does not expose the unsupported notifications page', async () => {
   const id = '10000000-0000-0000-0000-000000000001'
   vi.stubEnv('VITE_COMMUNITY_MODE', 'api')
   saveApiSession(`e30.${btoa(JSON.stringify({ sub: id, roles: ['CUSTOMER'] }))}.sig`, Date.now() + 60000)
   vi.stubGlobal('fetch', vi.fn(async (path: string) => new Response(JSON.stringify(path === '/api/v1/me' ? { account_id: id, email: 'real@example.test', profile: null } : { items: [], total_elements: 0, total_pages: 0 }), { status: 200 })))
   render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/notifications'] })} /></AppProviders>)
-  expect(await screen.findByText('Thông báo trong ứng dụng hiện chưa được hỗ trợ.')).toBeInTheDocument()
-  await userEvent.setup().click(screen.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }))
-  expect(screen.getAllByText('Chức năng chưa hỗ trợ.').length).toBeGreaterThan(0)
+  expect(await screen.findByRole('heading', { name: 'Không tìm thấy trang' })).toBeInTheDocument()
 })
 it('uses the public link endpoints to turn public sharing on and off', async () => {
   const id = '10000000-0000-0000-0000-000000000001'

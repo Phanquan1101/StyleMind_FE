@@ -1,6 +1,13 @@
 import type { Product, ProductImage, ProductSize, ProductVariant } from '@/entities/product/model/types'
 
-const SIZE_ORDER: ProductSize[] = ['XS', 'S', 'M', 'L', 'XL']
+import { LETTER_SIZES } from './sizeSuggestion'
+
+// Letter sizes first (XS...4XL), then numeric sizes by value, then any other label ("Một cỡ", "S/M"...).
+function sizeRank(size: string): number {
+  const letter = LETTER_SIZES.indexOf(size.toUpperCase())
+  if (letter >= 0) return letter
+  return /^d+$/.test(size) ? 1000 + Number(size) : 5000
+}
 
 export interface ProductSelectionInput {
   color?: string | null
@@ -71,7 +78,7 @@ function sizeOptions(variants: ProductVariant[]): ProductSizeOption[] {
     })
   })
 
-  return Array.from(options.values()).sort((a, b) => SIZE_ORDER.indexOf(a.size) - SIZE_ORDER.indexOf(b.size))
+  return Array.from(options.values()).sort((a, b) => sizeRank(a.size) - sizeRank(b.size))
 }
 
 function variantPrice(product: Product, variant: ProductVariant | null) {

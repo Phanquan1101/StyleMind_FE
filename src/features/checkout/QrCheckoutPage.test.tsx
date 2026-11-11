@@ -75,3 +75,24 @@ it('khách vãng lai hủy phiên bằng mã phiên khách', async () => {
   expect(guestApi.cancelQr).toHaveBeenCalledWith('guest-session', id)
   expect(api.cancelQrCheckout).not.toHaveBeenCalled()
 })
+
+it('hết hạn: nhắc người đã chuyển khoản liên hệ cửa hàng và hiện mã tham chiếu đã nhớ', async () => {
+  localStorage.setItem(`stylemind.qr.payment.${id}`, JSON.stringify({ reference: 'SMREF123456AB', amountVnd: 199000, transferContent: 'SMREF123456AB' }))
+  api.getQrCheckout.mockResolvedValue({ ...state, status: 'EXPIRED' })
+  api.getQrAttempt.mockRejectedValue(Object.assign(new Error('not payable'), { code: 'CHECKOUT_NOT_PAYABLE', status: 409 }))
+  page()
+  expect(await screen.findByText('Mã thanh toán đã hết hạn.')).toBeInTheDocument()
+  expect(screen.getByText(/Nếu bạn đã chuyển khoản/)).toBeInTheDocument()
+  expect(screen.getAllByText('SMREF123456AB').length).toBeGreaterThan(0)
+  expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Quay lại giỏ hàng' })).toBeInTheDocument()
+})
+
+it('đang chờ nhưng khoản chuyển không khớp: chuyển sang trạng thái đối soát và lưu mã tham chiếu', async () => {
+  api.getQrAttempt.mockResolvedValue({ ...attempt, reference: 'SMREF999999ZZ', amountVnd: 199000, status: 'PENDING' })
+  api.getQrCheckout.mockResolvedValue({ ...state, status: 'RECONCILIATION_REQUIRED' })
+  page()
+  expect(await screen.findByText('Giao dịch đang được cửa hàng đối soát.')).toBeInTheDocument()
+  expect(await screen.findByText('SMREF999999ZZ')).toBeInTheDocument()
+  expect(JSON.parse(localStorage.getItem(`stylemind.qr.payment.${id}`) ?? '{}').reference).toBe('SMREF999999ZZ')
+})

@@ -274,17 +274,13 @@ describe('AdminPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Thêm sản phẩm' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('ID sản phẩm'), { target: { value: 'prd-admin-test' } })
     fireEvent.change(within(dialog).getByLabelText('Tên sản phẩm'), { target: { value: 'Áo linen test' } })
     fireEvent.change(within(dialog).getByLabelText('Thương hiệu'), { target: { value: 'Studio Test' } })
     fireEvent.change(within(dialog).getByLabelText('Danh mục'), { target: { value: 'tops' } })
-    fireEvent.change(within(dialog).getByLabelText('Giá cơ bản'), { target: { value: '580000' } })
+    fireEvent.change(within(dialog).getByLabelText('Giá bán (VND)'), { target: { value: '580000' } })
     fireEvent.change(within(dialog).getByLabelText('Mô tả'), { target: { value: 'Sản phẩm demo cho admin' } })
     fireEvent.change(within(dialog).getByLabelText('Chất liệu'), { target: { value: 'Linen' } })
-    fireEvent.change(within(dialog).getByLabelText('Phom dáng'), { target: { value: 'Dáng vừa' } })
-    fireEvent.change(within(dialog).getByLabelText('Họa tiết'), { target: { value: 'Trơn' } })
     fireEvent.change(within(dialog).getByLabelText('Màu'), { target: { value: 'Trắng' } })
-    fireEvent.change(within(dialog).getByLabelText('Mã màu'), { target: { value: '#FFFFFF' } })
     fireEvent.change(within(dialog).getByLabelText('Size'), { target: { value: 'M' } })
     await user.upload(within(dialog).getByLabelText('Ảnh sản phẩm'), file)
     await user.click(within(dialog).getByRole('button', { name: 'Lưu sản phẩm' }))
@@ -316,19 +312,16 @@ describe('AdminPage', () => {
     renderAt('/admin?section=products', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Thêm sản phẩm' }))
-    fireEvent.change(screen.getByLabelText('ID sản phẩm'), { target: { value: 'prd-zero-price' } })
     fireEvent.change(screen.getByLabelText('Tên sản phẩm'), { target: { value: 'Áo lỗi giá' } })
     fireEvent.change(screen.getByLabelText('Thương hiệu'), { target: { value: 'Studio Test' } })
-    fireEvent.change(screen.getByLabelText('Giá cơ bản'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Giá bán (VND)'), { target: { value: '0' } })
     fireEvent.change(screen.getByLabelText('Mô tả'), { target: { value: 'Sản phẩm kiểm tra validation' } })
     fireEvent.change(screen.getByLabelText('Chất liệu'), { target: { value: 'Cotton' } })
-    fireEvent.change(screen.getByLabelText('Phom dáng'), { target: { value: 'Dáng vừa' } })
-    fireEvent.change(screen.getByLabelText('Họa tiết'), { target: { value: 'Trơn' } })
     fireEvent.change(screen.getByLabelText('Màu'), { target: { value: 'Trắng' } })
     await user.upload(screen.getByLabelText('Ảnh sản phẩm'), new File(['image bytes'], 'shirt.png', { type: 'image/png' }))
     await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
 
-    expect(await screen.findByText('Giá cơ bản phải lớn hơn 0.')).toBeInTheDocument()
+    expect(await screen.findByText('Giá bán phải là số nguyên lớn hơn 0.')).toBeInTheDocument()
   })
 
   it('saves product and variant status and price using the Commerce contract', async () => {
@@ -356,20 +349,13 @@ describe('AdminPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Thêm sản phẩm' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('ID sản phẩm'), { target: { value: 'prd-rich-product' } })
     fireEvent.change(within(dialog).getByLabelText('Tên sản phẩm'), { target: { value: 'Áo metadata test' } })
     fireEvent.change(within(dialog).getByLabelText('Thương hiệu'), { target: { value: 'Studio Test' } })
     fireEvent.change(within(dialog).getByLabelText('Danh mục'), { target: { value: 'tops' } })
-    fireEvent.change(within(dialog).getByLabelText('Giá cơ bản'), { target: { value: '580000' } })
+    fireEvent.change(within(dialog).getByLabelText('Giá bán (VND)'), { target: { value: '610000' } })
     fireEvent.change(within(dialog).getByLabelText('Mô tả'), { target: { value: 'Sản phẩm có metadata do admin chọn' } })
     fireEvent.change(within(dialog).getByLabelText('Chất liệu'), { target: { value: 'Linen' } })
-    fireEvent.change(within(dialog).getByLabelText('Phom dáng'), { target: { value: 'Dáng vừa' } })
-    fireEvent.change(within(dialog).getByLabelText('Họa tiết'), { target: { value: 'Trơn' } })
-    fireEvent.change(within(dialog).getByLabelText('Phong cách'), { target: { value: 'classic' } })
-    fireEvent.change(within(dialog).getByLabelText('Dịp sử dụng'), { target: { value: 'party' } })
-    fireEvent.change(within(dialog).getByLabelText('Thẻ tìm kiếm'), { target: { value: 'linen test, tiệc nhẹ' } })
     fireEvent.change(within(dialog).getByLabelText('Màu'), { target: { value: 'Kem' } })
-    fireEvent.change(within(dialog).getByLabelText('Giá biến thể'), { target: { value: '610000' } })
     await user.upload(within(dialog).getByLabelText('Ảnh sản phẩm'), new File(['image bytes'], 'linen-beige.png', { type: 'image/png' }))
     await user.click(within(dialog).getByLabelText('Sản phẩm đang bán'))
     await user.click(within(dialog).getByLabelText('Biến thể đang bật'))
@@ -384,11 +370,12 @@ describe('AdminPage', () => {
       product_status: 'INACTIVE',
     })
     expect(createVariant).toHaveBeenCalledWith(productId, {
-      sku: 'AO-METADATA-TEST-kem-M'.toUpperCase(),
+      sku: expect.stringMatching(/^AO-METADATA-TEST-KEM-M-[A-Z0-9]+$/),
       size: 'M',
       color: 'Kem',
       material: 'Linen',
       unit_price_vnd: 610000,
+      quantity: 10,
       variant_status: 'INACTIVE',
     })
     expect(uploadImage).toHaveBeenCalledWith(variantId, expect.any(File), 'Áo metadata test')
@@ -423,7 +410,7 @@ describe('AdminPage', () => {
     await user.click(await screen.findByRole('button', { name: `Sửa ${blouse.name}` }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByLabelText('Tên sản phẩm'), { target: { value: 'Áo blouse đã sửa' } })
-    fireEvent.change(within(dialog).getByLabelText('Giá cơ bản'), { target: { value: '640000' } })
+    fireEvent.change(within(dialog).getByLabelText('Giá bán (VND)'), { target: { value: '640000' } })
     await user.upload(within(dialog).getByLabelText('Ảnh sản phẩm'), new File(['image bytes'], 'blouse-edited.png', { type: 'image/png' }))
     await user.click(within(dialog).getByRole('button', { name: 'Lưu sản phẩm' }))
 
@@ -629,14 +616,13 @@ describe('AdminPage', () => {
     expect(updateUserStatus).toHaveBeenNthCalledWith(2, 'usr-customer-01', 'ACTIVE')
   })
 
-  it('shows unsupported AI administration without modifying demo metadata', async () => {
+  it('does not offer sections without backend support and falls back to the overview for typed URLs', async () => {
     const database = adminDatabase()
     renderAt('/admin?section=ai', database)
 
-    expect(await screen.findByRole('heading', { name: 'Quản lý AI' })).toBeInTheDocument()
-    expect(await screen.findByText('Chức năng chưa hỗ trợ.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Thêm thuộc tính AI' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Thêm luật' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tổng quan quản trị' })).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Khu vực quản trị' })
+    for (const label of ['Thông báo', 'Cài đặt', 'AI']) expect(within(nav).queryByRole('link', { name: new RegExp(label) })).not.toBeInTheDocument()
     expect(getDatabase().fashionMetadata).toEqual(database.fashionMetadata)
     expect(getDatabase().compatibilityRules).toEqual(database.compatibilityRules)
   })

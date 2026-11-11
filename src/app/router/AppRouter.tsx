@@ -7,7 +7,6 @@ import { AuthGuard } from '@/app/router/guards/AuthGuard'
 import { GuestGuard } from '@/app/router/guards/GuestGuard'
 import { AccountPage, AddressBookPage } from '@/features/account'
 import { AdminPage } from '@/features/admin'
-import { UnavailableFeature } from '@/shared/ui/UnavailableFeature'
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -28,8 +27,6 @@ import InvitationPage from '@/features/friends/pages/InvitationPage'
 import ApiMessagesPage from '@/features/messages/pages/ApiMessagesPage'
 import { apiMode } from '@/shared/api/http'
 import { ApiWardrobePage, ApiSharedWithMePage, ApiFriendWardrobePage, ApiOutfitDetailPage } from '@/features/sharing/pages/ApiOutfitPages'
-import { NotificationsPage } from '@/features/notifications'
-import { UnavailableNotificationsPage } from '@/features/notifications/pages/UnavailableNotificationsPage'
 import { ManualOutfitBuilderPage } from '@/features/outfit-builder'
 import { OrderDetailPage, OrdersPage } from '@/features/orders'
 import { ProductDetailPage } from '@/features/product-detail'
@@ -72,10 +69,8 @@ export const appRoutes: RouteObject[] = [
       { path: 'order-success/:orderId', element: <AuthGuard><OrderSuccessPage /></AuthGuard> },
       { path: 'orders', element: <AuthGuard><OrdersPage /></AuthGuard> },
       { path: 'orders/:orderId', element: <AuthGuard><OrderDetailPage /></AuthGuard> },
-      { path: 'notifications', element: <AuthGuard><CommunityScreen demo={<NotificationsPage />} live={<UnavailableNotificationsPage />} /></AuthGuard> },
       { path: 'account', element: <AuthGuard><AccountPage /></AuthGuard> },
       { path: 'account/addresses', element: <AuthGuard><AddressBookPage /></AuthGuard> },
-      { path: 'ai-wardrobe', element: <AuthGuard><UnavailableFeature title="AI Stylist" /></AuthGuard> },
       { path: 'wardrobes', element: <AuthGuard><CommunityScreen demo={<WardrobePage />} live={<ApiWardrobePage />} /></AuthGuard> },
       { path: 'wardrobes/access', element: <AuthGuard><CommunityScreen demo={<WardrobeAccessPage />} live={<ApiWardrobeAccessPage />} /></AuthGuard> },
       { path: 'wardrobes/new', element: <AuthGuard><ManualOutfitBuilderPage /></AuthGuard> },

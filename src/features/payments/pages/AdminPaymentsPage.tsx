@@ -7,6 +7,20 @@ import { isUuid, paymentApi, paymentErrorMessage } from '../api/paymentClient'
 import type { PaymentExceptionList } from '../api/types'
 import { ArrowLeft, Banknote, CircleAlert } from 'lucide-react'
 
+const EXCEPTION_REASON: Record<string, string> = {
+  LATE_PAYMENT: 'Tiền về sau khi mã thanh toán hết hạn',
+  AMOUNT_MISMATCH: 'Sai số tiền so với đơn',
+  UNMATCHED_REFERENCE: 'Không khớp mã tham chiếu nào',
+  MISSING_PAYMENT_REFERENCE: 'Thiếu mã tham chiếu trong nội dung chuyển khoản',
+  DUPLICATE_OR_ALREADY_SETTLED: 'Trùng hoặc khoản này đã được xử lý/hết hạn',
+  PAYMENT_METHOD_MISMATCH: 'Sai phương thức thanh toán',
+  INVALID_PAYLOAD: 'Dữ liệu webhook không hợp lệ',
+  UNSUPPORTED_TRANSFER_TYPE: 'Không phải giao dịch tiền vào',
+  ORDER_PAYMENT_REJECTED: 'Đơn hàng không thể ghi nhận khoản thanh toán',
+}
+const RECONCILIATION_STATUS: Record<string, string> = { OPEN: 'Chờ xử lý', RESOLVED: 'Đã xử lý' }
+const formatDetected = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN') }
+
 export default function AdminPaymentsPage() {
   const sending = useRef(false)
   const [attemptId, setAttemptId] = useState('')
@@ -94,13 +108,14 @@ export default function AdminPaymentsPage() {
         <TextField label="Trạng thái đối soát" value={filter} maxLength={100} placeholder="Ví dụ: OPEN" onChange={event => setFilter(event.target.value)} />
         <Button type="submit" loading={loading}>Tải danh sách</Button>
       </form>
+      <p className="text-sm leading-6 text-secondary">Các khoản tiền về muộn, sai số tiền hoặc không khớp mã cần được đối soát thủ công với sao kê ngân hàng; hệ thống chỉ ghi nhận, chưa tự hoàn tiền.</p>
       {listError && <p role="alert">{listError}</p>}
       {result && <>
         {result.items.length === 0 ? <p className="rounded-lg bg-[#FBF9F9] px-4 py-6 text-center text-sm text-secondary">Không có lỗi thanh toán.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm">
-          <thead><tr><th className="p-2">Mã khoản thanh toán</th><th className="p-2">Số tiền nhận</th><th className="p-2">Lý do</th><th className="p-2">Trạng thái</th><th className="p-2">Thời điểm</th></tr></thead>
+          <thead><tr><th className="p-2">Mã tham chiếu khách ghi</th><th className="p-2">Mã khoản thanh toán</th><th className="p-2">Số tiền nhận</th><th className="p-2">Lý do</th><th className="p-2">Trạng thái</th><th className="p-2">Thời điểm</th></tr></thead>
           <tbody>{result.items.map(item => <tr key={item.exception_id} className="border-t">
-            <td className="p-2">{item.payment_attempt_id ?? 'Không xác định'}</td><td className="p-2">{formatCurrency(item.received_amount_vnd)}</td>
-            <td className="p-2">{item.exception_reason}</td><td className="p-2">{item.reconciliation_status}</td><td className="p-2">{item.detected_at}</td>
+            <td className="p-2 font-mono">{item.received_reference ?? '—'}</td><td className="p-2">{item.payment_attempt_id ?? 'Không xác định'}</td><td className="p-2">{formatCurrency(item.received_amount_vnd)}</td>
+            <td className="p-2">{EXCEPTION_REASON[item.exception_reason] ?? item.exception_reason}</td><td className="p-2">{RECONCILIATION_STATUS[item.reconciliation_status] ?? item.reconciliation_status}</td><td className="p-2">{formatDetected(item.detected_at)}</td>
           </tr>)}</tbody>
         </table></div>}
         <div className="flex gap-3">

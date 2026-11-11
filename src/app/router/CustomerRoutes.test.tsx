@@ -54,7 +54,6 @@ describe('customer routes', () => {
       ['/account/addresses', 'Địa chỉ giao hàng'],
       ['/orders', 'Đơn hàng'],
       ['/orders/missing-order', 'Thanh toán đơn hàng'],
-      ['/notifications', 'Thông báo'],
       ['/wardrobes', 'Tủ đồ của tôi'],
       ['/wardrobes/access', 'Quyền truy cập'],
       ['/wardrobes/new', 'Tạo outfit thủ công'],
@@ -83,14 +82,14 @@ describe('customer routes', () => {
     expectRealCustomerPage()
   })
 
-  it('shows customer navigation to wardrobe, orders, notifications, account and cart', async () => {
+  it('shows customer navigation to wardrobe, orders, account and cart (no notifications bell)', async () => {
     renderRoute('/')
 
     const header = await screen.findByRole('banner')
 
     expect(within(header).getByRole('link', { name: 'Tủ đồ' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: 'Đơn hàng' })).toBeInTheDocument()
-    expect(within(header).getByRole('link', { name: /Thông báo/ })).toBeInTheDocument()
+    expect(within(header).queryByRole('link', { name: /Thông báo/ })).not.toBeInTheDocument()
     expect(within(header).getByRole('link', { name: 'Tin nhắn' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: 'Tài khoản' })).toBeInTheDocument()
     expect(within(header).getByRole('link', { name: /Giỏ hàng/ })).toBeInTheDocument()

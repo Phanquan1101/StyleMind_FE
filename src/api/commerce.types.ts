@@ -8,6 +8,7 @@ export interface ApiProblem {
   instance?: string
   code?: string
   correlation_id?: string
+  errors?: Array<{ field: string; code?: string; message: string }>
 }
 
 export interface CatalogReference {

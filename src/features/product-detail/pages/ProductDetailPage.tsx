@@ -18,6 +18,7 @@ import { ColorSelector } from '../components/ColorSelector'
 import { ProductGallery } from '../components/ProductGallery'
 import { SizeSelector } from '../components/SizeSelector'
 import { getProductSelection } from '../model/productSelection'
+import { describeSuggestion, sizeKindForCategory, suggestSize } from '../model/sizeSuggestion'
 
 function labelsFor(options: FashionMetadataOption[], ids: string[]) {
   return ids.map(id => options.find(option => option.id === id)?.label ?? id)
@@ -41,6 +42,7 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [addingToCart, setAddingToCart] = useState(false)
+  const [sizeTouched, setSizeTouched] = useState(false)
 
   const selection = useMemo(
     () => (product ? getProductSelection(product, { color: selectedColor, size: selectedSize }) : null),
@@ -51,6 +53,22 @@ export function ProductDetailPage() {
     if (!selection) return
     setSelectedColor(current => current ?? selection.selectedColor)
   }, [selection])
+
+  // Size hint from the customer profile (or a labelled estimate); picks a size for them until they choose one themselves.
+  const sizeSuggestion = useMemo(() => {
+    if (!currentUser || !product || !selection) return null
+    const categoryLabel = state.categories.find(category => category.id === product.categoryId)?.label
+    return suggestSize(
+      currentUser,
+      sizeKindForCategory(categoryLabel),
+      selection.sizeOptions.map(option => ({ size: option.size, available: option.available && option.stock > 0 })),
+    )
+  }, [currentUser, product, selection, state.categories])
+  const suggestedSize = sizeSuggestion?.size ?? null
+  useEffect(() => { setSizeTouched(false) }, [productId])
+  useEffect(() => {
+    if (!sizeTouched && suggestedSize) setSelectedSize(current => (current === suggestedSize ? current : suggestedSize as ProductSize))
+  }, [suggestedSize, sizeTouched])
 
   if (loading) return <p role="status" className="p-8">Đang tải sản phẩm…</p>
   if (error) return <div className="grid gap-4 p-8"><p role="alert">{error}</p><Button onClick={retry}>Tải lại sản phẩm</Button></div>
@@ -85,6 +103,7 @@ export function ProductDetailPage() {
 
   const handleSizeChange = (size: ProductSize) => {
     const nextSelection = getProductSelection(product, { color: selection.selectedColor, size })
+    setSizeTouched(true)
     setSelectedSize(size)
     setQuantity(current => normalizeQuantity(current))
     setValidationError(nextSelection.error ?? null)
@@ -148,6 +167,8 @@ export function ProductDetailPage() {
 
         <ColorSelector options={selection.colorOptions} selectedColor={selection.selectedColor} onChange={handleColorChange} />
         <SizeSelector options={selection.sizeOptions} selectedSize={selectedSize} onChange={handleSizeChange} />
+        {sizeSuggestion && <p data-testid="size-suggestion" className="-mt-3 text-sm font-medium text-[#5E5F5D]">{describeSuggestion(sizeSuggestion)}</p>}
+        {currentUser && !sizeSuggestion && <p className="-mt-3 text-sm text-[#5E5F5D]">Thêm chiều cao, cân nặng hoặc cỡ thường dùng trong <Link to={ROUTES.account} className="font-semibold underline">hồ sơ</Link> để nhận gợi ý size.</p>}
 
         <div className="grid gap-3">
           <div className="flex items-center justify-between gap-4">

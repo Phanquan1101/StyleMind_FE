@@ -1,4 +1,4 @@
-import { Bell, CircleDollarSign, Package, ShoppingCart, Users, type LucideIcon } from 'lucide-react'
+import { Package, ShoppingCart, Users, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 interface SummaryCardProps {
@@ -23,7 +23,6 @@ export function AdminOverviewLive({ productCount, orderCount, loading }: { produ
       <h2 id="admin-orders-heading" className="font-display text-2xl">Đơn hàng &amp; doanh thu</h2>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Tổng đơn hàng" value={loading ? '…' : orderCount ?? '—'} icon={ShoppingCart} to="/admin?section=orders" note="Xem đơn hàng →" />
-        <SummaryCard label="Doanh thu" value="—" icon={CircleDollarSign} note="Số liệu tổng hợp chưa được hỗ trợ." />
       </div>
     </section>
 
@@ -32,7 +31,6 @@ export function AdminOverviewLive({ productCount, orderCount, loading }: { produ
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard label="Sản phẩm đang hiển thị" value={loading ? '…' : productCount ?? '—'} icon={Package} to="/admin?section=products" note="Xem sản phẩm →" />
         <SummaryCard label="Khách hàng" value="—" icon={Users} to="/admin?section=customers" note="Xem tài khoản →" />
-        <SummaryCard label="Thông báo" value="—" icon={Bell} to="/admin?section=notifications" note="Chưa hỗ trợ danh sách thông báo." />
       </div>
     </section>
   </section>

@@ -22,31 +22,10 @@ function renderCustomerNotifications() {
 afterEach(() => { localStorage.clear(); sessionStorage.clear(); vi.restoreAllMocks() })
 
 describe('Notifications with the current backend', () => {
-  it('does not present demo notifications or a fabricated unread count', async () => {
-    const { stored } = renderCustomerNotifications()
-    expect(await screen.findByText('Thông báo trong ứng dụng hiện chưa được hỗ trợ.')).toBeInTheDocument()
-    const header = screen.getByRole('banner')
-    expect(within(header).getByRole('link', { name: 'Thông báo' })).toBeInTheDocument()
-    expect(stored.notifications.length).toBeGreaterThan(0)
-    for (const notification of stored.notifications) expect(screen.queryByText(notification.title)).not.toBeInTheDocument()
-  })
-
-  it('shows unsupported feedback without changing stored notifications', async () => {
-    const user = userEvent.setup()
-    const { stored } = renderCustomerNotifications()
-    await user.click(await screen.findByRole('button', { name: 'Đánh dấu tất cả đã đọc' }))
-    expect(screen.getAllByText('Chức năng chưa hỗ trợ.').length).toBeGreaterThan(1)
-    const after = JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY)!)
-    expect(after.notifications).toEqual(stored.notifications)
-    expect(screen.queryByText(/Đã đánh dấu tất cả/)).not.toBeInTheDocument()
-  })
-
-  it.each(['Tất cả', 'Chưa đọc', 'Đã đọc'])('does not simulate the customer filter %s', async label => {
-    const user = userEvent.setup()
-    const { stored } = renderCustomerNotifications()
-    await user.click(await screen.findByRole('button', { name: label }))
-    expect(screen.getAllByText('Chức năng chưa hỗ trợ.').length).toBeGreaterThan(1)
-    expect(JSON.parse(localStorage.getItem(DEMO_STORAGE_KEY)!).notifications).toEqual(stored.notifications)
+  it('does not offer notifications: no bell in the header and a hand-typed URL shows a clean not-found page', async () => {
+    renderCustomerNotifications()
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy trang' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Thông báo' })).not.toBeInTheDocument()
   })
 
   it('shows unsupported feedback for admin notification actions', async () => {

@@ -57,6 +57,8 @@ function toUser(profile: MyProfileResponse, style: StyleProfileResponse, session
     password: '',
     heightCm: style.style_profile?.height_cm ?? undefined,
     weightKg: style.style_profile?.weight_kg ?? undefined,
+    usualTopSize: style.style_profile?.usual_top_size ?? undefined,
+    usualBottomSize: style.style_profile?.usual_bottom_size ?? undefined,
     avatarInitials: initials(fullName),
     createdAt: new Date().toISOString(),
   }
@@ -181,6 +183,8 @@ export function IdentityAuthProvider({ children }: PropsWithChildren) {
         ...currentUser,
         heightCm: response.style_profile?.height_cm ?? undefined,
         weightKg: response.style_profile?.weight_kg ?? undefined,
+        usualTopSize: response.style_profile?.usual_top_size ?? undefined,
+        usualBottomSize: response.style_profile?.usual_bottom_size ?? undefined,
       }
       setCurrentUser(updated)
       const session = readIdentitySession()

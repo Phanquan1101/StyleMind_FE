@@ -1,11 +1,10 @@
-import { Bell, LayoutDashboard, LogOut, MessageCircle, ShoppingBag, UserRound } from 'lucide-react'
+import { LayoutDashboard, LogOut, MessageCircle, ShoppingBag, UserRound } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
-import { selectUnreadNotificationCount } from '@/features/notifications/model/notificationSelectors'
 import { useActiveCommerce } from '@/features/cart/model/AccountCommerceProvider'
 import { countCartProducts } from '@/features/cart/model/cartProductCount'
 import { apiMode } from '@/shared/api/http'
@@ -25,7 +24,6 @@ export function CustomerHeader() {
   const guest = useActiveCommerce()
   const cartCount = countCartProducts(guest.cart.items, guest.products)
   const currentUserId = state.session?.userId ?? currentUser?.id ?? 'usr-customer-01'
-  const unreadCount = selectUnreadNotificationCount(state, currentUserId)
   const visibleNavItems = currentUser?.role === 'admin' ? [...navItems, { to: ROUTES.admin, label: 'Quản trị' }] : navItems
 
   const handleLogout = () => {
@@ -56,9 +54,6 @@ export function CustomerHeader() {
           ))}
         </nav>
         <div className="ml-auto hidden items-center gap-2 md:flex">
-          <HeaderIconLink to={ROUTES.notifications} label={apiMode() ? 'Thông báo' : `Thông báo (${unreadCount} chưa đọc)`} count={apiMode() ? 0 : unreadCount}>
-            <Bell size={18} aria-hidden="true" />
-          </HeaderIconLink>
           <HeaderIconLink to={ROUTES.messages} label="Tin nhắn">
             <MessageCircle size={18} aria-hidden="true" />
           </HeaderIconLink>

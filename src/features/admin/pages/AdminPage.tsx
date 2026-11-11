@@ -5,10 +5,7 @@ import { commerceApi } from '@/api/commerce'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 import { apiMode } from '@/shared/api/http'
-import { UnavailableFeature } from '@/shared/ui/UnavailableFeature'
 import { Button } from '@/shared/ui'
-import { AdminNotificationsUnavailable } from '@/features/admin/components/AdminNotificationsUnavailable'
-import { AdminSettingsUnavailable } from '@/features/admin/components/AdminSettingsUnavailable'
 import { AdminOverviewLive } from '@/features/admin/components/AdminOverviewLive'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
 import { AdminCustomersPanel } from '@/features/admin/components/AdminCustomersPanel'
@@ -27,7 +24,8 @@ import {
 import { loadAllCommerceProducts } from '@/features/commerce/data/loadCommerceProducts'
 import { loadAdminOrders } from '@/features/commerce/data/loadAdminOrders'
 
-const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'requests', 'customers', 'notifications', 'settings', 'ai'])
+// Notifications, settings and AI management have no backend yet, so they are not offered or reachable (hand-typed URLs show the overview).
+const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'requests', 'customers'])
 
 function resolveSection(value: string | null): AdminSection {
   return value && sections.has(value as AdminSection) ? (value as AdminSection) : 'overview'
@@ -128,9 +126,6 @@ export function AdminPage() {
     if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} onReload={() => setReloadVersion(value => value + 1)} />
     if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} />
     if (activeSection === 'customers') return <AdminCustomersPanel />
-    if (activeSection === 'notifications') return <AdminNotificationsUnavailable />
-    if (activeSection === 'settings') return <AdminSettingsUnavailable />
-    if (activeSection === 'ai') return <UnavailableFeature title="Quản lý AI" backTo="/admin" backLabel="Về tổng quan" />
     return sectionPlaceholder(activeSection)
   }, [activeSection, currentUser?.id, dispatch, state, summary, commerceLoading])
 

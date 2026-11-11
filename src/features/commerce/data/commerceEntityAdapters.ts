@@ -11,11 +11,10 @@ import type {
 } from '@/api/commerce.types'
 import { colorSwatchHex } from '@/shared/lib/colorSwatch'
 
-const sizes = new Set<ProductSize>(['XS', 'S', 'M', 'L', 'XL'])
-
+// The catalog uses many size labels (XS-3XL, 4-12, "S/M", "Một cỡ"...). Keep them as they are, like the customer catalog does;
+// coercing unknown labels to "M" made admin edits silently rewrite real sizes.
 function productSize(value: string | null): ProductSize {
-  const normalized = value?.toUpperCase() as ProductSize | undefined
-  return normalized && sizes.has(normalized) ? normalized : 'M'
+  return (value?.trim() || 'M') as ProductSize
 }
 
 function variantImage(variant: CommerceVariant) {

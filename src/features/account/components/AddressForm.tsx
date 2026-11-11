@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
 import type { AddressPayload, IdentityAddress, Province, Ward } from '@/shared/api/identityApi'
 import { Button, TextField } from '@/shared/ui'
@@ -30,6 +30,8 @@ interface AddressFormProps {
   saving: boolean
   /** Message returned by the server for the last save attempt (shown inside the form). */
   serverError?: string
+  /** Field-level errors from the last failed save (problem+json `errors`), shown under the matching input. */
+  serverFieldErrors?: AddressFieldErrors
   onProvinceChange: (provinceCode: string) => void
   onCancel: () => void
   onSubmit: (value: AddressFormValue) => Promise<void>
@@ -42,6 +44,7 @@ export function AddressForm({
   wardLoading,
   saving,
   serverError,
+  serverFieldErrors,
   onProvinceChange,
   onCancel,
   onSubmit,
@@ -54,6 +57,13 @@ export function AddressForm({
   const [wardCode, setWardCode] = useState('')
   const [clearSavedWard, setClearSavedWard] = useState(false)
   const [errors, setErrors] = useState<AddressFieldErrors>({})
+  useEffect(() => {
+    if (!serverFieldErrors) return
+    const invalid = firstInvalidField(serverFieldErrors)
+    if (!invalid) return
+    setErrors(current => ({ ...current, ...serverFieldErrors }))
+    document.getElementById(FIELD_IDS[invalid])?.focus()
+  }, [serverFieldErrors])
   const clearError = (field: AddressField) => setErrors(current => (current[field] ? { ...current, [field]: undefined } : current))
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

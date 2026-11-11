@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { identityApi, identityErrorMessage, type StyleProfilePayload } from '@/shared/api/identityApi'
 import { apiMode } from '@/shared/api/http'
+import { fieldErrorsFromProblem, focusFirstInvalid, mapFieldErrors, problemOf } from '@/shared/lib/apiFieldErrors'
 import { Button } from '@/shared/ui'
 import { useAuth } from '@/features/auth'
 
@@ -29,6 +30,18 @@ const emptyStyleProfile: StyleProfileInput = {
   styleCodes: '',
   colorCodes: '',
   brandIds: '',
+}
+
+const STYLE_FIELD_MAP: Record<string, keyof StyleProfileInput> = {
+  fit_preference: 'fitPreference',
+  height_cm: 'heightCm',
+  weight_kg: 'weightKg',
+  usual_top_size: 'usualTopSize',
+  usual_bottom_size: 'usualBottomSize',
+  shoe_size: 'shoeSize',
+  style_codes: 'styleCodes',
+  color_codes: 'colorCodes',
+  brand_ids: 'brandIds',
 }
 
 function csvValues(value: string): string[] {
@@ -70,6 +83,8 @@ export function AccountPage() {
   const [profileMessage, setProfileMessage] = useState('')
   const [styleMessage, setStyleMessage] = useState('')
   const [addressCount, setAddressCount] = useState(0)
+  const profileSection = useRef<HTMLElement>(null)
+  const styleSection = useRef<HTMLElement>(null)
 
   useEffect(() => {
     if (!userId) return
@@ -109,20 +124,25 @@ export function AccountPage() {
 
   const orders = state.orders.filter(order => order.userId === currentUser.id)
   const outfits = state.outfits.filter(outfit => outfit.ownerId === currentUser.id)
-  const unreadCount = state.notifications.filter(item => item.userId === currentUser.id && !item.read).length
 
   const handleProfileSave = async () => {
     const nextErrors = validateProfileInput(profileDraft)
     setProfileErrors(nextErrors)
     setProfileMessage('')
-    if (hasErrors(nextErrors)) return
+    if (hasErrors(nextErrors)) { setTimeout(() => focusFirstInvalid(profileSection.current), 0); return }
 
     setSavingProfile(true)
     try {
       await auth.updateDisplayName(profileDraft.displayName.trim())
       setProfileMessage('Đã cập nhật hồ sơ cá nhân.')
     } catch (error) {
-      setProfileMessage(identityErrorMessage(error, 'Không thể cập nhật hồ sơ.'))
+      const { fields } = mapFieldErrors<keyof ProfileInput>(fieldErrorsFromProblem(problemOf(error)), { display_name: 'displayName' })
+      if (hasErrors(fields)) {
+        setProfileErrors(fields)
+        setTimeout(() => focusFirstInvalid(profileSection.current), 0)
+      } else {
+        setProfileMessage(identityErrorMessage(error, 'Không thể cập nhật hồ sơ.'))
+      }
     } finally {
       setSavingProfile(false)
     }
@@ -132,7 +152,7 @@ export function AccountPage() {
     const nextErrors = validateStyleProfileInput(styleDraft)
     setStyleErrors(nextErrors)
     setStyleMessage('')
-    if (hasErrors(nextErrors)) return
+    if (hasErrors(nextErrors)) { setTimeout(() => focusFirstInvalid(styleSection.current), 0); return }
 
     setSavingStyle(true)
     try {
@@ -153,7 +173,13 @@ export function AccountPage() {
       }
       setStyleMessage('Đã cập nhật thông tin vóc dáng và phong cách.')
     } catch (error) {
-      setStyleMessage(identityErrorMessage(error, 'Không thể cập nhật thông tin phong cách.'))
+      const { fields } = mapFieldErrors<keyof StyleProfileInput>(fieldErrorsFromProblem(problemOf(error)), STYLE_FIELD_MAP)
+      if (hasErrors(fields)) {
+        setStyleErrors(fields)
+        setTimeout(() => focusFirstInvalid(styleSection.current), 0)
+      } else {
+        setStyleMessage(identityErrorMessage(error, 'Không thể cập nhật thông tin phong cách.'))
+      }
     } finally {
       setSavingStyle(false)
     }
@@ -182,7 +208,7 @@ export function AccountPage() {
       {loadError && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#FCEAEA] px-4 py-3"><p role="alert" className="text-sm font-semibold text-[#A94B4B]">{loadError}</p><Button type="button" variant="secondary" onClick={() => setLoadVersion(value => value + 1)}>Thử tải lại</Button></div>}
 
       {!loading && !loadError && <>
-      <section className="grid gap-4 rounded-lg border border-[#E3E2E2] bg-white p-5 sm:p-7">
+      <section ref={profileSection} className="grid gap-4 rounded-lg border border-[#E3E2E2] bg-white p-5 sm:p-7">
         <ProfileForm value={profileDraft} errors={profileErrors} onChange={setProfileDraft} />
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" loading={savingProfile} disabled={loading} onClick={handleProfileSave}>Lưu hồ sơ</Button>
@@ -190,7 +216,7 @@ export function AccountPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-lg border border-[#E3E2E2] bg-white p-5 sm:p-7">
+      <section ref={styleSection} className="grid gap-4 rounded-lg border border-[#E3E2E2] bg-white p-5 sm:p-7">
         <div>
           <h2 className="font-display text-2xl font-semibold text-[#222222]">Thông tin vóc dáng và phong cách</h2>
           <p className="mt-2 text-sm leading-6 text-[#5E5F5D]">
@@ -205,10 +231,9 @@ export function AccountPage() {
       </section>
       </>}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-3">
         <Shortcut label="Địa chỉ" value={loading || loadError ? 'Xem địa chỉ' : `${addressCount} địa chỉ`} to={ROUTES.addresses} />
         <Shortcut label="Đơn hàng" value={apiMode() ? 'Xem đơn hàng' : `${orders.length} đơn`} to={ROUTES.orders} />
-        <Shortcut label="Thông báo" value={apiMode() ? 'Xem thông báo' : `${unreadCount} chưa đọc`} to={ROUTES.notifications} />
         <Shortcut label="Tủ đồ" value={apiMode() ? 'Xem tủ đồ' : `${outfits.length} outfit`} to={ROUTES.wardrobes} />
       </section>
     </section>

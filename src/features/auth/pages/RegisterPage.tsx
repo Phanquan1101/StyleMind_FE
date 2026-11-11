@@ -1,8 +1,9 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { IdentityApiError, identityErrorMessage } from '@/shared/api/identityApi'
+import { fieldErrorsFromProblem, focusFirstInvalid, mapFieldErrors, problemOf } from '@/shared/lib/apiFieldErrors'
 import { Button, TextField } from '@/shared/ui'
 
 import { AuthLayout } from '../components/AuthLayout'
@@ -17,13 +18,14 @@ export function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const nextErrors = validateRegisterInput(input)
     setErrors(nextErrors)
     setSubmitError('')
-    if (Object.keys(nextErrors).length > 0) return
+    if (Object.keys(nextErrors).length > 0) { setTimeout(() => focusFirstInvalid(formRef.current), 0); return }
 
     setSubmitting(true)
     try {
@@ -45,6 +47,12 @@ export function RegisterPage() {
         return
       }
 
+      const { fields } = mapFieldErrors<'email' | 'password'>(fieldErrorsFromProblem(problemOf(error)), { email: 'email', password: 'password' })
+      if (Object.keys(fields).length > 0) {
+        setErrors(fields as Record<string, string>)
+        setTimeout(() => focusFirstInvalid(formRef.current), 0)
+        return
+      }
       setSubmitError(identityErrorMessage(error, 'Không thể đăng ký'))
     } finally {
       setSubmitting(false)
@@ -55,7 +63,7 @@ export function RegisterPage() {
     <AuthLayout title="Đăng ký" description="Tạo tài khoản khách hàng để lưu giỏ hàng, địa chỉ và đơn hàng của bạn.">
       <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#5E5F5D]">Chào mừng đến với StyleMind</p>
       <h1 className="font-display text-4xl font-semibold">Đăng ký</h1>
-      <form className="mt-8 grid gap-6" onSubmit={handleSubmit}>
+      <form ref={formRef} className="mt-8 grid gap-6" onSubmit={handleSubmit} noValidate>
         <TextField label="Email" type="email" autoComplete="email" className="!rounded-none !border-0 !border-b !border-[#C4C7C7] !bg-transparent !px-0" value={input.email} error={errors.email} onChange={event => setInput(value => ({ ...value, email: event.target.value }))} />
         <TextField label="Mật khẩu (ít nhất 12 ký tự)" type="password" autoComplete="new-password" className="!rounded-none !border-0 !border-b !border-[#C4C7C7] !bg-transparent !px-0" value={input.password} error={errors.password} onChange={event => setInput(value => ({ ...value, password: event.target.value }))} />
         <TextField

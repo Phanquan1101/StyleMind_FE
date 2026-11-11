@@ -328,13 +328,13 @@ async function handleRequest(input: RequestInfo | URL, init: RequestInit = {}): 
     const user = currentUser(headers)
     if (!user) return problem(401, 'AUTHENTICATION_REQUIRED')
     const value = styleProfiles.has(user.id) ? styleProfiles.get(user.id) : null
-    if (value == null && (user.heightCm != null || user.weightKg != null)) {
+    if (value == null && (user.heightCm != null || user.weightKg != null || user.usualTopSize != null || user.usualBottomSize != null)) {
       const seeded = {
         fit_preference: null,
         height_cm: user.heightCm ?? null,
         weight_kg: user.weightKg ?? null,
-        usual_top_size: null,
-        usual_bottom_size: null,
+        usual_top_size: user.usualTopSize ?? null,
+        usual_bottom_size: user.usualBottomSize ?? null,
         shoe_size: null,
         style_codes: [],
         color_codes: [],
