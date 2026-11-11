@@ -37,3 +37,42 @@ it('uses the new credential when another invitation opens in the same page', asy
   await waitFor(() => expect(fetcher.mock.calls.some(([path, options]) => path.endsWith('/friend-invitations/accept') && JSON.parse(options.body as string).friend_invitation_id === second && JSON.parse(options.body as string).token === 'new')).toBe(true))
 })
 
+
+it('says the link is invalid when the token is missing', async () => {
+  const actor = '10000000-0000-0000-0000-000000000001'
+  vi.stubEnv('VITE_COMMUNITY_MODE', 'api')
+  saveApiSession(`e30.${btoa(JSON.stringify({ sub: actor, roles: ['CUSTOMER'] }))}.sig`, Date.now() + 60000)
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ account_id: actor, email: 'test@example.test', profile: null }), { status: 200 })))
+  render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/friend-invitations/accept#invitation_id=20000000-0000-0000-0000-000000000002'] })} /></AppProviders>)
+  expect(await screen.findByText(/Liên kết không hợp lệ\./)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Chấp nhận kết bạn' })).not.toBeInTheDocument()
+})
+
+it('tells a signed-in user the invitation is for another email (masked) and offers logout', async () => {
+  const actor = '10000000-0000-0000-0000-000000000001', invitation = '20000000-0000-0000-0000-000000000002'
+  vi.stubEnv('VITE_COMMUNITY_MODE', 'api')
+  saveApiSession(`e30.${btoa(JSON.stringify({ sub: actor, roles: ['CUSTOMER'] }))}.sig`, Date.now() + 60000)
+  vi.stubGlobal('fetch', vi.fn(async (path: string, options: RequestInit) => path === '/api/v1/me'
+    ? new Response(JSON.stringify({ account_id: actor, email: 'other@example.test', profile: null }), { status: 200 })
+    : options.method === 'POST' ? new Response(JSON.stringify({ code: 'INVITATION_WRONG_ACCOUNT', recipient_hint: 'p***@example.test' }), { status: 403 })
+    : new Response('{}', { status: 200 })))
+  render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: [`/friend-invitations/accept#invitation_id=${invitation}&token=t`] })} /></AppProviders>)
+  await userEvent.setup().click(await screen.findByRole('button', { name: 'Chấp nhận kết bạn' }))
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('p***@example.test')
+  expect(alert).toHaveTextContent('other@example.test')
+  expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeInTheDocument()
+})
+
+it('explains a cancelled or expired invitation', async () => {
+  const actor = '10000000-0000-0000-0000-000000000001', invitation = '20000000-0000-0000-0000-000000000002'
+  vi.stubEnv('VITE_COMMUNITY_MODE', 'api')
+  saveApiSession(`e30.${btoa(JSON.stringify({ sub: actor, roles: ['CUSTOMER'] }))}.sig`, Date.now() + 60000)
+  vi.stubGlobal('fetch', vi.fn(async (path: string, options: RequestInit) => path === '/api/v1/me'
+    ? new Response(JSON.stringify({ account_id: actor, email: 'test@example.test', profile: null }), { status: 200 })
+    : options.method === 'POST' ? new Response(JSON.stringify({ code: 'INVITATION_INVALIDATED' }), { status: 409 })
+    : new Response('{}', { status: 200 })))
+  render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: [`/friend-invitations/accept#invitation_id=${invitation}&token=t`] })} /></AppProviders>)
+  await userEvent.setup().click(await screen.findByRole('button', { name: 'Chấp nhận kết bạn' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('đã bị người gửi hủy')
+})

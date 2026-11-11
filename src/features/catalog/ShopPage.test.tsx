@@ -49,7 +49,7 @@ function productPage(query: ProductListQuery = {}) {
   const keyword = query.keyword?.toLocaleLowerCase('vi')
   const filtered = createDemoSeed().products.filter(product =>
     (!keyword || product.name.toLocaleLowerCase('vi').includes(keyword))
-    && (!query.category_id || product.categoryId === query.category_id),
+    && (!query.category_id || [query.category_id].flat().includes(product.categoryId)),
   )
   return {
     items: filtered.slice(page * size, (page + 1) * size).map(toCommerceProduct),
@@ -111,6 +111,14 @@ describe('ShopPage', () => {
     renderShop()
     expect(await screen.findByText('Không tải được sản phẩm')).toBeInTheDocument()
     expect(screen.queryByText(/\d+ sản phẩm phù hợp/)).not.toBeInTheDocument()
+  })
+
+  it('keeps several chosen categories in the URL and sends them all to the Commerce API', async () => {
+    renderShop('/shop?category=tops&category=bottoms&minPrice=100000')
+
+    await waitFor(() => {
+      expect(commerceApi.products.list).toHaveBeenCalledWith(expect.objectContaining({ category_id: ['tops', 'bottoms'], min_price_vnd: 100000 }))
+    })
   })
 
   it('requests the selected page from the Commerce API', async () => {

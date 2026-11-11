@@ -33,12 +33,13 @@ function createEmptyFilters(): CatalogFilters {
 
 function filtersFromSearchParams(searchParams: URLSearchParams): CatalogFilters {
   const filters = createEmptyFilters()
-  const category = searchParams.get('category')
+  // ?category=a&category=b: repeated parameter, ids de-duplicated.
+  const categoryIds = [...new Set(searchParams.getAll('category').filter(Boolean))]
 
   return {
     ...filters,
     query: searchParams.get('q')?.trim() ?? '',
-    categoryIds: category ? [category] : [],
+    categoryIds,
     price: {
       min: Number(searchParams.get('minPrice')) || 0,
       max: Number(searchParams.get('maxPrice')) || Number.MAX_SAFE_INTEGER,
@@ -63,7 +64,7 @@ function searchParamsFromFilters(filters: CatalogFilters) {
   const params = new URLSearchParams()
 
   if (filters.query.trim()) params.set('q', filters.query.trim())
-  if (filters.categoryIds.length === 1) params.set('category', filters.categoryIds[0])
+  filters.categoryIds.forEach(id => params.append('category', id))
   if (filters.price.min > 0) params.set('minPrice', String(filters.price.min))
   if (filters.price.max < Number.MAX_SAFE_INTEGER) params.set('maxPrice', String(filters.price.max))
   return params
@@ -104,7 +105,7 @@ export function ShopPage() {
   const appliedFilters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams])
   const emptyFilters = useMemo(() => createEmptyFilters(), [])
   const appliedCount = activeFilterCount(appliedFilters)
-  const activeCategory = categories.find(category => category.id === appliedFilters.categoryIds[0])
+  const activeCategory = appliedFilters.categoryIds.length === 1 ? categories.find(category => category.id === appliedFilters.categoryIds[0]) : undefined
 
   useEffect(() => {
     let ignore = false
@@ -112,7 +113,7 @@ export function ShopPage() {
       page: requestedPage - 1,
       size: PRODUCTS_PER_PAGE,
       keyword: appliedFilters.query || undefined,
-      category_id: appliedFilters.categoryIds[0] || undefined,
+      category_id: appliedFilters.categoryIds.length ? appliedFilters.categoryIds : undefined,
       min_price_vnd: appliedFilters.price.min > 0 ? appliedFilters.price.min : undefined,
       max_price_vnd: appliedFilters.price.max < Number.MAX_SAFE_INTEGER ? appliedFilters.price.max : undefined,
     }
@@ -226,7 +227,7 @@ export function ShopPage() {
 
       <nav className="mx-auto flex max-w-[var(--container-wide)] gap-2 overflow-x-auto px-5 py-5 md:px-8 lg:hidden" aria-label="Danh mục sản phẩm">
         <button type="button" onClick={() => updateFilters({ ...filters, categoryIds: [] })} aria-pressed={filters.categoryIds.length === 0} className={`min-h-11 shrink-0 rounded-lg border px-4 py-2 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] motion-reduce:transition-none ${filters.categoryIds.length === 0 ? 'border-black bg-black text-white' : 'border-[#C4C7C7] bg-white text-black hover:bg-[#EFEDED]'}`}>Tất cả</button>
-        {categories.map(category => <button key={category.id} type="button" onClick={() => updateFilters({ ...filters, categoryIds: [category.id] })} aria-pressed={filters.categoryIds.includes(category.id)} className={`min-h-11 shrink-0 rounded-lg border px-4 py-2 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] motion-reduce:transition-none ${filters.categoryIds.includes(category.id) ? 'border-black bg-black text-white' : 'border-[#C4C7C7] bg-white text-black hover:bg-[#EFEDED]'}`}>{category.label}</button>)}
+        {categories.map(category => <button key={category.id} type="button" onClick={() => updateFilters({ ...filters, categoryIds: filters.categoryIds.includes(category.id) ? filters.categoryIds.filter(id => id !== category.id) : [...filters.categoryIds, category.id] })} aria-pressed={filters.categoryIds.includes(category.id)} className={`min-h-11 shrink-0 rounded-lg border px-4 py-2 text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] motion-reduce:transition-none ${filters.categoryIds.includes(category.id) ? 'border-black bg-black text-white' : 'border-[#C4C7C7] bg-white text-black hover:bg-[#EFEDED]'}`}>{category.label}</button>)}
       </nav>
 
       <section className="mx-auto grid max-w-[var(--container-wide)] gap-8 px-5 pb-12 md:px-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:px-16 lg:pt-8">

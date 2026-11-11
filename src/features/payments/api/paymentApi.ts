@@ -1,6 +1,6 @@
 import type {
   CheckoutRequest, CodCollectionRequest, OrderResponse, PaymentAttempt,
-  PaymentExceptionList, PaymentExceptionQuery, QrCheckout,
+  PaymentExceptionList, PaymentExceptionQuery, QrCheckout, QrCheckoutSummary,
 } from './types'
 import type { GuestCart } from '@/features/cart/data/guestCartApi'
 import type { GuestPrices } from '@/features/checkout/data/guestCheckoutApi'
@@ -100,6 +100,7 @@ export function createPaymentApi(options: PaymentApiOptions) {
     recoverQrCheckout: (key: string) => request<QrCheckout>('/commerce/api/v1/qr-checkouts/recover', 'POST', { checkout_key: key }),
     getQrCheckout: (id: string, requestOptions?: RequestOptions) => request<QrCheckout>(`/commerce/api/v1/qr-checkouts/${encodeURIComponent(id)}`, 'GET', undefined, requestOptions),
     getQrAttempt: (id: string, requestOptions?: RequestOptions) => request<PaymentAttempt>(`/commerce/api/v1/qr-checkouts/${encodeURIComponent(id)}/payment-attempt`, 'POST', undefined, requestOptions),
+    listUnpaidQrCheckouts: (requestOptions?: RequestOptions) => request<{ items: QrCheckoutSummary[] }>('/commerce/api/v1/qr-checkouts?page=0&size=20', 'GET', undefined, requestOptions),
     cancelQrCheckout: (id: string) => request<QrCheckout>(`/commerce/api/v1/qr-checkouts/${encodeURIComponent(id)}/cancel`, 'POST'),
     getPrices: (requestOptions?: RequestOptions) => request<GuestPrices>('/commerce/api/v1/checkout/prices', 'GET', undefined, requestOptions),
     previewSelection: (body: { cart_item_ids: string[] }, requestOptions?: RequestOptions) => request<GuestPrices>('/commerce/api/v1/checkout/selected/prices', 'POST', body, requestOptions),

@@ -51,7 +51,10 @@ export function FilterPanel({ filters, categories, styles, occasions, colors, si
             checked={filters.categoryIds.includes(category.id)}
             onChange={() => onChange({
               ...filters,
-              categoryIds: filters.categoryIds.includes(category.id) ? [] : [category.id],
+              // Several categories can be ticked at once (a product matches any of them).
+              categoryIds: filters.categoryIds.includes(category.id)
+                ? filters.categoryIds.filter(id => id !== category.id)
+                : [...filters.categoryIds, category.id],
             })}
           />
         ))}

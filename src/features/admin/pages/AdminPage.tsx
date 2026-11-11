@@ -78,12 +78,19 @@ export function AdminPage() {
     let active = true
     setCommerceLoading(true)
     setSummary({ productCount: null, orderCount: null })
+    const productsOnly = activeSection === 'products'
     Promise.all([
-      loadAllCommerceProducts(),
+      productsOnly ? Promise.resolve([]) : loadAllCommerceProducts(),
       commerceApi.categories.listAdmin(),
-      loadAdminOrders(),
+      productsOnly ? Promise.resolve(null) : loadAdminOrders(),
     ]).then(([products, categories, orders]) => {
       if (!active) return
+      if (!orders) {
+        // Products section: the panel pages through /admin/products itself; only the category names are needed here.
+        dispatch({ type: 'commerce/catalogSynced', payload: { products: [], categories: categories.items.map(commerceCategoryToEntity) } })
+        setCommerceError(null)
+        return
+      }
       setSummary({ productCount: products.length, orderCount: Number.isSafeInteger(orders.total) ? orders.total : null })
       dispatch({
         type: 'commerce/catalogSynced',

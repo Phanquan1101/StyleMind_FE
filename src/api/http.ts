@@ -89,7 +89,8 @@ export async function commerceRequest<T>(path: string, options: RequestOptions =
 export function queryString(values: object): string {
   const query = new URLSearchParams()
   Object.entries(values as Record<string, unknown>).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') query.set(key, String(value))
+    if (Array.isArray(value)) value.forEach(item => query.append(key, String(item)))
+    else if (value !== undefined && value !== null && value !== '') query.set(key, String(value))
   })
   const serialized = query.toString()
   return serialized ? `?${serialized}` : ''

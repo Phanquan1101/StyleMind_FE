@@ -3,14 +3,21 @@ import { createContext, useCallback, useContext, useMemo, useState, type PropsWi
 
 type ToastType = 'success' | 'error' | 'info'
 
+/** Optional button inside a toast (the provider sits above the router, so the caller supplies the navigation). */
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 interface ToastItem {
   id: string
   type: ToastType
   message: string
+  action?: ToastAction
 }
 
 interface ToastValue {
-  success: (message: string) => void
+  success: (message: string, action?: ToastAction) => void
   error: (message: string) => void
   info: (message: string) => void
 }
@@ -31,17 +38,17 @@ export function ToastProvider({ children }: PropsWithChildren) {
   }, [])
 
   const pushToast = useCallback(
-    (type: ToastType, message: string) => {
+    (type: ToastType, message: string, action?: ToastAction) => {
       const id = `toast-${Date.now()}-${Math.random().toString(16).slice(2)}`
-      setToasts(items => [...items, { id, type, message }])
-      window.setTimeout(() => removeToast(id), 3500)
+      setToasts(items => [...items, { id, type, message, action }])
+      window.setTimeout(() => removeToast(id), action ? 8000 : 3500)
     },
     [removeToast],
   )
 
   const value = useMemo<ToastValue>(
     () => ({
-      success: message => pushToast('success', message),
+      success: (message, action) => pushToast('success', message, action),
       error: message => pushToast('error', message),
       info: message => pushToast('info', message),
     }),
@@ -55,6 +62,15 @@ export function ToastProvider({ children }: PropsWithChildren) {
         {toasts.map(toast => (
           <div key={toast.id} className={`flex items-start gap-3 rounded-lg border p-3 shadow-lg ${toastClass[toast.type]}`}>
             <p className="flex-1 text-sm font-semibold leading-5">{toast.message}</p>
+            {toast.action && (
+              <button
+                type="button"
+                onClick={() => { toast.action?.onClick(); removeToast(toast.id) }}
+                className="flex-none rounded-md border border-current px-2.5 py-1 text-xs font-bold transition hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"
+              >
+                {toast.action.label}
+              </button>
+            )}
             <button
               type="button"
               aria-label="Đóng thông báo"

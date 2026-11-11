@@ -10,6 +10,7 @@ import type {
   CatalogReferenceList,
   CheckoutInput,
   CheckoutPriceResponse,
+  AdminProductListQuery,
   CommerceProduct,
   ImageOrderInput,
   OrderListQuery,
@@ -57,6 +58,8 @@ export const commerceApi = {
   products: {
     list: (query: ProductListQuery = {}) => publicGet<ProductListResponse>(`/api/v1/products${queryString(query)}`),
     get: (id: UUID) => publicGet<CommerceProduct>(`/api/v1/products/${id}`),
+    /** Admin list: every status, server-side paging, keyword matches name or SKU. */
+    listAdmin: (query: AdminProductListQuery = {}) => get<ProductListResponse>(`/api/v1/admin/products${queryString(query)}`),
     lookupVariants: (variantIds: UUID[]) =>
       commerceRequest<{ items: ProductVariant[] }>('/api/v1/variants/batch-lookup', { method: 'POST', body: { variant_ids: variantIds }, auth: false }),
     create: (input: ProductInput) => post<CommerceProduct>('/api/v1/admin/products', input),

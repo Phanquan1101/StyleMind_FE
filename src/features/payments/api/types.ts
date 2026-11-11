@@ -22,6 +22,15 @@ export interface QrCheckout {
   expiresAt: string
 }
 
+/** One unpaid QR checkout as listed by GET /qr-checkouts (open ones, plus those that expired in the last 24 hours). */
+export interface QrCheckoutSummary {
+  checkoutId: string
+  status: QrCheckout['status']
+  totalVnd: number
+  createdAt: string
+  expiresAt: string
+}
+
 export interface CheckoutRequest {
   checkout_key: string
   shipping_address_id: string

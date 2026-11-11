@@ -1,9 +1,11 @@
 import { AlertCircle, CheckCircle2, ChevronDown, Loader2, Pencil, Plus } from 'lucide-react'
-import { Fragment, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { commerceApi } from '@/api/commerce'
+import { apiMode } from '@/shared/api/http'
 import { CommerceApiError } from '@/api/http'
-import type { CommerceProduct } from '@/api/commerce.types'
+import type { CommerceProduct, ProductListResponse } from '@/api/commerce.types'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
 import { selectAdminProducts } from '@/features/admin/model/adminSelectors'
 import type { AdminProductFilters } from '@/features/admin/model/adminTypes'
@@ -55,6 +57,8 @@ const SERVER_FIELD_MAP: Record<string, FieldKey> = {
   quantity: 'quantity',
   file: 'image',
 }
+
+const PAGE_SIZE = 20
 
 const SIZE_SUGGESTIONS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'Một cỡ']
 const STEP_LABEL: Record<StepKey, string> = {
@@ -153,7 +157,29 @@ class StepFailure extends Error {
 export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelProps) {
   const toast = useToast()
   const firstCategoryId = database.categories.find(category => category.active)?.id ?? database.categories[0]?.id ?? ''
-  const [filters, setFilters] = useState<AdminProductFilters>({ query: '', categoryId: 'all', status: 'all' })
+  // Filters and the page live in the URL (?page=2&q=ao&category=<id>&status=inactive), so they survive reloads, back/forward and edits.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const serverMode = apiMode()
+  const page = Math.max(1, Number.parseInt(searchParams.get('page') ?? '1', 10) || 1)
+  const urlQuery = searchParams.get('q') ?? ''
+  const filters = useMemo<AdminProductFilters>(() => ({
+    query: urlQuery,
+    categoryId: searchParams.get('category') ?? 'all',
+    status: (['active', 'inactive'].includes(searchParams.get('status') ?? '') ? searchParams.get('status') : 'all') as AdminProductFilters['status'],
+  }), [urlQuery, searchParams])
+  const updateParams = useCallback((changes: Record<string, string | null>, resetPage = true) => {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      Object.entries(changes).forEach(([key, value]) => (value === null || value === '' || value === 'all' ? next.delete(key) : next.set(key, value)))
+      if (resetPage) next.delete('page')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+  const [queryInput, setQueryInput] = useState(urlQuery)
+  const [pageData, setPageData] = useState<ProductListResponse | null>(null)
+  const [pageLoading, setPageLoading] = useState(false)
+  const [pageError, setPageError] = useState<string | null>(null)
+  const [reloadVersion, setReloadVersion] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductFormState>(() => createInitialForm(firstCategoryId))
@@ -171,7 +197,43 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   // Ids created so far. A retry resumes from them instead of creating the product again.
   const saved = useRef<{ productId: string | null; variantId: string | null; sku: string | null; uploaded: File | null }>({ productId: null, variantId: null, sku: null, uploaded: null })
 
-  const rows = useMemo(() => selectAdminProducts(database, filters), [database, filters])
+  // Debounce typing into the URL (the server is queried per URL change). Without a server the store is filtered at once.
+  useEffect(() => {
+    if (queryInput.trim() === urlQuery) return undefined
+    const timer = window.setTimeout(() => updateParams({ q: queryInput.trim() }), serverMode ? 350 : 0)
+    return () => window.clearTimeout(timer)
+  }, [queryInput, urlQuery, serverMode, updateParams])
+
+  const apiStatus = filters.status === 'active' ? 'ACTIVE' : filters.status === 'inactive' ? 'INACTIVE' : undefined
+  const categoryFilter = filters.categoryId && filters.categoryId !== 'all' ? filters.categoryId : undefined
+  useEffect(() => {
+    if (!serverMode) return undefined
+    let active = true
+    setPageLoading(true)
+    commerceApi.products.listAdmin({ keyword: urlQuery || undefined, category_id: categoryFilter, status: apiStatus, page: page - 1, size: PAGE_SIZE })
+      .then(result => {
+        if (!active) return
+        // The page may no longer exist (e.g. the last row was filtered away): go to the last page.
+        if (result.total_pages > 0 && page > result.total_pages) { updateParams({ page: String(result.total_pages) }, false); return }
+        setPageData(result)
+        setPageError(null)
+      })
+      .catch(error => { if (active) setPageError(describeError(error)) })
+      .finally(() => { if (active) setPageLoading(false) })
+    return () => { active = false }
+  }, [serverMode, urlQuery, categoryFilter, apiStatus, page, reloadVersion, updateParams])
+
+  const rows = useMemo(() => {
+    if (!serverMode) return selectAdminProducts(database, filters)
+    // Server rows are already filtered/paged; reuse the selector only to build the row shape.
+    return selectAdminProducts({ ...database, products: (pageData?.items ?? []).map(commerceProductToEntity) }, {})
+  }, [database, filters, serverMode, pageData])
+
+  /** Keeps the customer on the same page: swap the changed product in place instead of reloading from page 1. */
+  const applyProduct = (product: CommerceProduct) => {
+    dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(product) })
+    setPageData(current => current && { ...current, items: current.items.map(item => (item.product_id === product.product_id ? product : item)) })
+  }
 
   const resetSaveState = () => {
     saved.current = { productId: null, variantId: null, sku: null, uploaded: null }
@@ -214,7 +276,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const setStep = (key: StepKey, state: StepState) => setSteps(current => ({ ...current, [key]: state }))
   const publish = async (productId: string) => {
     const refreshed = await commerceApi.products.getAdmin(productId)
-    dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(refreshed) })
+    applyProduct(refreshed)
     return refreshed
   }
 
@@ -326,6 +388,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       await runSaveSteps()
       toast.success('Đã lưu sản phẩm.')
       setModalOpen(false)
+      setReloadVersion(value => value + 1)
     } catch (error) {
       if (!(error instanceof StepFailure)) {
         setFormError(describeError(error))
@@ -373,14 +436,14 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       <div className="grid gap-3 rounded-lg border border-[#E3E2E2] bg-white p-4 md:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_180px_180px]">
         <TextField
           label="Tìm sản phẩm"
-          value={filters.query ?? ''}
-          onChange={event => setFilters(current => ({ ...current, query: event.target.value }))}
-          placeholder="Nhập tên, thương hiệu hoặc mã"
+          value={queryInput}
+          onChange={event => setQueryInput(event.target.value)}
+          placeholder="Nhập tên sản phẩm hoặc mã SKU"
         />
         <SelectField
           label="Lọc danh mục"
           value={filters.categoryId ?? 'all'}
-          onChange={event => setFilters(current => ({ ...current, categoryId: event.target.value }))}
+          onChange={event => updateParams({ category: event.target.value })}
         >
           <option value="all">Tất cả danh mục</option>
           {database.categories.map(category => (
@@ -392,7 +455,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
         <SelectField
           label="Trạng thái"
           value={filters.status ?? 'all'}
-          onChange={event => setFilters(current => ({ ...current, status: event.target.value as AdminProductFilters['status'] }))}
+          onChange={event => updateParams({ status: event.target.value })}
         >
           <option value="all">Tất cả</option>
           <option value="active">Đang bán</option>
@@ -415,7 +478,11 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E0D8]">
-              {rows.length === 0 ? (
+              {serverMode && pageError ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm"><span role="alert" className="font-semibold text-[#A94B4B]">{pageError}</span> <button type="button" className="ml-2 underline" onClick={() => setReloadVersion(value => value + 1)}>Thử lại</button></td></tr>
+              ) : serverMode && pageLoading && !pageData ? (
+                <tr><td colSpan={6} role="status" className="px-4 py-8 text-center text-sm text-[#5E5F5D]">Đang tải sản phẩm…</td></tr>
+              ) : rows.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-[#5E5F5D]">Không có sản phẩm phù hợp.</td></tr>
               ) : rows.map(row => {
                 const isExpanded = expandedProductId === row.id
@@ -466,7 +533,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                 product_status: active ? 'ACTIVE' : 'INACTIVE',
                               }),
                             ).then(product => {
-                              dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(product) })
+                              applyProduct(product)
                               toast.info(active ? 'Đã bật sản phẩm.' : 'Đã tắt sản phẩm.')
                             }).catch(error => toast.error(error instanceof Error ? error.message : 'Không thể cập nhật sản phẩm'))
                           }}
@@ -532,7 +599,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                               })
                                               return commerceApi.products.getAdmin(row.id)
                                             }).then(product => {
-                                              dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(product) })
+                                              applyProduct(product)
                                               toast.info(active ? 'Đã bật biến thể.' : 'Đã tắt biến thể.')
                                             }).catch(error => toast.error(error instanceof Error ? error.message : 'Không thể cập nhật biến thể'))
                                           }}
@@ -554,10 +621,20 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
             </tbody>
           </table>
         </div>
+        {serverMode && pageData && (
+          <nav aria-label="Phân trang sản phẩm" className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E3E2E2] px-4 py-3 text-sm text-[#3A3632]">
+            <span aria-live="polite">{pageData.total_elements === 0 ? 'Không có sản phẩm' : `Hiển thị ${pageData.page * pageData.size + 1}–${pageData.page * pageData.size + pageData.items.length} / ${pageData.total_elements} sản phẩm`}{pageLoading ? ' · đang tải…' : ''}</span>
+            <span className="inline-flex items-center gap-2">
+              <Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" disabled={page <= 1 || pageLoading} onClick={() => updateParams({ page: String(page - 1) }, false)}>Trước</Button>
+              <span>Trang {Math.min(page, Math.max(1, pageData.total_pages))} / {Math.max(1, pageData.total_pages)}</span>
+              <Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" disabled={page >= pageData.total_pages || pageLoading} onClick={() => updateParams({ page: String(page + 1) }, false)}>Sau</Button>
+            </span>
+          </nav>
+        )}
       </div>
 
       <Modal open={!!imageVariant} title="Quản lý ảnh biến thể" description={imageVariant?.label} onClose={() => setImageVariant(null)}>
-        {imageVariant && <VariantImagesManager productId={imageVariant.productId} variantId={imageVariant.variantId} onUpdated={product => dispatch({ type: 'admin/productUpserted', payload: commerceProductToEntity(product) })} />}
+        {imageVariant && <VariantImagesManager productId={imageVariant.productId} variantId={imageVariant.variantId} onUpdated={applyProduct} />}
       </Modal>
 
       <Modal

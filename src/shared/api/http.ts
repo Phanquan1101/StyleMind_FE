@@ -5,7 +5,7 @@ export const apiMode = () => true
 const gatewayBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string, public retryAfter = 0, public invitationId?: string) { super(message) }
+  constructor(public status: number, public code: string, message: string, public retryAfter = 0, public invitationId?: string, public recipientHint?: string) { super(message) }
 }
 export const isUuid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)
 export function accessToken(): string | null { return readIdentitySession()?.accessToken ?? null }
@@ -16,7 +16,8 @@ const messages: Record<string, string> = {
   INVITATION_COOLDOWN: 'Chưa đủ thời gian để gửi lại lời mời.',
   INVITATION_EXPIRED: 'Lời mời đã hết hạn.',
   INVITATION_ALREADY_USED: 'Lời mời đã được sử dụng.',
-  INVITATION_INVALIDATED: 'Lời mời này không còn hiệu lực.',
+  INVITATION_INVALIDATED: 'Lời mời này đã bị người gửi hủy hoặc không còn hiệu lực.',
+  INVITATION_WRONG_ACCOUNT: 'Lời mời này dành cho một tài khoản khác.',
   CHAT_IMAGE_TOO_LARGE: 'Ảnh hoặc tổng dung lượng ảnh vượt giới hạn cho phép.',
   CHAT_IMAGE_STORAGE_UNAVAILABLE: 'Chưa thể lưu ảnh. Vui lòng thử lại sau.',
   CHAT_IMAGE_PROCESSOR_BUSY: 'Hệ thống xử lý ảnh đang bận. Vui lòng thử lại sau.',
@@ -25,7 +26,7 @@ function failure(status: number, body: Record<string, unknown>, retryHeader: str
   const code = typeof body.code === 'string' && /^[A-Z0-9_]{1,80}$/.test(body.code) ? body.code : 'REQUEST_FAILED'
   const retry = Number(body.retry_after_seconds ?? retryHeader ?? 0)
   const message = messages[code] ?? (status === 401 ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : status === 403 ? 'Tài khoản chưa có quyền thực hiện thao tác này. Kiểm tra email đã xác minh và vai trò tài khoản.' : status === 404 ? 'Không tìm thấy dữ liệu hoặc bạn không có quyền xem.' : status === 409 ? 'Trạng thái đã thay đổi hoặc lời mời đang tồn tại. Hãy tải lại danh sách.' : status === 400 ? 'Thông tin gửi lên chưa hợp lệ.' : status >= 500 ? 'Dịch vụ hiện chưa sẵn sàng. Vui lòng thử lại sau.' : 'Không thể hoàn tất yêu cầu.')
-  return new ApiError(status, code, message, Number.isFinite(retry) ? Math.max(0, retry) : 0, isUuid(body.friend_invitation_id) ? body.friend_invitation_id : undefined)
+  return new ApiError(status, code, message, Number.isFinite(retry) ? Math.max(0, retry) : 0, isUuid(body.friend_invitation_id) ? body.friend_invitation_id : undefined, typeof body.recipient_hint === 'string' && body.recipient_hint.length <= 120 ? body.recipient_hint : undefined)
 }
 function requestWithTimeout<T>(request: (signal: AbortSignal) => Promise<T>, externalSignal: AbortSignal | undefined, timeoutMs: number): Promise<T> {
   const controller = new AbortController()

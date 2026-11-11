@@ -44,3 +44,37 @@ describe('Friends real API controls', () => {
 })
 
 
+
+describe('Friend invitations: decline and cancel', () => {
+  const incomingItem = { friend_invitation_id: invitation, sender_account_id: peer, sender_display_name: 'Bạn trên server', created_at: '2026-10-30', expires_at: '2026-11-07T00:00:00Z' }
+  const outgoingItem = { friend_invitation_id: invitation, recipient_email: 'peer@example.test', status: 'PENDING', created_at: '2026-10-30', expires_at: '2026-11-07T00:00:00Z', accepted_at: null }
+
+  it('declines an incoming invitation from the list', async () => {
+    const posted: string[] = []
+    const fetcher = vi.fn(async (path: string, options: RequestInit) => {
+      if (path === '/api/v1/me') return response({ account_id: actor, email: 'real@example.test', profile: null })
+      if (options.method === 'POST') { posted.push(path); return response({ friend_invitation_id: invitation, status: 'INVALIDATED', outcome: 'INVITATION_DECLINED', delivery_status: null, retry_after_seconds: 0, expires_at: null }) }
+      if (path.includes('/incoming?')) return response(page(posted.length ? [] : [incomingItem]))
+      return response(page([]))
+    }); vi.stubGlobal('fetch', fetcher); renderFriends(); const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /Đã nhận/ }))
+    await user.click(await screen.findByRole('button', { name: 'Từ chối' }))
+    await waitFor(() => expect(posted).toEqual([`/wardrobe-community/api/v1/me/friend-invitations/${invitation}/decline`]))
+    expect(await screen.findByText('Đã từ chối lời mời.')).toBeInTheDocument()
+  })
+
+  it('cancels a pending sent invitation', async () => {
+    const posted: string[] = []
+    const fetcher = vi.fn(async (path: string, options: RequestInit) => {
+      if (path === '/api/v1/me') return response({ account_id: actor, email: 'real@example.test', profile: null })
+      if (options.method === 'POST') { posted.push(path); return response({ friend_invitation_id: invitation, status: 'INVALIDATED', outcome: 'INVITATION_CANCELLED', delivery_status: null, retry_after_seconds: 0, expires_at: null }) }
+      if (path.includes('/me/friend-invitations?')) return response(page(posted.length ? [{ ...outgoingItem, status: 'INVALIDATED' }] : [outgoingItem]))
+      return response(page([]))
+    }); vi.stubGlobal('fetch', fetcher); renderFriends(); const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /Đã gửi/ }))
+    await user.click(await screen.findByRole('button', { name: 'Hủy lời mời' }))
+    await waitFor(() => expect(posted).toEqual([`/wardrobe-community/api/v1/me/friend-invitations/${invitation}/cancel`]))
+    expect(await screen.findByText('Đã hủy')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Hủy lời mời' })).not.toBeInTheDocument()
+  })
+})

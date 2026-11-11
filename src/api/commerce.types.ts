@@ -73,10 +73,19 @@ export interface ProductListResponse {
 
 export interface ProductListQuery {
   keyword?: string
-  category_id?: UUID
+  /** One id, or several (a product matches when it is in any of them). */
+  category_id?: UUID | UUID[]
   min_price_vnd?: number
   max_price_vnd?: number
   demographic_segment?: string
+  page?: number
+  size?: number
+}
+
+export interface AdminProductListQuery {
+  keyword?: string
+  category_id?: UUID | UUID[]
+  status?: 'ACTIVE' | 'INACTIVE'
   page?: number
   size?: number
 }

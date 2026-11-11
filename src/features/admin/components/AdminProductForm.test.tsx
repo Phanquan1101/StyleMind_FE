@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import { commerceApi } from '@/api/commerce'
 import { CommerceApiError } from '@/api/http'
@@ -20,7 +21,8 @@ const savedProduct = (price: number, withVariant = true) => ({
 
 async function openCreateForm(dispatch = vi.fn()) {
   const user = userEvent.setup()
-  render(<ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={dispatch} /></ToastProvider>)
+  vi.spyOn(commerceApi.products, 'listAdmin').mockResolvedValue({ items: [], page: 0, size: 20, total_elements: 0, total_pages: 0 })
+  render(<MemoryRouter><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={dispatch} /></ToastProvider></MemoryRouter>)
   await user.click(screen.getByRole('button', { name: 'Thêm sản phẩm' }))
   return user
 }
@@ -101,4 +103,22 @@ it('shows server validation errors under the matching input', async () => {
   await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
   expect(await screen.findByText('Tên sản phẩm tối đa 160 ký tự')).toBeInTheDocument()
   expect(screen.getByLabelText('Tên sản phẩm', { exact: false })).toHaveAttribute('aria-invalid', 'true')
+})
+
+it('pages through the server list and keeps page and keyword in the URL', async () => {
+  const listAdmin = vi.spyOn(commerceApi.products, 'listAdmin').mockImplementation(async query => ({
+    items: [{ ...savedProduct(100000), product_id: `p-${query?.page ?? 0}`, name: `Áo trang ${(query?.page ?? 0) + 1}` }] as never,
+    page: query?.page ?? 0, size: 20, total_elements: 41, total_pages: 3,
+  }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin?section=products&page=2&q=ao']}><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
+
+  expect(await screen.findByText('Áo trang 2')).toBeInTheDocument()
+  expect(listAdmin).toHaveBeenCalledWith(expect.objectContaining({ keyword: 'ao', page: 1, size: 20 }))
+  expect(screen.getByText('Trang 2 / 3')).toBeInTheDocument()
+  expect(screen.getByText(/21–21 \/ 41 sản phẩm/)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Sau' }))
+  expect(await screen.findByText('Áo trang 3')).toBeInTheDocument()
+  expect(listAdmin).toHaveBeenLastCalledWith(expect.objectContaining({ keyword: 'ao', page: 2 }))
 })

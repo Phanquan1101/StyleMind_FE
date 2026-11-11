@@ -99,6 +99,7 @@ it('previews and sends a selected image as multipart data', async () => {
   vi.stubGlobal('URL', TestURL)
   const fetcher = vi.fn(async (path: string, options: RequestInit = {}) => {
     const body = path === '/api/v1/me' ? { account_id: actor, email: 'real@example.test', profile: null }
+      : path.includes('/me/chats/capabilities') ? { images_enabled: true }
       : options.method === 'POST' ? { chat_message_id: actor }
       : path.includes('/me/chats?') ? { items: [{ chat_session_id: chat, friend_account_id: actor }], page: 0, size: 20, total_elements: 1, total_pages: 1 }
       : { items: [], has_more: false, next_before_sequence: null }
@@ -115,6 +116,18 @@ it('previews and sends a selected image as multipart data', async () => {
   await waitFor(() => expect(fetcher.mock.calls.some(([path, options]) => path.includes('/messages') && options?.method === 'POST' && options?.body instanceof FormData)).toBe(true))
   const post = fetcher.mock.calls.find(([path, options]) => path.includes('/messages') && options?.method === 'POST')
   expect((post?.[1]?.body as FormData).getAll('images')).toHaveLength(1)
+})
+it('hides the image picker when the server has no image storage', async () => {
+  const actor = '10000000-0000-0000-0000-000000000001', chat = '20000000-0000-0000-0000-000000000002'
+  saveApiSession(`e30.${btoa(JSON.stringify({ sub: actor, roles: ['CUSTOMER'] }))}.sig`, Date.now() + 60000)
+  vi.stubGlobal('fetch', vi.fn(async (path: string) => new Response(JSON.stringify(path === '/api/v1/me' ? { account_id: actor, email: 'real@example.test', profile: null }
+    : path.includes('/me/chats/capabilities') ? { images_enabled: false }
+    : path.includes('/me/chats?') ? { items: [{ chat_session_id: chat, friend_account_id: actor }], page: 0, size: 20, total_elements: 1, total_pages: 1 }
+    : { items: [], has_more: false, next_before_sequence: null }), { status: 200 })))
+  render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/messages'] })} /></AppProviders>)
+  expect(await screen.findByLabelText('Tin nhắn')).toBeInTheDocument()
+  await screen.findByText('Tính năng gửi ảnh chưa được bật trên hệ thống này.')
+  expect(screen.queryByLabelText('Chọn ảnh')).not.toBeInTheDocument()
 })
 it('hides the composer when chat history is no longer accessible', async () => {
   const actor = '10000000-0000-0000-0000-000000000001', chat = '20000000-0000-0000-0000-000000000002'

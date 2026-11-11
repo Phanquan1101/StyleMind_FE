@@ -24,6 +24,8 @@ export const communityApi = {
   invite: (email: string) => apiRequest<InvitationResult>(`${base}/me/friend-invitations`, { method: 'POST', body: { recipient_email: email.trim().toLowerCase() } }),
   accept: async (id: string) => apiRequest<InvitationResult>(`${base}/me/friend-invitations/${uuid(id)}/accept`, { method: 'POST', body: {} }),
   acceptLink: async (id: string, token: string) => apiRequest<InvitationResult>(`${base}/me/friend-invitations/accept`, { method: 'POST', body: { friend_invitation_id: uuid(id), token } }),
+  decline: async (id: string) => apiRequest<InvitationResult>(`${base}/me/friend-invitations/${uuid(id)}/decline`, { method: 'POST', body: {} }),
+  cancel: async (id: string) => apiRequest<InvitationResult>(`${base}/me/friend-invitations/${uuid(id)}/cancel`, { method: 'POST', body: {} }),
   resend: async (id: string) => apiRequest<InvitationResult>(`${base}/me/friend-invitations/${uuid(id)}/resend`, { method: 'POST', body: {} }),
   unfriend: async (id: string) => apiRequest<void>(`${base}/me/friends/${uuid(id)}`, { method: 'DELETE' }),
   outfits: (index = 0, signal?: AbortSignal) => page<OutfitSummaryDto>('/me/outfits', index, signal),

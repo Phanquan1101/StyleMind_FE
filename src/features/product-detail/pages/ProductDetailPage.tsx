@@ -139,6 +139,7 @@ export function ProductDetailPage() {
       if (guest.busy) return
       try { await guest.addItem(selection.variant.id, quantity) }
       catch (failure) { setValidationError(guestCartErrorMessage(failure)); return }
+      if (!buyNow) toast.success(`Đã thêm ${quantity} món vào giỏ`, { label: 'Xem giỏ hàng', onClick: () => navigate(ROUTES.cart) })
     }
 
     if (buyNow) {
