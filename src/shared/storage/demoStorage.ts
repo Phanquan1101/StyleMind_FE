@@ -48,8 +48,17 @@ export function readDemoSnapshot(raw: string | null): DemoDatabase | null {
   } catch { return null }
 }
 
+// The demo store also mirrors server-owned catalog data (hundreds of products with variants and
+// images), which can exceed the ~5 MB localStorage quota. A failed write must never crash the app,
+// so fall back to a snapshot without the catalog and finally give up silently.
 function persist(storage: Storage, database: DemoDatabase) {
-  storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(database))
+  try {
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(database))
+    return
+  } catch { /* quota exceeded or storage unavailable: try a smaller snapshot */ }
+  try {
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ ...database, products: [], categories: [] }))
+  } catch { /* storage is unusable; the in-memory state keeps working */ }
 }
 
 function recover(storage: Storage): LoadDatabaseResult {

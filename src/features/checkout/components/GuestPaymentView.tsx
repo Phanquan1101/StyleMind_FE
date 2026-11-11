@@ -60,7 +60,13 @@ export default function GuestPaymentView({
     COMPLETED: { title: 'Đơn hàng đã giao thành công', detail: 'Cảm ơn bạn đã mua sắm tại StyleMind.' },
     CANCELLED: { title: 'Đơn hàng đã được hủy', detail: 'Đơn hàng này sẽ không được giao.' },
   }
-  const codDisplay = order ? codStatus[order.order_status] : undefined
+  // The shop's confirmation is tracked separately from order_status (which stays PLACED/PAID until processing starts).
+  const confirmedByShop = order?.confirmation_state === 'CONFIRMED' && ['PLACED', 'PAID'].includes(order.order_status)
+  const codDisplay = order
+    ? confirmedByShop
+      ? { title: 'Cửa hàng đã xác nhận đơn hàng', detail: 'Đơn hàng sẽ sớm được chuẩn bị và giao đến bạn.' }
+      : codStatus[order.order_status]
+    : undefined
 
   useEffect(() => {
     if (!copied) return
@@ -96,7 +102,7 @@ export default function GuestPaymentView({
       </div>
       {order && <span className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${pending ? 'border-warning/20 bg-warning-bg text-warning-ink' : closed ? 'border-sand bg-sand/40 text-secondary' : 'border-success/20 bg-success-bg text-success'}`}>
         {pending ? <Clock3 size={15} aria-hidden="true" /> : <PackageCheck size={15} aria-hidden="true" />}
-        {orderLabels[order.order_status] ?? 'Đang cập nhật'}
+        {confirmedByShop ? 'Đã xác nhận' : orderLabels[order.order_status] ?? 'Đang cập nhật'}
       </span>}
     </header>
 

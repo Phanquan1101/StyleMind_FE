@@ -100,7 +100,8 @@ export function commerceOrderToEntity(order: OrderResponse): Order {
     confirmationState: order.confirmation_state,
     backendStatus: order.order_status,
     paymentMethod: order.payment_method === 'COD' ? 'cod' : 'vietqr',
-    paymentStatus: 'unknown',
+    // The API reports PAID when a confirmed payment exists, otherwise PENDING; absent means unknown.
+    paymentStatus: order.payment_status === 'PAID' ? 'paid' : order.payment_status === 'PENDING' ? 'pending' : 'unknown',
     paymentReference: order.order_number,
     items: order.items.map(item => ({
       productId: item.variant_id,

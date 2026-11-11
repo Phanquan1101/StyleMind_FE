@@ -1,5 +1,5 @@
 import { ArrowLeft, CreditCard, Eye, MapPin, Package } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { commerceApi } from '@/api/commerce'
@@ -8,6 +8,7 @@ import type { Order, OrderStatus } from '@/entities/order/model/types'
 import { orderStatusLabel, paymentMethodLabel, paymentStatusLabel } from '@/features/admin/model/adminLabels'
 import { selectAdminOrders } from '@/features/admin/model/adminSelectors'
 import type { AdminOrderFilters } from '@/features/admin/model/adminTypes'
+import { identityApi } from '@/shared/api/identityApi'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { formatDate } from '@/shared/lib/formatDate'
 import { Button, SelectField, TextField, useToast } from '@/shared/ui'
@@ -90,8 +91,27 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
   const [filters, setFilters] = useState<AdminOrderFilters>({ query: '', status: 'all', paymentMethod: 'all' })
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedOrderId = searchParams.get('orderId')
+  const [customerEmails, setCustomerEmails] = useState<Map<string, string>>(new Map())
   const rows = useMemo(() => selectAdminOrders(database, filters), [database, filters])
   const selectedOrder = selectedOrderId ? database.orders.find(order => order.id === selectedOrderId) ?? null : null
+
+  // The orders API only returns customer_id, so resolve account emails through the admin users API (best effort).
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') return
+    let active = true
+    void (async () => {
+      const emails = new Map<string, string>()
+      try {
+        for (let page = 0; page < 20; page++) {
+          const result = await identityApi.listUsers({ page, size: 100 })
+          result.items.forEach(user => emails.set(user.account_id, user.email))
+          if (page + 1 >= result.total_pages) break
+        }
+      } catch { /* names fall back to the order recipient */ }
+      if (active) setCustomerEmails(emails)
+    })()
+    return () => { active = false }
+  }, [])
 
   const openOrderDetail = (orderId: string) => {
     setSearchParams(current => {
@@ -242,11 +262,14 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                       <p className="font-semibold text-[#222222]">{row.id}</p>
                       <p className="mt-0.5 text-xs text-[#5E5F5D]">{row.itemCount} sản phẩm</p>
                     </td>
-                    <td className="px-4 py-3 text-[#3A3632]">{row.customerName}</td>
+                    <td className="px-4 py-3 text-[#3A3632]">
+                      <p>{row.customerName}</p>
+                      {customerEmails.get(row.customerId) && <p className="mt-0.5 text-xs text-[#5E5F5D]">{customerEmails.get(row.customerId)}</p>}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-[#5E5F5D]">{formatDate(row.createdAt)}</td>
                     <td className="px-4 py-3">
                       <p className="text-[#3A3632]">{paymentMethodLabel[row.paymentMethod]}</p>
-                      <p className="mt-0.5 text-xs text-[#5E5F5D]">{paymentStatusLabel[row.paymentStatus]}</p>
+                      <p className="mt-0.5 text-xs text-[#5E5F5D]">{row.paymentMethod === 'cod' && row.paymentStatus === 'pending' ? 'Chưa thu tiền' : paymentStatusLabel[row.paymentStatus]}</p>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3"><StatusBadge tone={statusTone(row.status)}>{needsConfirmation ? 'Chờ xác nhận' : orderStatusLabel[row.status]}</StatusBadge></td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-[#222222]">{formatCurrency(row.total)}</td>

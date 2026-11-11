@@ -51,6 +51,7 @@ export interface AdminOrderFilters {
 
 export interface AdminOrderRow {
   id: string
+  customerId: string
   customerName: string
   createdAt: string
   total: number

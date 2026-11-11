@@ -35,6 +35,7 @@ interface ProductFormState {
   colorHex: string
   size: ProductSize
   variantPriceOverride: string
+  quantity: string
   variantActive: boolean
   imageUrl: string
 }
@@ -82,6 +83,7 @@ function createInitialForm(categoryId: string, database: DemoDatabase): ProductF
     colorHex: '#FFFFFF',
     size: 'M',
     variantPriceOverride: '',
+    quantity: '10',
     variantActive: true,
     imageUrl: '',
   }
@@ -108,7 +110,10 @@ function createFormFromProduct(product: Product, database: DemoDatabase): Produc
     color: variant?.color ?? '',
     colorHex: variant?.colorHex ?? '#FFFFFF',
     size: variant?.size ?? 'M',
-    variantPriceOverride: variant?.priceOverride ? String(variant.priceOverride) : '',
+    // The API always returns a variant price; only show it as an override when it differs from the
+    // base price, otherwise editing "Giá cơ bản" would be silently ignored.
+    variantPriceOverride: variant?.priceOverride && variant.priceOverride !== product.basePrice ? String(variant.priceOverride) : '',
+    quantity: String(variant?.stock ?? 0),
     variantActive: variant?.active ?? true,
     imageUrl: primaryImage?.url ?? '',
   }
@@ -218,10 +223,8 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       !form.name.trim() ||
       !form.brand.trim() ||
       !form.categoryId ||
-      !form.description.trim() ||
-      !form.material.trim() ||
-      !form.fit.trim() ||
-      !form.pattern.trim() ||
+      // Phom dáng / Họa tiết are not stored by the commerce API (products loaded from it have them empty),
+      // and description/material are optional there, so requiring them made every edit of an API product fail.
       !form.color.trim() ||
       (!editingProductId && !imageFile)
     ) {
@@ -236,6 +239,12 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
 
     if (variantPriceOverride !== undefined && (!Number.isFinite(variantPriceOverride) || variantPriceOverride <= 0)) {
       setFormError('Giá biến thể phải lớn hơn 0 hoặc để trống.')
+      return
+    }
+
+    const quantity = Number(form.quantity)
+    if (form.quantity.trim() === '' || !Number.isInteger(quantity) || quantity < 0) {
+      setFormError('Tồn kho phải là số nguyên từ 0 trở lên.')
       return
     }
 
@@ -275,11 +284,13 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       if (!editingProductId) setEditingProductId(savedProduct.product_id)
       const currentVariant = savedProduct.variants[0]
       const variantInput = {
-        sku: currentVariant?.sku || `${toSlug(form.name)}-${toSlug(form.color)}-${form.size}`.toUpperCase(),
+        // SKU must match [A-Za-z0-9][A-Za-z0-9_-]{0,63} and be unique on the server.
+        sku: currentVariant?.sku || `${`${toSlug(form.name)}-${toSlug(form.color)}-${form.size}`.slice(0, 54)}-${Date.now().toString(36).slice(-8)}`.toUpperCase(),
         size: form.size,
         color: form.color.trim(),
         material: form.material.trim() || null,
         unit_price_vnd: variantPriceOverride ?? basePrice,
+        quantity,
         variant_status: form.variantActive ? 'ACTIVE' : 'INACTIVE',
       }
       variantCreateStarted = !currentVariant
@@ -475,6 +486,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                                 color: source.color,
                                                 material: source.material,
                                                 unit_price_vnd: source.unit_price_vnd,
+                                                quantity: source.available_quantity,
                                                 variant_status: active ? 'ACTIVE' : 'INACTIVE',
                                               })
                                               return commerceApi.products.getAdmin(row.id)
@@ -573,6 +585,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
               value={form.variantPriceOverride}
               onChange={event => updateField('variantPriceOverride', event.target.value)}
             />
+            <TextField label="Tồn kho" type="number" min="0" step="1" value={form.quantity} onChange={event => updateField('quantity', event.target.value)} />
             <label className="grid gap-2 text-sm font-semibold">Ảnh sản phẩm<input aria-label="Ảnh sản phẩm" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {
               const file = event.target.files?.[0] ?? null
               setImageFile(file); setImagePreview('')

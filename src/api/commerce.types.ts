@@ -95,6 +95,7 @@ export interface VariantInput {
   color: string | null
   material: string | null
   unit_price_vnd: number
+  quantity: number
   variant_status: string
 }
 
@@ -203,6 +204,7 @@ export interface OrderResponse {
   checkout_key: string
   order_status: string
   confirmation_state?: 'UNCONFIRMED' | 'CONFIRMED' | 'LEGACY_UNKNOWN'
+  payment_status?: 'PENDING' | 'PAID' | string
   payment_method: 'COD' | 'SEPAY_VIETQR'
   accepted_total_vnd: number
   placed_at: string | null

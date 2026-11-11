@@ -105,7 +105,9 @@ export function selectAdminOrders(database: DemoDatabase, filters: AdminOrderFil
     .filter(order => !filters.paymentMethod || filters.paymentMethod === 'all' || order.paymentMethod === filters.paymentMethod)
     .map(order => ({
       id: order.id,
-      customerName: users.get(order.userId) ?? 'Khách hàng',
+      customerId: order.userId,
+      // The orders API has no customer name; fall back to the recipient on the order.
+      customerName: users.get(order.userId) ?? (order.shippingAddress.recipientName || 'Khách hàng'),
       createdAt: order.createdAt,
       total: order.total,
       status: order.status,
