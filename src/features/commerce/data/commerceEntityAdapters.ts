@@ -100,7 +100,9 @@ export function commerceOrderToEntity(order: OrderResponse): Order {
     confirmationState: order.confirmation_state,
     backendStatus: order.order_status,
     paymentMethod: order.payment_method === 'COD' ? 'cod' : 'vietqr',
-    paymentStatus: 'unknown',
+    paymentStatus: order.payment_status === 'PAID' ? 'paid' : order.payment_status === 'PENDING' ? 'pending' : 'unknown',
+    refundStatus: order.refund_status,
+    refundedAmountVnd: order.refunded_amount_vnd,
     paymentReference: order.order_number,
     items: order.items.map(item => ({
       productId: item.variant_id,

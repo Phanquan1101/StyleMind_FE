@@ -11,4 +11,8 @@ it('does not invent a payment status from an order status when the API does not 
     items: [], history: [], cancellation_request: null,
   }
   expect(commerceOrderToEntity(response).paymentStatus).toBe('unknown')
+  const confirmed = commerceOrderToEntity({ ...response, payment_status: 'PAID', refund_status: 'REFUNDED', refunded_amount_vnd: 120000 })
+  expect(confirmed.paymentStatus).toBe('paid')
+  expect(confirmed.refundStatus).toBe('REFUNDED')
+  expect(confirmed.refundedAmountVnd).toBe(120000)
 })

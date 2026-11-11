@@ -32,6 +32,8 @@ export interface OrderTimelineItem {
 }
 
 export interface Order {
+  refundStatus?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null
+  refundedAmountVnd?: number
   id: string
   userId: string
   status: OrderStatus

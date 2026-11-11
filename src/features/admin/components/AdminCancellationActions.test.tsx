@@ -10,6 +10,13 @@ const api = vi.hoisted(() => ({ confirm: vi.fn(), reviewCancellation: vi.fn(), u
 const cod = vi.hoisted(() => vi.fn())
 vi.mock('@/features/payments/api/paymentClient', () => ({ paymentApi: { confirmDeliveredCod: cod }, paymentErrorMessage: () => 'Chưa xác nhận thu COD.' }))
 vi.mock('@/api/commerce', () => ({ commerceApi: { orders: api } }))
+it('does not offer COD collection after the server confirms payment on reload', () => {
+ const database = createDemoSeed()
+ database.orders = [{ ...database.orders[0], status: 'completed', paymentMethod: 'cod', paymentStatus: 'paid', refundStatus: 'REFUNDED' } as typeof database.orders[number]]
+ render(<MemoryRouter><ToastProvider><AdminOrdersPanel database={database} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
+ expect(screen.queryByRole('button', { name: 'Xác nhận đã thu COD' })).not.toBeInTheDocument()
+ expect(screen.getByText('Đã hoàn tiền')).toBeVisible()
+})
 it('hoàn tất giao COD rồi ghi nhận thu tiền trên cùng đơn', async () => {
  const database = createDemoSeed()
  database.orders = [{ ...database.orders[0], status: 'shipped', paymentMethod: 'cod' }]

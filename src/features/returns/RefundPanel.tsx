@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Landmark, RefreshCw } from 'lucide-react'
 import { Button } from '@/shared/ui'
+import RefundReceipt from './RefundReceipt'
 import { ApiError } from '@/shared/api/http'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { flowErrorMessage, normalizeReason, refundsApi, refundStatusLabel, type Refund, type RefundDestination, type RefundSource } from './returnsApi'
@@ -160,6 +161,8 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
           {refund.refunded_at && <div><dt className="text-xs text-secondary">Thời gian hoàn tiền</dt><dd className="mt-1 font-medium"><time dateTime={refund.refunded_at}>{new Date(refund.refunded_at).toLocaleString('vi-VN')}</time></dd></div>}
         </dl>}
         {refund.failure_reason && <p className="whitespace-pre-wrap break-words rounded-lg bg-error-bg p-3 text-red-800">{refund.failure_reason}</p>}
+        <RefundReceipt key={source + sourceId} source={source} sourceId={sourceId} refund={refund} admin={admin} onSaved={setRefund} />
+        {admin && status === 'PENDING' && <p className="text-secondary">Khách đã gửi tài khoản nhận tiền. Bấm Bắt đầu hoàn tiền, sau đó Xem tài khoản nhận tiền để đọc thông tin chuyển khoản.</p>}
 
         {!admin && status === 'PENDING' && !editBank && <Button type="button" size="sm" variant="secondary" onClick={() => setEditBank(true)}>Cập nhật tài khoản nhận tiền</Button>}
         {!admin && (status === 'AWAITING_DETAILS' || (status === 'PENDING' && editBank)) && (

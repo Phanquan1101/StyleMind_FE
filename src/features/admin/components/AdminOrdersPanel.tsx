@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { commerceApi } from '@/api/commerce'
+import { orderRefundLabel } from '@/features/orders/model/orderRefundStatus'
 import { paymentApi, paymentErrorMessage } from '@/features/payments/api/paymentClient'
 import type { DemoAction, DemoDatabase } from '@/app/store/types'
 import type { Order, OrderStatus } from '@/entities/order/model/types'
@@ -252,8 +253,8 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                 <th scope="col" className="px-4 py-3">Ngày đặt</th>
                 <th scope="col" className="px-4 py-3">Thanh toán</th>
                 <th scope="col" className="px-4 py-3">Trạng thái</th>
-                <th scope="col" className="px-4 py-3 text-right">Tổng tiền</th>
-                <th scope="col" className="px-4 py-3 text-right">Thao tác</th>
+                <th scope="col" className="min-w-[140px] px-4 py-3 text-right">Tổng tiền</th>
+                <th scope="col" className="w-[300px] min-w-[260px] px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E0D8]">
@@ -268,19 +269,19 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                 return (
                   <tr key={row.id} className="align-middle hover:bg-[#FBF9F9]/70">
                     <td className="whitespace-nowrap px-4 py-3">
-                      <p className="font-semibold text-[#222222]">{row.id}</p>
+                      <p title={row.id} className="max-w-[260px] truncate font-semibold text-[#222222]">{row.id}</p>
                       <p className="mt-0.5 text-xs text-[#5E5F5D]">{row.itemCount} sản phẩm</p>
                     </td>
                     <td className="px-4 py-3 text-[#3A3632]">{row.customerName}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-[#5E5F5D]">{formatDate(row.createdAt)}</td>
-                    <td className="px-4 py-3">
+                    <td className="min-w-[140px] px-4 py-3">
                       <p className="text-[#3A3632]">{paymentMethodLabel[row.paymentMethod]}</p>
                       <p className="mt-0.5 text-xs text-[#5E5F5D]">{paymentStatusLabel[row.paymentStatus]}</p>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3"><StatusBadge tone={statusTone(row.status)}>{needsConfirmation ? 'Chờ xác nhận' : orderStatusLabel[row.status]}</StatusBadge></td>
+                    <td className="px-4 py-3"><StatusBadge tone={statusTone(row.status)}>{orderRefundLabel(original?.refundStatus) ?? (needsConfirmation ? 'Chờ xác nhận' : orderStatusLabel[row.status])}</StatusBadge>{!!original?.refundStatus && <p className="mt-1 text-xs text-[#5E5F5D]">Giao hàng: {orderStatusLabel[row.status]}</p>}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-[#222222]">{formatCurrency(row.total)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="w-[300px] min-w-[260px] px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <Button
                           type="button"
                           size="sm"
@@ -291,7 +292,7 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                         >
                           Chi tiết
                         </Button>
-                        {original?.status === 'completed' && original.paymentMethod === 'cod' && !collectedCod.has(row.id) && <Button type="button" size="sm" disabled={Boolean(updating)} onClick={() => void retryCod(row.id)}>Xác nhận đã thu COD</Button>}
+                        {original?.status === 'completed' && original.paymentMethod === 'cod' && original.paymentStatus !== 'paid' && !collectedCod.has(row.id) && <Button type="button" size="sm" disabled={Boolean(updating)} onClick={() => void retryCod(row.id)}>Xác nhận đã thu COD</Button>}
                         {needsConfirmation ? <Button type="button" size="sm" disabled={Boolean(confirming)} onClick={() => void confirmOrder(row.id)}>Xác nhận đơn</Button> : next.length === 0 ? (
                           <span className="whitespace-nowrap text-xs font-medium text-[#5E5F5D]">{original?.confirmationState === 'LEGACY_UNKNOWN' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '') ? 'Đơn cũ cần kiểm tra' : 'Trạng thái cuối'}</span>
                         ) : next.map(status => (

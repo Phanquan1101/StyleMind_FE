@@ -14,6 +14,13 @@ beforeEach(() => {
   mocks.pendingQr.mockResolvedValue({ items: [], page: 0, size: 10, total_pages: 0, total_elements: 0 })
 })
 
+it('shows refund results separately from completed delivery for partial returns', async () => {
+  mocks.list.mockResolvedValue({ items: [{ order_id: '123', order_number: 'SM001', order_status: 'COMPLETED', refund_status: 'PARTIALLY_REFUNDED', refunded_amount_vnd: 60000, accepted_total_vnd: 120000 }], total_pages: 1, total_elements: 1 })
+  render(<MemoryRouter><AccountOrdersPage /></MemoryRouter>)
+  expect(await screen.findByText(/Đã hoàn tiền một phần/)).toBeVisible()
+  expect(screen.getByText(/Đã hoàn: 60.000/)).toBeVisible()
+})
+
 it('loads real account orders and filters using server status', async () => {
   mocks.list.mockResolvedValue({ items: [{ order_id: '123', order_number: 'SM001', order_status: 'SHIPPED', accepted_total_vnd: 120000, placed_at: '2026-01-01T00:00:00Z' }], page: 0, total_pages: 1, total_elements: 1 })
   render(<MemoryRouter><AccountOrdersPage /></MemoryRouter>)

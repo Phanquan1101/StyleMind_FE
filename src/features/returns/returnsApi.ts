@@ -50,6 +50,7 @@ export interface ReturnPage {
 }
 
 export interface Refund {
+  has_receipt?: boolean
   refund_id: string
   source_type: RefundSource
   source_id: string
@@ -88,6 +89,8 @@ export const returnReasonLimit = 1000
 export const normalizeReason = (reason: string) => reason.replace(/[\t\r\n]+/g, ' ').trim()
 
 const flowErrors: Record<string, string> = {
+  INVALID_REFUND_RECEIPT: 'Chọn ảnh JPG hoặc PNG thật, tối đa 5 MB và 16 megapixel.',
+  REFUND_RECEIPT_CONFLICT: 'Hồ sơ đã có ảnh biên nhận khác. Không thể thay thế ảnh đã lưu.',
   RETURN_STATE_CONFLICT: 'Trạng thái trả hàng đã thay đổi. Vui lòng tải lại yêu cầu.',
   REFUND_STATE_CONFLICT: 'Trạng thái hoàn tiền đã thay đổi. Vui lòng tải lại để kiểm tra.',
   REFUND_LEDGER_MISMATCH: 'Chưa đối chiếu được khoản hoàn với giao dịch thanh toán đã thu.',
@@ -183,6 +186,15 @@ async function refundRequest(source: RefundSource, id: string, path: string, opt
 }
 
 export const refundsApi = {
+  async uploadReceipt(source: RefundSource, id: string, image: File) {
+    const form = new FormData()
+    form.append('image', image)
+    const result = await refundRequest(source, id, adminRefundPath(source, id) + '/receipt', { method: 'POST', body: form })
+    if (result.has_receipt !== true) invalidResponse()
+    return result
+  },
+  receipt: (source: RefundSource, id: string, signal: AbortSignal) =>
+    apiRequest<Blob>(refundPath(source, id) + '/receipt', { responseType: 'blob', signal }),
   read: async (source: RefundSource, id: string, signal?: AbortSignal) =>
     refundRequest(source, id, refundPath(source, id), { signal }),
   prepare: async (source: RefundSource, id: string) =>

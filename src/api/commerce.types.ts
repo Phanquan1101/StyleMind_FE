@@ -181,6 +181,9 @@ export interface CancellationRequestResponse {
 }
 
 export interface OrderResponse {
+  payment_status?: 'PAID' | 'PENDING'
+  refunded_amount_vnd?: number
+  refund_status?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null
   order_id: UUID
   order_number: string
   customer_id: UUID
