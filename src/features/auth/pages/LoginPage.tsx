@@ -12,13 +12,27 @@ import { intendedPathFromState } from '../model/redirect'
 import { useAuth } from '../model/useAuth'
 import { validateLoginInput } from '../model/validators'
 
+const LAST_EMAIL_KEY = 'stylemind_last_login_email'
+
+// Only the e-mail is remembered here. The password is left to the browser's own password manager
+// (autocomplete="current-password"), never stored by the app.
+function readLastEmail(): string {
+  try { return window.localStorage.getItem(LAST_EMAIL_KEY) ?? '' } catch { return '' }
+}
+function writeLastEmail(email: string, remember: boolean) {
+  try {
+    if (remember) window.localStorage.setItem(LAST_EMAIL_KEY, email.trim())
+    else window.localStorage.removeItem(LAST_EMAIL_KEY)
+  } catch { /* storage unavailable: nothing to remember */ }
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const auth = useAuth()
   const verifiedEmail = (location.state as { verifiedEmail?: string } | null)?.verifiedEmail
   const checkoutLoginRequired = Boolean((location.state as { checkoutLoginRequired?: boolean } | null)?.checkoutLoginRequired)
-  const [input, setInput] = useState<LoginInput>({ email: verifiedEmail ?? '', password: '', remember: true })
+  const [input, setInput] = useState<LoginInput>(() => ({ email: verifiedEmail ?? readLastEmail(), password: '', remember: true }))
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -39,6 +53,7 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const user = await auth.login(input)
+      writeLastEmail(input.email, input.remember)
       navigate(redirectAfterLogin(user.role), { replace: true })
     } catch (error) {
       setSubmitError(identityErrorMessage(error, 'Không thể đăng nhập'))
@@ -54,8 +69,10 @@ export function LoginPage() {
       <form className="mt-8 grid gap-5" onSubmit={handleSubmit}>
         <TextField
           label="Email"
+          id="Email"
+          name="email"
           type="email"
-          autoComplete="email"
+          autoComplete="username"
           value={input.email}
           error={errors.email}
           placeholder="ten@email.com"
@@ -65,6 +82,8 @@ export function LoginPage() {
         <div className="relative">
           <TextField
             label="Mật khẩu"
+            id="Mật khẩu"
+            name="password"
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             value={input.password}

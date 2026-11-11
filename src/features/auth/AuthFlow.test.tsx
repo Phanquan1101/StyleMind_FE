@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -71,12 +71,24 @@ describe('Auth flow', () => {
   it('offers email login and password visibility without Google sign-in', async () => {
     const user = userEvent.setup()
     renderAuthAt('/login')
-    expect(await screen.findByLabelText('Email')).toHaveAttribute('autocomplete', 'email')
+    expect(await screen.findByLabelText('Email')).toHaveAttribute('autocomplete', 'username')
     expect(screen.queryByRole('button', { name: /Google/ })).not.toBeInTheDocument()
     const password = screen.getByLabelText('Mật khẩu')
     expect(password).toHaveAttribute('type', 'password')
+    expect(password).toHaveAttribute('autocomplete', 'current-password')
     await user.click(screen.getByRole('button', { name: 'Hiện mật khẩu' }))
     expect(password).toHaveAttribute('type', 'text')
+  })
+  it('prefills the last e-mail used to sign in but never the password', async () => {
+    renderAuthAt('/login')
+    expect(await screen.findByLabelText('Email')).toHaveValue('')
+    // renderAuthAt clears storage, so remember the e-mail afterwards and open the login page again.
+    window.localStorage.setItem('stylemind_last_login_email', 'an@sm.test')
+    await act(async () => { await router.navigate('/register') })
+    await act(async () => { await router.navigate('/login') })
+    expect(await screen.findByLabelText('Email')).toHaveValue('an@sm.test')
+    expect(screen.getByLabelText('Mật khẩu')).toHaveValue('')
+    window.localStorage.removeItem('stylemind_last_login_email')
   })
   it('redirects the demo customer to the shop after login', async () => {
     renderAuthAt('/login')
