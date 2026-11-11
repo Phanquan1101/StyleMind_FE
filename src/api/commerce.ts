@@ -45,6 +45,8 @@ export const commerceApi = {
     create: (input: CatalogReferenceInput) => post<CatalogReference>('/api/v1/admin/categories', input),
     replace: (id: UUID, input: CatalogReferenceInput) => put<CatalogReference>(`/api/v1/admin/categories/${id}`, input),
     remove: (id: UUID) => del(`/api/v1/admin/categories/${id}`),
+    /** Permanent delete; the server answers 409 CATEGORY_HAS_PRODUCTS while any product still uses the category. */
+    removePermanently: (id: UUID) => del(`/api/v1/admin/categories/${id}?permanent=true`),
   },
   brands: {
     list: () => publicGet<CatalogReferenceList>('/api/v1/brands'),

@@ -1,15 +1,17 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { commerceApi } from '@/api/commerce'
 import { createDemoSeed } from '@/app/data/demoSeed'
 import { ToastProvider } from '@/shared/ui'
 import { AdminProductsPanel } from './AdminProductsPanel'
 
+beforeEach(() => { vi.spyOn(commerceApi.products, 'listAdmin').mockResolvedValue({ items: [], page: 0, size: 20, total_elements: 0, total_pages: 0 }) })
 afterEach(() => vi.restoreAllMocks())
 
 it('offers a file picker for product images instead of requiring an image URL', async () => {
-  render(<ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider>)
+  render(<MemoryRouter><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
   await userEvent.setup().click(screen.getByRole('button', { name: 'Thêm sản phẩm' }))
   expect(screen.getByLabelText('Ảnh sản phẩm')).toHaveAttribute('type', 'file')
   expect(screen.queryByLabelText('URL ảnh')).not.toBeInTheDocument()
@@ -24,7 +26,7 @@ it('uploads the selected file to the created variant', async () => {
   vi.spyOn(commerceApi.products, 'createVariant').mockResolvedValue(variant)
   const upload = vi.spyOn(commerceApi.products, 'uploadImage').mockResolvedValue({ image_id: 'image', variant_id: 'server-variant', image_url: '/image', alt_text: null, display_order: 0, is_primary: true })
   vi.spyOn(commerceApi.products, 'getAdmin').mockResolvedValue({ ...product, variants: [variant] })
-  render(<ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider>)
+  render(<MemoryRouter><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
   await user.click(screen.getByRole('button', { name: 'Thêm sản phẩm' }))
   for (const [label, value] of Object.entries({ 'ID sản phẩm': 'new', 'Tên sản phẩm': 'Áo test', 'Thương hiệu': 'Test', 'Giá cơ bản': '100000', 'Mô tả': 'Áo', 'Chất liệu': 'Cotton', 'Phom dáng': 'Vừa', 'Họa tiết': 'Trơn', 'Màu': 'Trắng' })) {
     await user.type(screen.getByLabelText(label), value)

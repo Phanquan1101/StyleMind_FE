@@ -59,6 +59,8 @@ const SERVER_FIELD_MAP: Record<string, FieldKey> = {
 }
 
 const PAGE_SIZE = 20
+/** A sellable variant with this many units or fewer left is flagged "Sắp hết hàng". */
+const LOW_STOCK = 5
 
 const SIZE_SUGGESTIONS = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'Một cỡ']
 const STEP_LABEL: Record<StepKey, string> = {
@@ -500,7 +502,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                           )}
                           <span className="min-w-0">
                             <span className="block truncate font-semibold text-[#222222]">{row.name}</span>
-                            <span className="mt-0.5 block truncate text-xs text-[#5E5F5D]">{row.id} · {row.brand}</span>
+                            <span className="mt-0.5 block truncate text-xs text-[#5E5F5D]">{row.brand}{row.skuLabel ? ` · SKU ${row.skuLabel}` : ''}</span>
                           </span>
                         </div>
                       </td>
@@ -514,7 +516,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                           onClick={() => setExpandedProductId(current => current === row.id ? null : row.id)}
                           className="inline-flex h-9 items-center gap-2 rounded-md border border-[#E5E0D8] bg-[#FBF9F9] px-3 text-xs font-semibold text-[#3A3632] transition hover:bg-[#EFEDED] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] focus-visible:ring-offset-2"
                         >
-                          {row.variantCount} biến thể
+                          {row.variantCount} biến thể{row.variants.some(variant => variant.active && variant.stock <= LOW_STOCK) ? <span className="rounded bg-[#FFF4D6] px-1.5 py-0.5 text-[10px] font-bold text-[#7A5A1E]">Sắp hết hàng</span> : null}
                           <ChevronDown aria-hidden="true" size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                       </td>
@@ -577,7 +579,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                         {variant.color}
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2.5 font-medium text-[#3A3632]">{variant.size}</td>
+                                    <td className="px-3 py-2.5 font-medium text-[#3A3632]">{variant.size}{variant.sku ? <span className="ml-2 text-xs font-normal text-[#5E5F5D]">SKU {variant.sku}</span> : null}{variant.active && variant.stock <= LOW_STOCK ? <span className="ml-2 rounded bg-[#FFF4D6] px-1.5 py-0.5 text-[10px] font-bold text-[#7A5A1E]">{variant.stock === 0 ? 'Hết hàng' : `Sắp hết hàng (còn ${variant.stock})`}</span> : null}</td>
                                     <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-[#3A3632]">{formatCurrency(variant.price)}</td>
                                     <td className="px-3 py-2.5 text-center">
                                       <span className="inline-flex justify-center">

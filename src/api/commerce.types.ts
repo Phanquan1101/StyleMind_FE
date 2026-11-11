@@ -16,6 +16,8 @@ export interface CatalogReference {
   name: string
   slug: string
   is_active: boolean
+  /** Admin category list only. */
+  product_count?: number
 }
 
 export interface CatalogReferenceList {

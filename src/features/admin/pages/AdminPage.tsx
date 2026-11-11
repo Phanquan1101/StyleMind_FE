@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { commerceApi } from '@/api/commerce'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 import { apiMode } from '@/shared/api/http'
 import { Button } from '@/shared/ui'
+import { AdminPaymentsPage } from '@/features/payments'
 import { AdminOverviewLive } from '@/features/admin/components/AdminOverviewLive'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
 import { AdminCustomersPanel } from '@/features/admin/components/AdminCustomersPanel'
@@ -19,13 +20,11 @@ import {
   commerceCategoryToEntity,
   commerceCancellationToEntity,
   commerceOrderToEntity,
-  commerceProductToEntity,
 } from '@/features/commerce/data/commerceEntityAdapters'
-import { loadAllCommerceProducts } from '@/features/commerce/data/loadCommerceProducts'
 import { loadAdminOrders } from '@/features/commerce/data/loadAdminOrders'
 
 // Notifications, settings and AI management have no backend yet, so they are not offered or reachable (hand-typed URLs show the overview).
-const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'requests', 'customers'])
+const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'payments', 'requests', 'customers'])
 
 function resolveSection(value: string | null): AdminSection {
   return value && sections.has(value as AdminSection) ? (value as AdminSection) : 'overview'
@@ -38,7 +37,8 @@ function sectionPlaceholder(section: AdminSection) {
     categories: 'Quản lý danh mục',
     orders: 'Quản lý đơn hàng',
     requests: 'Quản lý yêu cầu',
-    customers: 'Quản lý khách hàng',
+    customers: 'Quản lý tài khoản',
+    payments: 'Thanh toán',
     notifications: 'Quản lý thông báo',
     settings: 'Cài đặt hệ thống',
     ai: 'Quản lý dữ liệu AI',
@@ -65,7 +65,6 @@ export function AdminPage() {
   const [commerceError, setCommerceError] = useState<string | null>(null)
   const [commerceLoading, setCommerceLoading] = useState(true)
   const [reloadVersion, setReloadVersion] = useState(0)
-  const [summary, setSummary] = useState<{ productCount: number | null; orderCount: number | null }>({ productCount: null, orderCount: null })
   const activeSection = resolveSection(searchParams.get('section'))
 
   useEffect(() => {
@@ -75,46 +74,47 @@ export function AdminPage() {
       return
     }
 
+    // Each section loads only what it shows. Products page through /admin/products themselves, the overview and the
+    // account list ask the server for counts/pages, so nothing downloads the whole catalogue or every order any more.
+    const needsCategories = activeSection === 'products' || activeSection === 'categories'
+    const needsOrders = activeSection === 'orders' || activeSection === 'requests'
+    if (!needsCategories && !needsOrders) {
+      setCommerceLoading(false)
+      setCommerceError(null)
+      return
+    }
+
     let active = true
     setCommerceLoading(true)
-    setSummary({ productCount: null, orderCount: null })
-    const productsOnly = activeSection === 'products'
     Promise.all([
-      productsOnly ? Promise.resolve([]) : loadAllCommerceProducts(),
-      commerceApi.categories.listAdmin(),
-      productsOnly ? Promise.resolve(null) : loadAdminOrders(),
-    ]).then(([products, categories, orders]) => {
+      needsCategories ? commerceApi.categories.listAdmin() : Promise.resolve(null),
+      needsOrders ? loadAdminOrders() : Promise.resolve(null),
+    ]).then(([categories, orders]) => {
       if (!active) return
-      if (!orders) {
-        // Products section: the panel pages through /admin/products itself; only the category names are needed here.
-        dispatch({ type: 'commerce/catalogSynced', payload: { products: [], categories: categories.items.map(commerceCategoryToEntity) } })
-        setCommerceError(null)
-        return
+      if (categories) {
+        dispatch({
+          type: 'commerce/catalogSynced',
+          payload: { products: [], categories: categories.items.map((category, index) => commerceCategoryToEntity(category, index)) },
+        })
       }
-      setSummary({ productCount: products.length, orderCount: Number.isSafeInteger(orders.total) ? orders.total : null })
-      dispatch({
-        type: 'commerce/catalogSynced',
-        payload: {
-          products: products.map(commerceProductToEntity),
-          categories: categories.items.map(commerceCategoryToEntity),
-        },
-      })
-      dispatch({
-        type: 'commerce/adminOrdersSynced',
-        payload: {
-          orders: orders.items.map(commerceOrderToEntity),
-          cancellationRequests: orders.items
-            .map(order => order.cancellation_request)
-            .filter(request => request !== null)
-            .map(commerceCancellationToEntity),
-        },
-      })
+      if (orders) {
+        dispatch({
+          type: 'commerce/adminOrdersSynced',
+          payload: {
+            orders: orders.items.map(commerceOrderToEntity),
+            cancellationRequests: orders.items
+              .map(order => order.cancellation_request)
+              .filter(request => request !== null)
+              .map(commerceCancellationToEntity),
+          },
+        })
+      }
       setCommerceError(null)
     }).catch(error => {
       if (active) {
         if (import.meta.env.MODE !== 'test') {
-          dispatch({ type: 'commerce/catalogSynced', payload: { products: [], categories: [] } })
-          dispatch({ type: 'commerce/adminOrdersSynced', payload: { orders: [], cancellationRequests: [] } })
+          if (needsCategories) dispatch({ type: 'commerce/catalogSynced', payload: { products: [], categories: [] } })
+          if (needsOrders) dispatch({ type: 'commerce/adminOrdersSynced', payload: { orders: [], cancellationRequests: [] } })
         }
         setCommerceError(error instanceof Error ? error.message : 'Không thể tải dữ liệu Commerce admin')
       }
@@ -127,14 +127,15 @@ export function AdminPage() {
   }, [dispatch, activeSection, reloadVersion])
 
   const content = useMemo(() => {
-    if (activeSection === 'overview') return apiMode() ? <AdminOverviewLive {...summary} loading={commerceLoading} /> : <AdminOverviewPanel database={state} />
+    if (activeSection === 'overview') return apiMode() ? <AdminOverviewLive /> : <AdminOverviewPanel database={state} />
+    if (activeSection === 'payments') return <AdminPaymentsPage embedded />
     if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
     if (activeSection === 'categories') return <AdminCategoriesPanel database={state} dispatch={dispatch} />
     if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} onReload={() => setReloadVersion(value => value + 1)} />
     if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} />
     if (activeSection === 'customers') return <AdminCustomersPanel />
     return sectionPlaceholder(activeSection)
-  }, [activeSection, currentUser?.id, dispatch, state, summary, commerceLoading])
+  }, [activeSection, currentUser?.id, dispatch, state])
 
   if (!currentUser) return null
 
@@ -148,7 +149,6 @@ export function AdminPage() {
         navigate('/login', { replace: true })
       }}
     >
-      <Link to="/admin/payments" className="mb-4 inline-block rounded-lg bg-[#EFEDED] px-4 py-3 font-semibold text-[#1C1B1B]">Thanh toán: thu COD và xem lỗi</Link>
       {commerceLoading && <p role="status" className="mb-4 rounded-lg bg-white p-4 text-sm text-[#5E5F5D]">Đang tải dữ liệu Commerce…</p>}
       {commerceError && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E7BBBB] bg-[#FCEAEA] p-4"><p role="alert" className="text-sm font-semibold text-[#A94B4B]">{commerceError}</p><Button type="button" variant="secondary" disabled={commerceLoading} onClick={() => { setCommerceError(null); setReloadVersion(value => value + 1) }}>Thử tải lại</Button></div>}
       {(!['products', 'categories', 'orders', 'requests'].includes(activeSection) || (!commerceLoading && !commerceError)) && content}

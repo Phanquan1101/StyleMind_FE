@@ -21,7 +21,7 @@ const EXCEPTION_REASON: Record<string, string> = {
 const RECONCILIATION_STATUS: Record<string, string> = { OPEN: 'Chờ xử lý', RESOLVED: 'Đã xử lý' }
 const formatDetected = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN') }
 
-export default function AdminPaymentsPage() {
+export default function AdminPaymentsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const sending = useRef(false)
   const [attemptId, setAttemptId] = useState('')
   const [amount, setAmount] = useState('')
@@ -80,10 +80,11 @@ export default function AdminPaymentsPage() {
     }
   }
 
-  return <main className="mx-auto grid max-w-6xl gap-7 px-5 py-10 md:px-8 md:py-12">
+  const Wrapper = embedded ? 'div' : 'main'
+  return <Wrapper className={embedded ? 'grid gap-7' : 'mx-auto grid max-w-6xl gap-7 px-5 py-10 md:px-8 md:py-12'}>
     <header className="border-b border-[#E3E2E2] pb-7">
-      <Link to="/admin" className="inline-flex items-center gap-2 text-sm font-semibold text-[#1C1B1B] hover:underline"><ArrowLeft size={16} aria-hidden="true" /> Về quản trị</Link>
-      <h1 className="mt-5 font-display text-4xl font-semibold">Thanh toán Admin</h1>
+      {!embedded && <Link to="/admin" className="inline-flex items-center gap-2 text-sm font-semibold text-[#1C1B1B] hover:underline"><ArrowLeft size={16} aria-hidden="true" /> Về quản trị</Link>}
+      <h1 className={embedded ? 'font-display text-3xl font-semibold md:text-4xl' : 'mt-5 font-display text-4xl font-semibold'}>Thanh toán</h1>
       <p className="mt-2 text-sm text-secondary">Ghi nhận thu COD và theo dõi các khoản thanh toán cần kiểm tra.</p>
     </header>
     <form className="grid gap-4 rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-7" onSubmit={event => { event.preventDefault(); void collect() }}>
@@ -125,5 +126,5 @@ export default function AdminPaymentsPage() {
       </>}
       <p className="text-sm text-[#5E5F5D]">Hiện chưa hỗ trợ xử lý đối soát hoặc hoàn tiền trên giao diện.</p>
     </section>
-  </main>
+  </Wrapper>
 }

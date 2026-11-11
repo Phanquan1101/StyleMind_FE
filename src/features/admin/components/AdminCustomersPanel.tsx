@@ -8,8 +8,7 @@ import {
   type IdentityRole,
   type ManagedUser,
 } from '@/shared/api/identityApi'
-import { Button, SelectField, TextField, useToast } from '@/shared/ui'
-import { Plus } from 'lucide-react'
+import { Button, SelectField, TextField } from '@/shared/ui'
 
 import { StatusBadge } from './AdminCommon'
 
@@ -33,8 +32,7 @@ function sameRoles(left: IdentityRole[], right: IdentityRole[]) {
 
 export function AdminCustomersPanel() {
   const { currentUser } = useAuth()
-  const toast = useToast()
-  const [users, setUsers] = useState<ManagedUser[]>([])
+    const [users, setUsers] = useState<ManagedUser[]>([])
   const [query, setQuery] = useState('')
   const [role, setRole] = useState<RoleFilter>('all')
   const [status, setStatus] = useState<StatusFilter>('all')
@@ -133,12 +131,11 @@ export function AdminCustomersPanel() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
         <p className="text-sm font-semibold text-[#5E5F5D]">Quản trị</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-[#222222] md:text-4xl">Quản lý tài khoản</h1>
+        <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-[#222222] md:text-4xl">Tài khoản</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#5E5F5D]">
           Quản lý tài khoản, trạng thái và vai trò của người dùng.
         </p>
         </div>
-        <Button type="button" icon={<Plus size={16} aria-hidden="true" />} onClick={() => toast.info('Chức năng chưa hỗ trợ.')}>Tạo tài khoản</Button>
       </div>
 
       <div className="grid gap-3 rounded-lg border border-[#E3E2E2] bg-white p-4 md:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_160px_180px_auto] md:items-end">
@@ -221,7 +218,7 @@ export function AdminCustomersPanel() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           {!isEditingRoles && (
-                            <Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" onClick={() => startRoleEdit(user)}>
+                            <Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" disabled={isSelf} title={isSelf ? 'Bạn không thể tự đổi vai trò của chính mình' : undefined} onClick={() => startRoleEdit(user)}>
                               Sửa vai trò
                             </Button>
                           )}

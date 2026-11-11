@@ -24,7 +24,6 @@ it('sends a new category to Commerce and only stores the returned category', asy
   vi.mocked(commerceApi.categories.create).mockResolvedValue({ id: 'server-id', name: 'Áo dài', slug: 'ao-dai', is_active: true })
   render(<ToastProvider><AdminCategoriesPanel database={createDemoSeed()} dispatch={dispatch} /></ToastProvider>)
   await user.click(screen.getByRole('button', { name: 'Thêm danh mục' }))
-  await user.type(screen.getByLabelText('ID danh mục'), 'ao-dai')
   await user.type(screen.getByLabelText('Tên danh mục'), 'Áo dài')
   await user.click(screen.getByRole('button', { name: 'Lưu danh mục' }))
   await waitFor(() => expect(commerceApi.categories.create).toHaveBeenCalledWith({ name: 'Áo dài', slug: 'ao-dai', is_active: true }))

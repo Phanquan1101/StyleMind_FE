@@ -96,6 +96,7 @@ export type DemoAction =
   | { type: 'ai/conversationUpserted'; payload: AiConversation }
   | { type: 'admin/userStatusChanged'; payload: { userId: string; status: UserStatus; actorId: string } }
   | { type: 'admin/categoryUpserted'; payload: ProductCategory }
+  | { type: 'admin/categoryRemoved'; payload: { categoryId: string } }
   | { type: 'admin/categoryStatusChanged'; payload: { categoryId: string; active: boolean } }
   | { type: 'admin/productUpserted'; payload: Product }
   | { type: 'admin/productStatusChanged'; payload: { productId: string; active: boolean } }

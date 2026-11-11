@@ -7,6 +7,7 @@ const historyNotes: Record<string, string> = {
   'Order created': 'Đơn hàng đã được tạo.',
   'COD payment attempt created; payment not collected': 'Thanh toán khi nhận hàng.',
   'Cancellation approved': 'Cửa hàng đã duyệt yêu cầu hủy.',
+  'Payment confirmed before order creation': 'Thanh toán đã được xác nhận trước khi tạo đơn.',
 }
 
 export default function OrderDetailSections({ order, onRefresh, onCancelled }: { order: OrderResponse; onRefresh: () => void; onCancelled?: (order: OrderResponse) => void }) {

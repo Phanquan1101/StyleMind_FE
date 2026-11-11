@@ -35,7 +35,8 @@ const statusOptions: { value: 'all' | OrderStatus; label: string }[] = [
 
 const nextStatusMap: Partial<Record<OrderStatus, OrderStatus[]>> = {
   pending: ['confirmed', 'cancelled'],
-  payment_pending: ['paid', 'cancelled'],
+  // PENDING_PAYMENT leaves this state only through the payment itself (QR webhook / COD collection), never by a button.
+  payment_pending: ['cancelled'],
   paid: ['confirmed'],
   confirmed: ['processing'],
   processing: ['shipped'],
@@ -48,7 +49,7 @@ const actionLabel: Record<OrderStatus, string> = {
   paid: 'Xác nhận thanh toán',
   confirmed: 'Xác nhận đơn',
   processing: 'Bắt đầu xử lý',
-  shipped: 'Giao vận chuyển',
+  shipped: 'Bắt đầu giao hàng',
   completed: 'Hoàn tất đơn',
   cancelled: 'Hủy',
 }
@@ -163,7 +164,7 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
           <ArrowLeft size={16} aria-hidden="true" /> Quay lại danh sách đơn hàng
         </button>
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-white p-5 shadow-sm">
-          <div><p className="text-sm text-[#5E5F5D]">Đơn hàng · {formatDate(selectedOrder.createdAt)}</p><h1 className="mt-1 break-all font-display text-3xl font-semibold">Chi tiết đơn {selectedOrder.id}</h1></div>
+          <div><p className="text-sm text-[#5E5F5D]">Đơn hàng · {formatDate(selectedOrder.createdAt)}</p><h1 className="mt-1 break-all font-display text-3xl font-semibold">Chi tiết đơn {selectedOrder.orderNumber ?? selectedOrder.id}</h1><p className="mt-1 break-all text-xs text-[#5E5F5D]">Mã nội bộ: {selectedOrder.id}</p></div>
           <StatusBadge tone={statusTone(selectedOrder.status)}>{orderStatusLabel[selectedOrder.status]}</StatusBadge>
         </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
@@ -208,7 +209,7 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
           label="Tìm đơn hàng"
           value={filters.query ?? ''}
           onChange={event => setFilters(current => ({ ...current, query: event.target.value }))}
-          placeholder="Nhập mã đơn hoặc khách hàng"
+          placeholder="Nhập mã đơn (SM-…) hoặc tên khách"
         />
         <SelectField
           label="Trạng thái"
@@ -254,12 +255,15 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                 const original = database.orders.find(order => order.id === row.id)
                 const hasConfirmation = Boolean(original?.confirmationState)
                 const needsConfirmation = original?.confirmationState === 'UNCONFIRMED' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '')
-                const next = hasConfirmation ? (original?.confirmationState === 'CONFIRMED' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '') ? ['processing' as OrderStatus] : needsConfirmation || (original?.confirmationState === 'LEGACY_UNKNOWN' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '')) ? [] : nextStatuses(row.status)) : nextStatuses(row.status)
+                const nextRaw = hasConfirmation ? (original?.confirmationState === 'CONFIRMED' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '') ? ['processing' as OrderStatus] : needsConfirmation || (original?.confirmationState === 'LEGACY_UNKNOWN' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '')) ? [] : nextStatuses(row.status)) : nextStatuses(row.status)
+
+                const awaitingPayment = original?.backendStatus === 'PENDING_PAYMENT'
+                const next = awaitingPayment ? (row.paymentMethod === 'cod' ? ['cancelled' as OrderStatus] : []) : nextRaw
 
                 return (
                   <tr key={row.id} className="align-middle hover:bg-[#FBF9F9]/70">
                     <td className="whitespace-nowrap px-4 py-3">
-                      <p className="font-semibold text-[#222222]">{row.id}</p>
+                      <p className="font-semibold text-[#222222]">{row.orderNumber}</p>
                       <p className="mt-0.5 text-xs text-[#5E5F5D]">{row.itemCount} sản phẩm</p>
                     </td>
                     <td className="px-4 py-3 text-[#3A3632]">
@@ -286,7 +290,7 @@ export function AdminOrdersPanel({ database, dispatch, onReload }: AdminOrdersPa
                           Chi tiết
                         </Button>
                         {needsConfirmation ? <Button type="button" size="sm" disabled={Boolean(confirming)} onClick={() => void confirmOrder(row.id)}>Xác nhận đơn</Button> : next.length === 0 ? (
-                          <span className="whitespace-nowrap text-xs font-medium text-[#5E5F5D]">{original?.confirmationState === 'LEGACY_UNKNOWN' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '') ? 'Đơn cũ cần kiểm tra' : 'Trạng thái cuối'}</span>
+                          <span className="whitespace-nowrap text-xs font-medium text-[#5E5F5D]">{original?.confirmationState === 'LEGACY_UNKNOWN' && ['PLACED', 'PAID'].includes(original.backendStatus ?? '') ? 'Đơn cũ cần kiểm tra' : awaitingPayment ? 'Chờ khách thanh toán' : 'Trạng thái cuối'}</span>
                         ) : next.map(status => (
                           <Button
                             key={`${row.id}-${status}`}

@@ -64,11 +64,16 @@ export function selectAdminDashboard(database: DemoDatabase): AdminDashboardSumm
   }
 }
 
+function skuLabel(skus: string[]) {
+  if (skus.length === 0) return ''
+  return skus.length === 1 ? skus[0] : `${skus[0]} +${skus.length - 1}`
+}
+
 export function selectAdminProducts(database: DemoDatabase, filters: AdminProductFilters = {}): AdminProductRow[] {
   const categoryLabels = new Map(database.categories.map(category => [category.id, category.label]))
 
   return database.products
-    .filter(product => includesText(`${product.id} ${product.name} ${product.brand}`, filters.query))
+    .filter(product => includesText(`${product.id} ${product.name} ${product.brand} ${product.variants.map(variant => variant.sku ?? '').join(' ')}`, filters.query))
     .filter(product => !filters.categoryId || filters.categoryId === 'all' || product.categoryId === filters.categoryId)
     .filter(product => filters.status === undefined || filters.status === 'all' || (filters.status === 'active' ? product.active : !product.active))
     .map(product => {
@@ -84,7 +89,10 @@ export function selectAdminProducts(database: DemoDatabase, filters: AdminProduc
         imageUrl: primaryImageUrl(product),
         variantCount: product.variants.length,
         colors,
+        skuLabel: skuLabel(product.variants.map(variant => variant.sku).filter((value): value is string => Boolean(value))),
         variants: product.variants.map(variant => ({
+          sku: variant.sku ?? '',
+          stock: variant.stock,
           id: variant.id,
           color: variant.color,
           colorHex: variant.colorHex,
@@ -100,11 +108,12 @@ export function selectAdminOrders(database: DemoDatabase, filters: AdminOrderFil
   const users = new Map(database.users.map(user => [user.id, user.fullName]))
 
   return database.orders
-    .filter(order => includesText(`${order.id} ${users.get(order.userId) ?? ''}`, filters.query))
+    .filter(order => includesText(`${order.orderNumber ?? ''} ${order.id} ${users.get(order.userId) ?? ''} ${order.shippingAddress.recipientName}`, filters.query))
     .filter(order => !filters.status || filters.status === 'all' || order.status === filters.status)
     .filter(order => !filters.paymentMethod || filters.paymentMethod === 'all' || order.paymentMethod === filters.paymentMethod)
     .map(order => ({
       id: order.id,
+      orderNumber: order.orderNumber ?? order.id,
       customerId: order.userId,
       // The orders API has no customer name; fall back to the recipient on the order.
       customerName: users.get(order.userId) ?? (order.shippingAddress.recipientName || 'Khách hàng'),

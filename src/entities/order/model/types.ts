@@ -33,6 +33,8 @@ export interface OrderTimelineItem {
 
 export interface Order {
   id: string
+  /** Customer-facing code (SM-XXXXXXXX); `id` is the internal UUID. */
+  orderNumber?: string
   userId: string
   status: OrderStatus
   confirmationState?: 'UNCONFIRMED' | 'CONFIRMED' | 'LEGACY_UNKNOWN'

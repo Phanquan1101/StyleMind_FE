@@ -1,3 +1,4 @@
+import { orderStatusLabels } from '@/features/orders/model/orderStatus'
 import type { CartLine } from '@/entities/cart/model/types'
 import type { CancellationRequest, Order, OrderStatus } from '@/entities/order/model/types'
 import type { Product, ProductCategory, ProductSize } from '@/entities/product/model/types'
@@ -50,6 +51,7 @@ export function commerceProductToEntity(product: CommerceProduct): Product {
       colorHex: colorSwatchHex(variant.color),
       size: productSize(variant.size),
       stock: variant.available_quantity,
+      sku: variant.sku,
       priceOverride: variant.unit_price_vnd,
       images: variantImage(variant),
       active: variant.variant_status === 'ACTIVE',
@@ -67,6 +69,8 @@ export function commerceCategoryToEntity(category: CatalogReference, order: numb
     description: category.slug,
     active: category.is_active,
     order,
+    // Only the admin list carries the count; create/replace answers do not (the caller keeps the known count).
+    productCount: category.product_count,
   }
 }
 
@@ -94,6 +98,7 @@ const statusMap: Record<string, OrderStatus> = {
 export function commerceOrderToEntity(order: OrderResponse): Order {
   return {
     id: order.order_id,
+    orderNumber: order.order_number,
     userId: order.customer_id,
     status: statusMap[order.order_status] ?? 'pending',
     confirmationState: order.confirmation_state,
@@ -128,7 +133,7 @@ export function commerceOrderToEntity(order: OrderResponse): Order {
     shipping: 0,
     total: order.accepted_total_vnd,
     createdAt: order.placed_at || new Date().toISOString(),
-    timeline: order.history.map(entry => ({ id: entry.history_id, label: entry.to_status, at: entry.changed_at })),
+    timeline: order.history.map(entry => ({ id: entry.history_id, label: orderStatusLabels[entry.to_status] ?? entry.to_status, at: entry.changed_at })),
   }
 }
 

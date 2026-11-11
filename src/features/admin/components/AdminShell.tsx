@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
+  Banknote,
   ClipboardList,
   LayoutDashboard,
   Package,
@@ -30,8 +31,9 @@ const navItems = [
   { id: 'products', label: 'Sản phẩm', Icon: Package },
   { id: 'categories', label: 'Danh mục', Icon: Tags },
   { id: 'orders', label: 'Đơn hàng', Icon: ShoppingBag },
+  { id: 'payments', label: 'Thanh toán', Icon: Banknote },
   { id: 'requests', label: 'Yêu cầu', Icon: ClipboardList },
-  { id: 'customers', label: 'Khách hàng', Icon: UsersRound },
+  { id: 'customers', label: 'Tài khoản', Icon: UsersRound },
 ] satisfies { id: AdminSection; label: string; Icon: typeof LayoutDashboard }[]
 
 export function AdminShell({ activeSection, adminName, adminEmail, onLogout, children }: AdminShellProps) {

@@ -239,7 +239,7 @@ describe('AdminPage', () => {
     renderAt('/admin?section=products', database)
 
     await user.type(await screen.findByLabelText('Tìm sản phẩm'), 'blouse')
-    const productRow = screen.getByRole('row', { name: /prd-blouse-01/ })
+    const productRow = screen.getByRole('row', { name: /Áo blouse cổ vuông/ })
     expect(productRow).toHaveTextContent('Áo blouse cổ vuông')
 
     await user.click(within(productRow).getByRole('switch', { name: 'Sản phẩm Áo blouse cổ vuông' }))
@@ -444,7 +444,7 @@ describe('AdminPage', () => {
     const replaceVariant = vi.spyOn(commerceApi.products, 'replaceVariant').mockResolvedValue({ ...target, variant_status: 'INACTIVE' })
     renderAt('/admin?section=products', database)
 
-    const productRow = await screen.findByRole('row', { name: /prd-blouse-01/ })
+    const productRow = await screen.findByRole('row', { name: /Áo blouse cổ vuông/ })
     await user.click(within(productRow).getByRole('button', { name: /biến thể/ }))
     await user.click(await screen.findByRole('switch', { name: /Biến thể màu Trắng, cỡ M/ }))
 
@@ -468,13 +468,11 @@ describe('AdminPage', () => {
     renderAt('/admin?section=categories', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Thêm danh mục' }))
-    await user.type(screen.getByLabelText('ID danh mục'), 'ao-dai')
     await user.type(screen.getByLabelText('Tên danh mục'), 'Áo dài')
-    await user.type(screen.getByLabelText('Slug danh mục'), 'ao-dai')
-    await user.type(screen.getByLabelText('Thứ tự hiển thị'), '8')
+    expect(screen.getByLabelText('Slug danh mục')).toHaveValue('ao-dai')
     await user.click(screen.getByRole('button', { name: 'Lưu danh mục' }))
 
-    const row = screen.getByRole('row', { name: /server-category-ao-dai/ })
+    const row = screen.getByRole('row', { name: /Áo dài/ })
     expect(within(row).getByText('Áo dài')).toBeInTheDocument()
     await user.click(within(row).getByRole('switch', { name: 'Danh mục Áo dài' }))
 
@@ -497,11 +495,11 @@ describe('AdminPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Sửa danh mục Áo' }))
     fireEvent.change(screen.getByLabelText('Tên danh mục'), { target: { value: 'Áo nữ' } })
-    fireEvent.change(screen.getByLabelText('Thứ tự hiển thị'), { target: { value: '9' } })
+    fireEvent.change(screen.getByLabelText('Slug danh mục'), { target: { value: 'ao-nu' } })
     await user.click(screen.getByRole('button', { name: 'Lưu danh mục' }))
 
     await waitFor(() => {
-      expect(getDatabase().categories.find(item => item.id === 'tops')).toMatchObject({ label: 'Áo nữ', order: 9 })
+      expect(getDatabase().categories.find(item => item.id === 'tops')).toMatchObject({ label: 'Áo nữ' })
     })
     expect(replaceCategory).toHaveBeenCalledWith('tops', expect.objectContaining({ name: 'Áo nữ' }))
   })

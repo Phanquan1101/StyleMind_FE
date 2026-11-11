@@ -116,9 +116,12 @@ export function AdminRequestsPanel({ database, dispatch, reviewerId }: AdminRequ
         <Button type="button" variant={activeTab === 'cancellations' ? 'primary' : 'secondary'} onClick={() => setActiveTab('cancellations')}>
           Hủy đơn
         </Button>
-        <Button type="button" variant={activeTab === 'returns' ? 'primary' : 'secondary'} onClick={() => setActiveTab('returns')}>
-          Đổi/trả
-        </Button>
+        {/* Returns/exchanges are outside the demo scope: the tab is hidden when talking to the real backend (code kept). */}
+        {!apiMode() && (
+          <Button type="button" variant={activeTab === 'returns' ? 'primary' : 'secondary'} onClick={() => setActiveTab('returns')}>
+            Đổi/trả
+          </Button>
+        )}
       </div>
 
       {activeTab === 'returns' && apiMode() ? <section className="space-y-5 rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-6">

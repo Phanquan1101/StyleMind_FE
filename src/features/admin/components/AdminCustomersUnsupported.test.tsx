@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 
 import { ToastProvider } from '@/shared/ui'
@@ -10,8 +10,8 @@ vi.mock('@/shared/api/identityApi', () => ({
   identityErrorMessage: () => 'Không thể tải danh sách tài khoản.',
 }))
 
-it('explains that creating accounts from administration is not yet supported', async () => {
+it('does not offer creating accounts from administration (not supported)', async () => {
   render(<ToastProvider><AdminCustomersPanel /></ToastProvider>)
-  fireEvent.click(screen.getByRole('button', { name: 'Tạo tài khoản' }))
-  expect(await screen.findByText('Chức năng chưa hỗ trợ.')).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Tài khoản' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Tạo tài khoản' })).not.toBeInTheDocument()
 })

@@ -14,6 +14,7 @@ export interface ProductVariant {
   colorHex: string
   size: ProductSize
   stock: number
+  sku?: string
   priceOverride?: number
   images: ProductImage[]
   active: boolean
@@ -25,6 +26,8 @@ export interface ProductCategory {
   description: string
   active: boolean
   order: number
+  /** Number of products in this category (admin API only). */
+  productCount?: number
 }
 
 export interface Product {

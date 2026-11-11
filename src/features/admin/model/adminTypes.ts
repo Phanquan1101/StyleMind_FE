@@ -2,7 +2,7 @@ import type { PaymentMethod, PaymentStatus, OrderStatus } from '@/entities/order
 import type { ProductSize } from '@/entities/product/model/types'
 import type { UserRole, UserStatus } from '@/entities/user/model/types'
 
-export type AdminSection = 'overview' | 'products' | 'categories' | 'orders' | 'requests' | 'customers' | 'notifications' | 'settings' | 'ai'
+export type AdminSection = 'overview' | 'products' | 'categories' | 'orders' | 'requests' | 'customers' | 'payments' | 'notifications' | 'settings' | 'ai'
 
 export interface AdminDashboardSummary {
   totalUsers: number
@@ -40,7 +40,9 @@ export interface AdminProductRow {
   imageUrl: string | null
   variantCount: number
   colors: { color: string; colorHex: string }[]
-  variants: { id: string; color: string; colorHex: string; size: ProductSize; active: boolean; price: number }[]
+  /** First SKU (+ more when the product has several variants), shown under the name instead of the UUID. */
+  skuLabel: string
+  variants: { id: string; color: string; colorHex: string; size: ProductSize; active: boolean; price: number; sku: string; stock: number }[]
 }
 
 export interface AdminOrderFilters {
@@ -51,6 +53,8 @@ export interface AdminOrderFilters {
 
 export interface AdminOrderRow {
   id: string
+  /** Customer-facing code (SM-XXXXXXXX). */
+  orderNumber: string
   customerId: string
   customerName: string
   createdAt: string

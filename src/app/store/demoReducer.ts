@@ -471,6 +471,8 @@ export function demoReducer(state: DemoDatabase, action: DemoAction): DemoDataba
           action.payload,
         ].sort((a, b) => a.order - b.order),
       }
+    case 'admin/categoryRemoved':
+      return { ...state, categories: state.categories.filter(category => category.id !== action.payload.categoryId) }
     case 'admin/categoryStatusChanged':
       return {
         ...state,
