@@ -34,16 +34,15 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController()
+    let poll: ReturnType<typeof setTimeout> | undefined
     closed.current = false
     const refresh = async () => {
+      if (controller.signal.aborted || closed.current) return
       try {
         const state = guest ? await guestCheckoutApi.getQr(guestKey, checkoutId, controller.signal) : await paymentApi.getQrCheckout(checkoutId, { signal: controller.signal })
         if (controller.signal.aborted) return
-        // Keep monitoring a closed checkout for late payment without restoring a stale QR.
-        if (closed.current) {
-          if (state.status === 'RECONCILIATION_REQUIRED') setCheckout(state)
-          return
-        }
+        if (closed.current) return
+        setError('')
         setCheckout(state)
         if (state.status === 'ORDER_CREATED') {
           closed.current = true
@@ -52,12 +51,10 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
             saveGuestDraft({ ...loadGuestDraft(), qrCheckoutId: undefined, orderId: state.checkoutId })
             navigate(`/guest/orders/${encodeURIComponent(state.checkoutId)}`, { replace: true })
           } else {
-            rememberOrder({ orderId: state.checkoutId, owner: 'account', accountId: owner })
-            const old = loadAccountDraft(owner)
-            saveAccountDraft(owner, { ...old, qrCheckoutId: undefined, orderId: state.checkoutId })
-            navigate(ROUTES.paymentOrder.replace(':orderId', encodeURIComponent(state.checkoutId)), { replace: true })
+            clearAccountCheckout()
+            navigate(ROUTES.orders, { replace: true })
           }
-        } else if (['CANCELLED', 'EXPIRED', 'RECONCILIATION_REQUIRED'].includes(state.status)) {
+        } else if (['CANCELLED', 'EXPIRED', 'REQUIRES_RECONCILIATION', 'RECONCILIATION_REQUIRED'].includes(state.status)) {
           closed.current = true
           setAttempt(null)
           if (state.status === 'CANCELLED' || state.status === 'EXPIRED') {
@@ -66,13 +63,14 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
           }
         }
       } catch (failure) { if (!controller.signal.aborted && !closed.current) setError(paymentErrorMessage(failure)) }
+      if (!controller.signal.aborted && !closed.current) poll = setTimeout(refresh, 3000)
     }
     void refresh()
     void (guest ? guestCheckoutApi.qrAttempt(guestKey, checkoutId, controller.signal) : paymentApi.getQrAttempt(checkoutId, { signal: controller.signal })).then(value => {
       if (!controller.signal.aborted && !closed.current) setAttempt(value)
-    }).catch(failure => { if (!controller.signal.aborted && !closed.current) { setError(paymentErrorMessage(failure)); void refresh() } })
-    const poll = setInterval(() => { setNow(Date.now()); void refresh() }, 3000)
-    return () => { controller.abort(); clearInterval(poll) }
+    }).catch(failure => { if (!controller.signal.aborted && !closed.current) setError(paymentErrorMessage(failure)) })
+    const clock = setInterval(() => setNow(Date.now()), 1000)
+    return () => { controller.abort(); clearTimeout(poll); clearInterval(clock) }
   }, [checkoutId, owner, navigate, guest, guestKey])
 
   const cancel = async () => {
@@ -102,7 +100,7 @@ export default function QrCheckoutPage({ guest = false }: { guest?: boolean }) {
         {waiting && attempt?.qrPayload ? <img className="mx-auto my-6 w-full max-w-60 rounded-xl" src={attempt.qrPayload} alt="Mã VietQR để thanh toán" /> : <div className="mx-auto my-6 grid min-h-48 max-w-60 place-content-center rounded-xl bg-ivory p-5 text-sm text-secondary">{waiting ? 'Đang tạo mã thanh toán…' : 'Mã thanh toán không còn hiệu lực.'}</div>}
         {waiting && <p className="text-sm text-secondary">Thời gian giữ hàng còn lại: {seconds === null ? '—' : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`}</p>}
         {waiting && <Button variant="secondary" className="mt-6 w-full" disabled={cancelling} onClick={() => void cancel()}>{cancelling ? 'Đang hủy…' : 'Hủy thanh toán'}</Button>}
-        {!waiting && <p role="status" className="mt-4 text-sm text-secondary">{checkout?.status === 'CANCELLED' ? 'Thanh toán đã được hủy.' : checkout?.status === 'RECONCILIATION_REQUIRED' ? 'Giao dịch đang được cửa hàng đối soát.' : 'Phiên thanh toán đã hết hạn.'}</p>}
+        {!waiting && <p role="status" className="mt-4 text-sm text-secondary">{checkout?.status === 'CANCELLED' ? 'Thanh toán đã được hủy.' : checkout?.status === 'REQUIRES_RECONCILIATION' || checkout?.status === 'RECONCILIATION_REQUIRED' ? 'Giao dịch đang được cửa hàng đối soát.' : 'Phiên thanh toán đã hết hạn.'}</p>}
       </section>
       <aside className="rounded-3xl border border-sand bg-white p-6"><h2 className="font-display text-2xl">Thông tin chuyển khoản</h2><p className="mt-3 text-sm leading-6 text-secondary">Quét mã bằng ứng dụng ngân hàng và giữ nguyên số tiền, nội dung chuyển khoản.</p><p className="mt-6 text-xs text-secondary">Nội dung chuyển khoản</p><p className="mt-2 break-all font-semibold">{attempt?.transferContent ?? 'Đang chuẩn bị…'}</p><p className="mt-6 text-xs leading-5 text-secondary">Trạng thái tự cập nhật khi hệ thống nhận được xác nhận. Nếu đã chuyển tiền, vui lòng không chuyển lại.</p></aside>
     </div>

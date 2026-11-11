@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import QrCheckoutPage from './pages/QrCheckoutPage'
 import { loadAccountDraft, saveAccountDraft } from './model/accountCheckout'
 
@@ -17,7 +17,7 @@ const attempt = { qrPayload: 'https://example.test/qr.png', transferContent: 'SM
 function page() {
   return render(<MemoryRouter initialEntries={[`/checkout/qr/${id}`]}><Routes>
     <Route path="/checkout/qr/:checkoutId" element={<QrCheckoutPage />} />
-    <Route path="/payments/:orderId" element={<p>Đơn đã được tạo</p>} />
+    <Route path="/orders" element={<p>Danh sách đơn hàng</p>} />
   </Routes></MemoryRouter>)
 }
 beforeEach(() => {
@@ -29,6 +29,7 @@ beforeEach(() => {
   guestApi.qrAttempt.mockResolvedValue(attempt)
   guestApi.cancelQr.mockResolvedValue({ ...state, customerId: null, status: 'CANCELLED' })
 })
+afterEach(() => { vi.useRealTimers() })
 
 it('hủy thanh toán và ẩn mã QR sau khi máy chủ xác nhận', async () => {
   page()
@@ -58,20 +59,58 @@ it('keeps a newer checkout when an old QR page observes expiry', async () => {
   expect(loadAccountDraft('account').checkoutKey).toBe('new-key')
 })
 
-it('cập nhật trạng thái đối soát nếu tiền đến sau khi hủy', async () => {
+it.each(['EXPIRED', 'CANCELLED', 'REQUIRES_RECONCILIATION', 'RECONCILIATION_REQUIRED'])('dừng polling khi BE trả %s', async status => {
+  vi.useFakeTimers()
+  api.getQrCheckout.mockResolvedValue({ ...state, status })
   page()
-  await screen.findByRole('img', { name: 'Mã VietQR để thanh toán' })
-  fireEvent.click(screen.getByRole('button', { name: 'Hủy thanh toán' }))
-  await screen.findByText('Thanh toán đã được hủy.')
-  api.getQrCheckout.mockResolvedValue({ ...state, status: 'RECONCILIATION_REQUIRED' })
-  expect(await screen.findByText('Giao dịch đang được cửa hàng đối soát.', {}, { timeout: 5000 })).toBeInTheDocument()
+  await act(async () => {})
+  expect(screen.getByRole('status')).toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
+  expect(api.getQrCheckout).toHaveBeenCalledTimes(1)
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
 })
 
 it('chuyển sang đơn chỉ khi BE báo đã tạo đơn', async () => {
   api.getQrCheckout.mockResolvedValue({ ...state, status: 'ORDER_CREATED' })
   page()
-  expect(await screen.findByText('Đơn đã được tạo')).toBeInTheDocument()
+  expect(await screen.findByText('Danh sách đơn hàng')).toBeInTheDocument()
+  expect(loadAccountDraft('account').orderId).toBeUndefined()
+})
+
+it('tiếp tục polling sau lỗi và chuyển sang Đơn hàng khi ORDER_CREATED', async () => {
+  vi.useFakeTimers()
+  api.getQrCheckout.mockResolvedValueOnce(state)
+    .mockRejectedValueOnce(new Error('Network error'))
+    .mockResolvedValueOnce({ ...state, status: 'ORDER_CREATED' })
+  page()
+  await act(async () => {})
+  expect(screen.queryByText('Danh sách đơn hàng')).not.toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+  expect(screen.getByText('Danh sách đơn hàng')).toBeInTheDocument()
+  await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
+  expect(api.getQrCheckout).toHaveBeenCalledTimes(3)
+})
+
+it('không gửi request chồng nhau và hủy request khi rời trang', async () => {
+  vi.useFakeTimers()
+  api.getQrCheckout.mockImplementation(() => new Promise(() => {}))
+  const view = page()
+  await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
+  expect(api.getQrCheckout).toHaveBeenCalledTimes(1)
+  const signal = api.getQrCheckout.mock.calls[0][1].signal as AbortSignal
+  view.unmount()
+  expect(signal.aborted).toBe(true)
+})
+
+it('vẫn chờ BE khi bộ đếm hết giờ', async () => {
+  vi.useFakeTimers()
+  api.getQrCheckout.mockResolvedValue({ ...state, expiresAt: new Date(Date.now() + 1000).toISOString() })
+  page()
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+  expect(screen.queryByText('Danh sách đơn hàng')).not.toBeInTheDocument()
+  expect(api.getQrCheckout).toHaveBeenCalledTimes(2)
 })
 
 it('khách vãng lai hủy phiên bằng mã phiên khách', async () => {
