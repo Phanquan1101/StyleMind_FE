@@ -50,3 +50,91 @@ it('shows the server message inside the form when the save is rejected', () => {
   setup({ serverError: 'Thông tin gửi lên chưa hợp lệ. Vui lòng kiểm tra lại.' })
   expect(screen.getByRole('alert')).toHaveTextContent('Thông tin gửi lên chưa hợp lệ. Vui lòng kiểm tra lại.')
 })
+
+it('filters provinces without accents and loads wards only after selection', async () => {
+  const onProvinceChange = vi.fn()
+  const { user } = setup({
+    provinces: [{ code: '01', name: 'Hà Nội' }, { code: '48', name: 'Đà Nẵng' }],
+    onProvinceChange,
+  })
+  const province = screen.getByRole('combobox', { name: /Tỉnh\/thành để tra cứu/ })
+  await user.type(province, 'da nang')
+  expect(screen.getByRole('option', { name: 'Đà Nẵng' })).toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Hà Nội' })).not.toBeInTheDocument()
+  expect(onProvinceChange).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('option', { name: 'Đà Nẵng' }))
+  expect(onProvinceChange).toHaveBeenCalledWith('48')
+  expect(province).toHaveValue('Đà Nẵng')
+  expect(screen.getByLabelText('Phường/xã (không bắt buộc)')).toBeEnabled()
+})
+
+it('supports province keyboard selection and clearing the optional province', async () => {
+  const onProvinceChange = vi.fn()
+  const { user } = setup({ provinces: [{ code: '01', name: 'Hà Nội' }], onProvinceChange })
+  const province = screen.getByRole('combobox', { name: /Tỉnh\/thành để tra cứu/ })
+  await user.type(province, 'ha noi')
+  await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+  expect(province).toHaveValue('Hà Nội')
+  expect(onProvinceChange).toHaveBeenLastCalledWith('01')
+  await user.click(province)
+  await user.click(screen.getByRole('option', { name: 'Không chọn tỉnh/thành' }))
+  expect(province).toHaveValue('')
+  expect(onProvinceChange).toHaveBeenLastCalledWith('')
+  expect(screen.getByLabelText('Phường/xã (không bắt buộc)')).toBeDisabled()
+})
+
+it('keeps the selected province when an unmatched search loses focus', async () => {
+  const onProvinceChange = vi.fn()
+  const { user } = setup({ provinces: [{ code: '01', name: 'Hà Nội' }], onProvinceChange })
+  const province = screen.getByRole('combobox', { name: /Tỉnh\/thành để tra cứu/ })
+  await user.click(province)
+  await user.click(screen.getByRole('option', { name: 'Hà Nội' }))
+  await user.click(province)
+  await user.type(province, 'khong ton tai')
+  expect(screen.getByRole('status')).toHaveTextContent('Không tìm thấy kết quả phù hợp.')
+  await user.tab()
+  expect(province).toHaveValue('Hà Nội')
+  expect(onProvinceChange).toHaveBeenCalledTimes(1)
+})
+
+it('searches wards without accents and submits the selected ward code', async () => {
+  const { onSubmit, user } = setup({
+    provinces: [{ code: '01', name: 'Hà Nội' }],
+    wards: [{ code: '00001', name: 'Phường Ba Đình' }, { code: '00002', name: 'Phường Hoàn Kiếm' }],
+  })
+  await fill(user, { name: 'Nguyễn Văn A', phone: '0912345678', line: '12 Nguyễn Trãi' })
+  await user.click(screen.getByRole('combobox', { name: /Tỉnh\/thành để tra cứu/ }))
+  await user.click(screen.getByRole('option', { name: 'Hà Nội' }))
+  const ward = screen.getByRole('combobox', { name: 'Phường/xã (không bắt buộc)' })
+  await user.type(ward, 'ba dinh')
+  expect(screen.queryByRole('option', { name: /Hoàn Kiếm/ })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('option', { name: 'Phường Ba Đình (00001)' }))
+  expect(ward).toHaveValue('Phường Ba Đình (00001)')
+  await user.click(screen.getByRole('button', { name: 'Lưu địa chỉ' }))
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ wardCode: '00001' }))
+})
+
+it('clears the previous ward when the province changes', async () => {
+  const { user } = setup({
+    provinces: [{ code: '01', name: 'Hà Nội' }, { code: '48', name: 'Đà Nẵng' }],
+    wards: [{ code: '00001', name: 'Phường Ba Đình' }],
+  })
+  const province = screen.getByRole('combobox', { name: /Tỉnh\/thành để tra cứu/ })
+  await user.click(province)
+  await user.click(screen.getByRole('option', { name: 'Hà Nội' }))
+  await user.type(screen.getByRole('combobox', { name: 'Phường/xã (không bắt buộc)' }), 'ba dinh')
+  await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+  expect(screen.getByLabelText('Phường/xã (không bắt buộc)')).toHaveValue('Phường Ba Đình (00001)')
+  await user.click(province)
+  await user.click(screen.getByRole('option', { name: 'Đà Nẵng' }))
+  expect(screen.getByLabelText('Phường/xã (không bắt buộc)')).toHaveValue('')
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+})
+
+it('disables ward search while its options are loading', async () => {
+  const { user } = setup({ provinces: [{ code: '01', name: 'Hà Nội' }], wardLoading: true })
+  await user.click(screen.getByRole('combobox', { name: /Tỉnh\/thành để tra cứu/ }))
+  await user.click(screen.getByRole('option', { name: 'Hà Nội' }))
+  expect(screen.getByRole('combobox', { name: 'Phường/xã (không bắt buộc)' })).toBeDisabled()
+  expect(screen.getByRole('status')).toHaveTextContent('Đang tải danh sách phường/xã…')
+})

@@ -102,6 +102,8 @@ export function commerceOrderToEntity(order: OrderResponse): Order {
     userId: order.customer_id,
     status: statusMap[order.order_status] ?? 'pending',
     confirmationState: order.confirmation_state,
+    refundStatus: order.refund_status,
+    refundedAmountVnd: order.refunded_amount_vnd,
     backendStatus: order.order_status,
     paymentMethod: order.payment_method === 'COD' ? 'cod' : 'vietqr',
     // The API reports PAID when a confirmed payment exists, otherwise PENDING; absent means unknown.

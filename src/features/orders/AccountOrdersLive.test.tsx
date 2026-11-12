@@ -39,3 +39,12 @@ it('still shows the orders when the unpaid checkout list cannot be loaded', asyn
   expect(await screen.findByText('SM009')).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Tiếp tục thanh toán' })).not.toBeInTheDocument()
 })
+
+it('shows the refund result and amount alongside delivery status', async () => {
+  mocks.list.mockResolvedValue({ items: [{ order_id: 'refunded-order', order_number: 'SM-REFUND', order_status: 'COMPLETED', refund_status: 'PARTIALLY_REFUNDED', refunded_amount_vnd: 60000, accepted_total_vnd: 120000, placed_at: '2026-11-11T00:00:00Z' }], page: 0, total_pages: 1, total_elements: 1 })
+  mocks.unpaid.mockResolvedValue({ items: [] })
+  render(<MemoryRouter><AccountOrdersPage /></MemoryRouter>)
+  expect(await screen.findByText('Đã hoàn tiền một phần')).toBeVisible()
+  expect(screen.getByText('Giao hàng: Đã hoàn tất')).toBeVisible()
+  expect(screen.getByText(/Đã hoàn: 60\.000/)).toBeVisible()
+})

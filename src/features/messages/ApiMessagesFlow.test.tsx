@@ -34,6 +34,8 @@ it('places the current user messages on the right and friend messages on the lef
     const page = { items: [], page: 0, size: 20, total_elements: 0, total_pages: 0 }
     const body = path === '/api/v1/me' ? { account_id: actor, email: 'real@example.test', profile: null }
       : path.includes('/me/chats?') ? { ...page, items: [{ chat_session_id: chat, friend_account_id: peer }], total_elements: 1, total_pages: 1 }
+      : path.includes('/me/friends?') ? { ...page, items: [{ friendship_id: 'friendship', friend_account_id: peer, email: 'peer@example.test', display_name: 'TinTran' }], total_elements: 1, total_pages: 1 }
+      : path.endsWith(`/chats/${chat}`) ? { chat_session_id: chat, friend_account_id: peer }
       : path.includes('/messages?') ? { items: [
         { chat_message_id: 'a', sender_account_id: actor, sequence_number: 1, content: 'Tin của tôi', attachments: [] },
         { chat_message_id: 'b', sender_account_id: peer, sequence_number: 2, content: 'Tin của bạn bè', attachments: [] },
@@ -45,6 +47,9 @@ it('places the current user messages on the right and friend messages on the lef
   expect(screen.getByLabelText('Tin nhắn của bạn bè').parentElement).toHaveClass('justify-start')
   expect(screen.getByLabelText('Lịch sử tin nhắn')).toHaveClass('overflow-y-auto')
   expect(screen.getByTestId('chat-viewport')).toHaveClass('overflow-hidden')
+  const heading = await screen.findByRole('heading', { name: 'peer@example.test TinTran' })
+  expect(heading.querySelector('span.block > span')?.textContent).toBe('peer@example.test')
+  expect(screen.getByRole('button', { name: 'peer@example.test TinTran' })).toBeVisible()
 })
 it('loads a server conversation and submits the entered text', async () => {
   const actor = '10000000-0000-0000-0000-000000000001', chat = '20000000-0000-0000-0000-000000000002'

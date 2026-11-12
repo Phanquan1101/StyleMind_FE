@@ -517,7 +517,8 @@ describe('AdminPage', () => {
     const row = await screen.findByRole('row', { name: /ORD-ADM-1001/ })
     expect(within(row).getByText('ORD-ADM-1001')).toBeInTheDocument()
 
-    await user.click(within(row).getByRole('button', { name: 'Xác nhận đơn' }))
+    await user.click(within(row).getByRole('button', { name: 'ORD-ADM-1001' }))
+    await user.click(screen.getByRole('button', { name: 'Xác nhận đơn' }))
 
     await waitFor(() => {
       const order = getDatabase().orders.find(item => item.id === 'ORD-ADM-1001')
@@ -532,9 +533,9 @@ describe('AdminPage', () => {
     renderAt('/admin?section=orders', adminDatabase())
 
     const row = await screen.findByRole('row', { name: /ORD-ADM-1002/ })
-    await user.click(within(row).getByRole('button', { name: 'Chi tiết' }))
+    await user.click(within(row).getByRole('button', { name: 'Chi tiết đơn ORD-ADM-1002' }))
 
-    expect(await screen.findByRole('heading', { name: 'Chi tiết đơn ORD-ADM-1002' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'ORD-ADM-1002' })).toBeInTheDocument()
     expect(screen.getByText('Địa chỉ giao hàng')).toBeInTheDocument()
     expect(screen.getByText('Lịch sử đơn hàng')).toBeInTheDocument()
     expect(screen.getByText(/18 Lê Thánh Tôn/)).toBeInTheDocument()
@@ -542,11 +543,12 @@ describe('AdminPage', () => {
 
   it('approves a cancellation request and creates a customer notification', async () => {
     const user = setupUser()
-    const reviewCancellation = vi.spyOn(commerceApi.orders, 'reviewCancellation').mockResolvedValue({} as never)
+    const reviewCancellation = vi.spyOn(commerceApi.orders, 'reviewCancellation').mockResolvedValue({ request_status: 'APPROVED' } as never)
     renderAt('/admin?section=requests', adminDatabase())
 
     const row = await screen.findByRole('row', { name: /cancel-1001/ })
-    await user.click(within(row).getByRole('button', { name: 'Duyệt yêu cầu' }))
+    await user.click(within(row).getByRole('button', { name: 'Xem yêu cầu hủy cancel-1001' }))
+    await user.click(screen.getByRole('button', { name: 'Duyệt yêu cầu' }))
 
     await waitFor(() => {
       const database = getDatabase()
@@ -565,7 +567,7 @@ describe('AdminPage', () => {
     )
     renderAt('/admin?section=requests', database)
 
-    await user.click(await screen.findByRole('button', { name: 'Đổi/trả' }))
+    await user.click(await screen.findByRole('button', { name: 'Trả hàng / Hoàn tiền' }))
     const row = screen.getByRole('row', { name: /return-1002/ })
     await user.click(within(row).getByRole('button', { name: 'Hoàn tiền' }))
 

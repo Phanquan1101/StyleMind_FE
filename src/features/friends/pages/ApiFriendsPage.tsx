@@ -18,6 +18,7 @@ export default function ApiFriendsPage() {
   const incoming = useApiQuery(`incoming:${pages.incoming}`, signal => communityApi.incoming(pages.incoming, signal))
   const outgoing = useApiQuery(`outgoing:${pages.outgoing}`, signal => communityApi.outgoing(pages.outgoing, signal))
   const [open, setOpen] = useState(false), [email, setEmail] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [deliveryNotice, setDeliveryNotice] = useState(false)
   const [remove, setRemove] = useState<{ id: string; name: string } | null>(null)
   const retryKey = `stylemind.invitation-retry.${currentUser?.id ?? 'none'}`
   const [retry, setRetry] = useState<Record<string, number>>(() => {
@@ -43,22 +44,28 @@ export default function ApiFriendsPage() {
   }
   const run = async (action: () => Promise<InvitationResult | void>, close?: () => void) => {
     if (busy) return
-    setBusy(true); setError('')
+    setBusy(true); setError(''); setDeliveryNotice(false)
     const token = accessToken()
     const stillCurrent = () => mounted.current && !!token && accessToken() === token
     try { const result = await action(); if (!stillCurrent()) return; if (result) notice(result); else toast.info('Đã hủy kết bạn.'); close?.(); refresh() }
     catch (failure) {
       if (!stillCurrent()) return
-      setError(failure instanceof Error ? failure.message : 'Không thực hiện được thao tác.')
+      if (failure instanceof ApiError && failure.code === 'EMAIL_DELIVERY_UNKNOWN' && failure.invitationId) setDeliveryNotice(true)
+      else setError(failure instanceof Error ? failure.message : 'Không thực hiện được thao tác.')
       if (failure instanceof ApiError && failure.invitationId && ['EMAIL_DELIVERY_FAILED', 'EMAIL_DELIVERY_UNKNOWN', 'INVITATION_COOLDOWN'].includes(failure.code)) setRetry(r => ({ ...r, [failure.invitationId!]: Date.now() + failure.retryAfter * 1000 }))
       refresh()
     } finally { if (stillCurrent()) setBusy(false) }
   }
   const selected = section === 'friends' ? friends : section === 'incoming' ? incoming : outgoing
   const tabs = [{ key: 'friends', label: 'Bạn bè', total: friends.data?.total_elements }, { key: 'incoming', label: 'Đã nhận', total: incoming.data?.total_elements }, { key: 'outgoing', label: 'Đã gửi', total: outgoing.data?.total_elements }] as const
+  const deliveryFeedback = deliveryNotice && <div role="status" aria-label="Trạng thái lời mời" className="mt-4 rounded-xl border border-divider bg-ivory p-4 text-sm leading-6 text-secondary">
+    <p>Lời mời đã được lưu. Email có thể đến chậm. Bạn có thể kiểm tra trong mục Đã gửi.</p>
+    <Button className="mt-3" variant="secondary" onClick={() => { setOpen(false); setSection('outgoing'); setEmail(''); setDeliveryNotice(false) }}>Xem lời mời đã gửi</Button>
+  </div>
   return <ApiSection title="Bạn bè">
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-4"><p className="text-sm leading-7 text-[#5E5F5D]">Kết nối để cùng xem Outfit Bạn bè. Outfit Riêng tư vẫn chỉ dành cho chủ sở hữu.</p><Button disabled={busy} onClick={() => { setError(''); setOpen(true) }}>Mời bạn bè</Button></div>
-    <div className="mt-7 flex gap-2 overflow-x-auto border-b border-[#E3E2E2] pb-3" role="group" aria-label="Danh sách kết nối">{tabs.map(tab => <Button key={tab.key} variant={section === tab.key ? 'primary' : 'ghost'} aria-pressed={section === tab.key} onClick={() => { setSection(tab.key); setError('') }}>{tab.label}{tab.total === undefined ? '' : ` (${tab.total})`}</Button>)}</div>
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-4"><p className="text-sm leading-7 text-[#5E5F5D]">Kết nối để cùng xem Outfit Bạn bè. Outfit Riêng tư vẫn chỉ dành cho chủ sở hữu.</p><Button disabled={busy} onClick={() => { setError(''); setDeliveryNotice(false); setOpen(true) }}>Mời bạn bè</Button></div>
+    <div className="mt-7 flex gap-2 overflow-x-auto border-b border-[#E3E2E2] pb-3" role="group" aria-label="Danh sách kết nối">{tabs.map(tab => <Button key={tab.key} variant={section === tab.key ? 'primary' : 'ghost'} aria-pressed={section === tab.key} onClick={() => { setSection(tab.key); setError(''); setDeliveryNotice(false) }}>{tab.label}{tab.total === undefined ? '' : ` (${tab.total})`}</Button>)}</div>
+    {!open && !remove && deliveryFeedback}
     {!open && !remove && error && <p role="alert" className="mt-4 text-sm text-[#A94B4B]">{error}</p>}
     <ApiState loading={selected.loading} error={selected.error} retry={selected.refresh} />
     {selected.data && <>
@@ -79,7 +86,7 @@ export default function ApiFriendsPage() {
       <ApiPagination data={selected.data} setPage={page => setPages(previous => ({ ...previous, [section]: page }))} />
     </>}
     <ApiModal open={open} title="Mời một người bạn" onClose={() => { if (!busy) setOpen(false) }} description="Email người nhận cần thuộc tài khoản đã xác minh khi chấp nhận. Outfit Riêng tư không tự đổi chế độ.">
-      <form onSubmit={event => { event.preventDefault(); void run(() => communityApi.invite(email), () => { setOpen(false); setEmail('') }) }}><label className="grid gap-2 text-sm font-semibold">Email người nhận<input className="min-h-11 rounded-lg border border-[#C4C7C7] px-3" type="email" required value={email} disabled={busy} onChange={event => setEmail(event.target.value)} /></label>{error && <p role="alert" className="mt-3 text-sm leading-6 text-[#A94B4B]">{error}</p>}<div className="mt-5 flex justify-end gap-3"><Button disabled={busy} variant="ghost" onClick={() => setOpen(false)}>Hủy</Button><Button type="submit" loading={busy}>Gửi lời mời</Button></div></form>
+      <form onSubmit={event => { event.preventDefault(); if (deliveryNotice) return; void run(() => communityApi.invite(email), () => { setOpen(false); setEmail('') }) }}><label className="grid gap-2 text-sm font-semibold">Email người nhận<input className="min-h-11 rounded-lg border border-[#C4C7C7] px-3" type="email" required value={email} disabled={busy || deliveryNotice} onChange={event => setEmail(event.target.value)} /></label>{error && <p role="alert" className="mt-3 text-sm leading-6 text-[#A94B4B]">{error}</p>}{deliveryFeedback}<div className="mt-5 flex justify-end gap-3"><Button disabled={busy} variant="ghost" onClick={() => setOpen(false)}>Hủy</Button><Button type="submit" loading={busy} disabled={deliveryNotice}>Gửi lời mời</Button></div></form>
     </ApiModal>
     <ApiModal open={!!remove} title="Hủy kết bạn" onClose={() => { if (!busy) setRemove(null) }} description={`Hủy kết bạn với ${remove?.name ?? ''}? Hai người mất quyền xem Outfit Bạn bè.`}>{error && <p role="alert" className="text-sm text-[#A94B4B]">{error}</p>}<div className="flex flex-wrap justify-end gap-3"><Button variant="ghost" disabled={busy} onClick={() => setRemove(null)}>Giữ bạn bè</Button><Button variant="danger" loading={busy} onClick={() => { if (remove) void run(() => communityApi.unfriend(remove.id), () => setRemove(null)) }}>Hủy kết bạn</Button></div></ApiModal>
   </ApiSection>

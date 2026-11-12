@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { AddressPayload, IdentityAddress, Province, Ward } from '@/shared/api/identityApi'
 import { Button, TextField } from '@/shared/ui'
 import AddressAutocomplete from '@/shared/ui/AddressAutocomplete'
+import { AddressLocationSelect } from './AddressLocationSelect'
 
 import { firstInvalidField, validateAddressFields, type AddressField, type AddressFieldErrors } from '../model/addressValidation'
 
@@ -96,43 +97,32 @@ export function AddressForm({
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <TextField id={FIELD_IDS.label} label="Tên gợi nhớ (không bắt buộc)" value={label} error={errors.label} onChange={event => { setLabel(event.target.value); clearError('label') }} />
-        <TextField id={FIELD_IDS.recipientName} label="Tên người nhận" autoComplete="name" value={recipientName} error={errors.recipientName} onChange={event => { setRecipientName(event.target.value); clearError('recipientName') }} />
-        <TextField id={FIELD_IDS.recipientPhone} label="Số điện thoại Việt Nam" type="tel" autoComplete="tel" value={recipientPhone} error={errors.recipientPhone} onChange={event => { setRecipientPhone(event.target.value); clearError('recipientPhone') }} />
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <TextField className="h-11 min-w-0 w-full" id={FIELD_IDS.label} label="Tên gợi nhớ (không bắt buộc)" value={label} error={errors.label} onChange={event => { setLabel(event.target.value); clearError('label') }} />
+        <TextField className="h-11 min-w-0 w-full" id={FIELD_IDS.recipientName} label="Tên người nhận" autoComplete="name" value={recipientName} error={errors.recipientName} onChange={event => { setRecipientName(event.target.value); clearError('recipientName') }} />
+        <TextField className="h-11 min-w-0 w-full" id={FIELD_IDS.recipientPhone} label="Số điện thoại Việt Nam" type="tel" autoComplete="tel" value={recipientPhone} error={errors.recipientPhone} onChange={event => { setRecipientPhone(event.target.value); clearError('recipientPhone') }} />
         <AddressAutocomplete id={FIELD_IDS.addressLine} label="Địa chỉ (số nhà, đường, quận/huyện, tỉnh/thành)" value={addressLine} error={errors.addressLine} onChange={value => { setAddressLine(value); clearError('addressLine') }} />
-        <label className="grid gap-1.5 text-sm font-semibold text-[#3A3632]">
-          Tỉnh/thành để tra cứu phường/xã (không bắt buộc)
-          <select
-            value={provinceCode}
-            onChange={event => {
-              const code = event.target.value
-              setProvinceCode(code)
-              setWardCode('')
-              setClearSavedWard(false)
-              onProvinceChange(code)
-            }}
-            className="h-11 rounded-lg border border-[#C4C7C7] bg-white px-3 text-sm font-medium outline-none focus:border-[#1C1B1B] focus:ring-2 focus:ring-[#1C1B1B]/20"
-          >
-            <option value="">Chọn tỉnh/thành</option>
-            {provinces.map(province => <option key={province.code} value={province.code}>{province.name}</option>)}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-sm font-semibold text-[#3A3632]">
-          Phường/xã (không bắt buộc)
-          <select
+        <AddressLocationSelect label="Tỉnh/thành để tra cứu phường/xã (không bắt buộc)" placeholder="Tìm tỉnh/thành" emptyLabel="Không chọn tỉnh/thành" options={provinces} value={provinceCode} onChange={code => {
+          setProvinceCode(code)
+          setWardCode('')
+          setClearSavedWard(false)
+          onProvinceChange(code)
+        }} />
+        <div className="grid min-w-0 content-start gap-2">
+          <AddressLocationSelect
+            key={provinceCode}
             id={FIELD_IDS.wardCode}
+            label="Phường/xã (không bắt buộc)"
+            placeholder={wardLoading ? 'Đang tải phường/xã…' : 'Tìm phường/xã'}
+            emptyLabel="Không gắn mã phường/xã"
+            options={wards.map(ward => ({ code: ward.code, name: `${ward.name} (${ward.code})` }))}
             value={wardCode}
             disabled={!provinceCode || wardLoading}
-            onChange={event => { setWardCode(event.target.value); setClearSavedWard(false) }}
-            className="h-11 rounded-lg border border-[#C4C7C7] bg-white px-3 text-sm font-medium outline-none focus:border-[#1C1B1B] focus:ring-2 focus:ring-[#1C1B1B]/20 disabled:cursor-not-allowed disabled:bg-[#F5F2EE]"
-          >
-            <option value="">Không gắn mã phường/xã</option>
-            {wards.map(ward => <option key={ward.code} value={ward.code}>{ward.name} ({ward.code})</option>)}
-          </select>
-          {wardLoading && <span className="text-xs font-normal text-[#5E5F5D]">Đang tải danh sách phường/xã…</span>}
-          {errors.wardCode && <span className="text-xs font-semibold text-[#A94B4B]">{errors.wardCode}</span>}
-        </label>
+            error={errors.wardCode}
+            onChange={code => { setWardCode(code); setClearSavedWard(false); clearError('wardCode') }}
+          />
+          {wardLoading && <span role="status" className="text-xs font-normal text-[#5E5F5D]">Đang tải danh sách phường/xã…</span>}
+        </div>
       </div>
 
       {initialAddress?.ward_code && (

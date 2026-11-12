@@ -24,7 +24,7 @@ export async function validateImages(files: File[]): Promise<string | null> {
   if (files.length > 5) return 'Mỗi tin nhắn tối đa 5 ảnh.'
   for (const file of files) {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.'
-    if (!file.size || file.size > 5 * 1024 * 1024) return 'Mỗi ảnh phải có dung lượng tối đa 5 MB.'
+    if (!file.size || file.size > 10 * 1024 * 1024) return 'Mỗi ảnh phải có dung lượng tối đa 10 MB.'
     try { const bitmap = await createImageBitmap(file); const pixels = bitmap.width * bitmap.height; bitmap.close(); if (pixels > 40000000) return 'Mỗi ảnh tối đa 40 megapixel.' }
     catch { return 'Không thể đọc ảnh. Hãy chọn ảnh hợp lệ.' }
   }

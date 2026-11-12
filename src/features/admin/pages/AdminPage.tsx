@@ -132,7 +132,7 @@ export function AdminPage() {
     if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
     if (activeSection === 'categories') return <AdminCategoriesPanel database={state} dispatch={dispatch} />
     if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} onReload={() => setReloadVersion(value => value + 1)} />
-    if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} />
+    if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} onReload={() => setReloadVersion(value => value + 1)} />
     if (activeSection === 'customers') return <AdminCustomersPanel />
     return sectionPlaceholder(activeSection)
   }, [activeSection, currentUser?.id, dispatch, state])

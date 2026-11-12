@@ -65,7 +65,7 @@ export function Modal({ open, title, description, onClose, children, footer, lay
   if (!open) return null
 
   return createPortal(
-    <div className={`fixed inset-0 z-[var(--z-modal)] bg-[var(--color-overlay)] ${layout === 'drawer' ? 'flex justify-end' : 'grid place-items-center px-4 py-6'}`}>
+    <div className={`fixed inset-0 z-[var(--z-modal)] ${layout === 'drawer' ? 'flex justify-end bg-black/35' : 'grid place-items-center bg-[var(--color-overlay)] px-4 py-6'}`}>
       <div
         ref={dialogRef}
         role="dialog"

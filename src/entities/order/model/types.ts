@@ -41,6 +41,8 @@ export interface Order {
   backendStatus?: string
   paymentMethod: PaymentMethod
   paymentStatus: PaymentStatus
+  refundStatus?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null
+  refundedAmountVnd?: number
   paymentReference: string | null
   items: OrderItemSnapshot[]
   shippingAddress: AddressSnapshot
@@ -53,7 +55,7 @@ export interface Order {
 }
 
 export interface CancellationRequest {
-  refundStatus?: 'PENDING_REFUND'
+  refundStatus?: 'PENDING_REFUND' | 'REFUNDED'
   id: string
   orderId: string
   userId: string

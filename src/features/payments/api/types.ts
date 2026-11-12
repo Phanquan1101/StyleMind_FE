@@ -38,6 +38,9 @@ export interface CheckoutRequest {
 }
 
 export interface OrderResponse {
+  payment_status?: 'PAID' | 'PENDING'
+  refunded_amount_vnd?: number
+  refund_status?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null
   order_id: string
   order_number: string
   customer_id: string | null
@@ -86,7 +89,7 @@ export interface OrderResponse {
     reviewed_by_user_id: string | null
     reviewed_at: string | null
     decision_reason: string | null
-    refund_status?: 'PENDING_REFUND' | null
+    refund_status?: 'PENDING_REFUND' | 'REFUNDED' | null
   } | null
 }
 

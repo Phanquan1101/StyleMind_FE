@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ImagePlus } from 'lucide-react'
-import { friendLabel } from '@/features/friends/model/friendLabel'
+import ChatPeerLabel from './ChatPeerLabel'
 import { useAuth } from '@/features/auth'
 import { useApiQuery } from '@/shared/api/useApiQuery'
 import { ApiPagination, ApiState } from '@/shared/api/ApiUi'
@@ -110,14 +110,14 @@ export default function ApiMessagesPage() {
           <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:content-start md:overflow-visible md:pb-0">
             {chats.data.items.map(chat => {
               const friend = friendNames.data?.items.find(item => item.friend_account_id === chat.friend_account_id)
-              return <Button className="max-w-[240px] break-all md:max-w-full" key={chat.chat_session_id} disabled={busy} variant={id === chat.chat_session_id ? 'primary' : 'secondary'} onClick={() => { setError(''); setParams({ conversation: chat.chat_session_id }) }}>{friend ? friendLabel(friend) : 'Bạn bè'}</Button>
+              return <Button className="max-w-[240px] break-all md:max-w-full" key={chat.chat_session_id} disabled={busy} variant={id === chat.chat_session_id ? 'primary' : 'secondary'} onClick={() => { setError(''); setParams({ conversation: chat.chat_session_id }) }}><ChatPeerLabel email={friend?.email} displayName={friend?.display_name} /></Button>
             })}
             {!chats.data.items.length && <div className="text-sm leading-6 text-[#5E5F5D]"><p>Chưa có cuộc trò chuyện. Mở từ danh sách Bạn bè.</p><Link to="/friends" className="mt-3 inline-block font-semibold text-[#1C1B1B] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]">Đi đến Bạn bè</Link></div>}
           </div>
           {chats.data.total_pages > 1 && <ApiPagination data={chats.data} setPage={setPage} />}
         </aside>
         {id ? <div className="flex min-h-0 min-w-0 flex-col bg-white">
-          <div className="shrink-0 border-b border-[#E3E2E2] px-4 py-3 sm:px-6"><h2 className="break-words font-display text-xl sm:text-2xl">{activeFriend ? friendLabel(activeFriend) : 'Bạn bè'}</h2></div>
+          <div className="shrink-0 border-b border-[#E3E2E2] px-4 py-3 sm:px-6"><h2 className="break-words font-display text-xl sm:text-2xl"><ChatPeerLabel email={activeFriend?.email} displayName={activeFriend?.display_name} /></h2></div>
           {(!history.data || history.error) && <div className="px-4 sm:px-6"><ApiState {...history} retry={history.refresh} /></div>}
           {history.data && <div ref={historyBox} aria-label="Lịch sử tin nhắn" tabIndex={0} onScroll={event => { const el = event.currentTarget; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80 }} className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1C1B1B] sm:px-6">
             {(cursor !== -1 && (cursor !== null || history.data.has_more)) && <Button variant="ghost" loading={loadingOlder} onClick={() => void loadOlder()}>Xem tin cũ hơn</Button>}
@@ -128,7 +128,7 @@ export default function ApiMessagesPage() {
           {showComposer && <div className="shrink-0 border-t border-[#E3E2E2] bg-[#FBF9F9] px-4 py-4 sm:px-6">
             {images.length > 0 && <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-y-auto p-1">{images.map((file, index) => <DraftImage key={`${file.name}-${index}`} file={file} remove={() => setImageDrafts(old => ({ ...old, [id]: images.filter((_, i) => i !== index) }))} />)}</div>}
             <form className="flex items-center gap-2 sm:gap-3" onSubmit={event => { event.preventDefault(); void send() }}>{imagesEnabled && <label className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[#D9D7D5] bg-white text-[#5E5F5D] transition hover:bg-[#EFEDED] focus-within:ring-2 focus-within:ring-[#1C1B1B]" title="Chọn ảnh"><ImagePlus size={20} aria-hidden="true" /><span className="sr-only">Chọn ảnh</span><input type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || validatingImages} onChange={async event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (!files.length) return; const selected = [...images, ...files]; const selectedChat = id; setValidatingImages(true); setError(''); try { const invalid = await validateImages(selected); if (currentChat.current !== selectedChat) return; if (invalid) { setError(invalid); return } setImageDrafts(old => ({ ...old, [selectedChat]: selected })) } finally { setValidatingImages(false) } }} /></label>}<label className="sr-only" htmlFor="api-message">Tin nhắn</label><input id="api-message" disabled={busy} placeholder="Nhập tin nhắn..." className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#C4C7C7] bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#1C1B1B]/20" value={draft} onChange={event => { const value = event.target.value; setDrafts(old => ({ ...old, [id]: value })) }} /><Button type="submit" loading={busy} disabled={validatingImages || !connected || (!draft.trim() && !images.length)}>Gửi</Button></form>
-            <p className="mt-2 text-xs text-[#5E5F5D]" role={validatingImages ? 'status' : undefined}>{validatingImages ? 'Đang kiểm tra ảnh…' : imagesEnabled ? 'Ảnh JPG, PNG hoặc WebP · tối đa 5 ảnh, 5 MB mỗi ảnh' : 'Tính năng gửi ảnh chưa được bật trên hệ thống này.'}</p>
+            <p className="mt-2 text-xs text-[#5E5F5D]" role={validatingImages ? 'status' : undefined}>{validatingImages ? 'Đang kiểm tra ảnh…' : imagesEnabled ? 'Ảnh JPG, PNG hoặc WebP · tối đa 5 ảnh, 10 MB mỗi ảnh' : 'Tính năng gửi ảnh chưa được bật trên hệ thống này.'}</p>
           </div>}
         </div> : <div className="grid min-h-0 place-items-center p-6 text-center text-sm text-[#5E5F5D]">Chọn một cuộc trò chuyện để bắt đầu.</div>}
       </div>

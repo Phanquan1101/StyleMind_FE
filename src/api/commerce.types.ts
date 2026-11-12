@@ -206,7 +206,7 @@ export interface CancellationRequestResponse {
   reviewed_by_user_id: UUID | null
   reviewed_at: string | null
   decision_reason: string | null
-  refund_status?: 'PENDING_REFUND' | null
+  refund_status?: 'PENDING_REFUND' | 'REFUNDED' | null
 }
 
 export interface OrderResponse {
@@ -217,6 +217,8 @@ export interface OrderResponse {
   order_status: string
   confirmation_state?: 'UNCONFIRMED' | 'CONFIRMED' | 'LEGACY_UNKNOWN'
   payment_status?: 'PENDING' | 'PAID' | string
+  refunded_amount_vnd?: number
+  refund_status?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null
   payment_method: 'COD' | 'SEPAY_VIETQR'
   accepted_total_vnd: number
   placed_at: string | null
