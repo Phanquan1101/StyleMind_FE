@@ -5,8 +5,9 @@ export interface FriendDto { friendship_id: string; friend_account_id: string; e
 export interface InvitationDto { friend_invitation_id: string; recipient_email: string; status: string; created_at: string; expires_at: string; accepted_at: string | null }
 export interface IncomingDto { friend_invitation_id: string; sender_account_id: string; sender_display_name: string | null; created_at: string; expires_at: string }
 export interface InvitationResult { friend_invitation_id: string; status: string; outcome: string; delivery_status: string | null; retry_after_seconds: number; expires_at: string | null }
-export interface OutfitSummaryDto { outfit_id: string; name: string; visibility: Visibility; item_count: number; updated_at: string; owner_display_name?: string | null }
-export interface OutfitItemDto { outfit_item_id: string; variant_id: string; product_id: string | null; product_name: string | null; color: string | null; size: string | null; unit_price_vnd: number | null; image_url: string | null; available: boolean }
+export interface OutfitCategoryCountDto { category_id: string; category_name: string | null; count: number }
+export interface OutfitSummaryDto { outfit_id: string; name: string; visibility: Visibility; item_count: number; updated_at: string; owner_display_name?: string | null; category_counts?: OutfitCategoryCountDto[] }
+export interface OutfitItemDto { outfit_item_id: string; variant_id: string; product_id: string | null; product_name: string | null; color: string | null; size: string | null; unit_price_vnd: number | null; image_url: string | null; available: boolean; category_id?: string | null; category_name?: string | null }
 export interface OutfitDetailDto { outfit_id: string; name: string; items: OutfitItemDto[]; visibility?: Visibility; owner_display_name?: string | null }
 export interface SharingDto { outfit_id: string; visibility: Visibility; public_enabled: boolean; public_token: string | null; public_enabled_at: string | null }
 const base = '/wardrobe-community/api/v1'

@@ -50,24 +50,25 @@ describe('Manual outfit builder', () => {
     renderBuilder()
 
     await user.type(await screen.findByLabelText('Tìm sản phẩm cho outfit'), 'blouse')
-    expect(screen.queryByText('Quần tây ống suông')).not.toBeInTheDocument()
+    // The search runs on the server (debounced): the pants disappear from the catalog once it answers.
+    await waitFor(() => expect(screen.queryByText('Quần tây ống suông')).not.toBeInTheDocument())
 
-    await user.click(screen.getByRole('button', { name: 'Thêm Áo blouse cổ vuông' }))
+    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông vào outfit' }))
 
     const draftPanel = screen.getByRole('region', { name: 'Outfit đang tạo' })
     expect(within(draftPanel).getByText('Áo blouse cổ vuông')).toBeInTheDocument()
-    expect(within(draftPanel).getByText(/Trắng/)).toBeInTheDocument()
+    expect(within(draftPanel).getByRole('button', { name: 'Màu Trắng', pressed: true })).toBeInTheDocument()
   })
 
   it('removes and changes variants inside the draft', async () => {
     const user = userEvent.setup()
     renderBuilder()
 
-    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông' }))
-    await user.selectOptions(screen.getByLabelText('Đổi phiên bản draft Áo blouse cổ vuông'), 'var-blouse-01-black-m')
-    expect(screen.getByText(/Đen/)).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông vào outfit' }))
+    await user.click(screen.getByRole('button', { name: 'Màu Đen' }))
+    expect(screen.getByRole('button', { name: 'Màu Đen', pressed: true })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Xóa Áo blouse cổ vuông khỏi draft' }))
+    await user.click(screen.getByRole('button', { name: 'Xóa Áo blouse cổ vuông khỏi outfit' }))
     expect(screen.getByText('Chưa có món nào trong outfit')).toBeInTheDocument()
   })
 
@@ -75,7 +76,7 @@ describe('Manual outfit builder', () => {
     const user = userEvent.setup()
     renderBuilder()
 
-    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông' }))
+    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông vào outfit' }))
     await user.click(screen.getByRole('button', { name: 'Lưu outfit' }))
 
     expect(await screen.findByText('Vui lòng nhập tên outfit')).toBeInTheDocument()
@@ -90,7 +91,7 @@ describe('Manual outfit builder', () => {
     vi.spyOn(communityApi, 'sharing').mockResolvedValue({ outfit_id: id, visibility: 'PRIVATE', public_enabled: false, public_token: null, public_enabled_at: null })
     const router = renderBuilder()
 
-    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông' }))
+    await user.click(await screen.findByRole('button', { name: 'Thêm Áo blouse cổ vuông vào outfit' }))
     await user.type(screen.getByLabelText('Tên outfit'), 'Outfit đi chơi')
     await user.click(screen.getByRole('button', { name: 'Lưu outfit' }))
 

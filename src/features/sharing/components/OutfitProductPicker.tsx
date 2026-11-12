@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { commerceApi } from '@/api/commerce'
 import type { CommerceProduct, ProductVariant } from '@/api/commerce.types'
+import type { ProductSize } from '@/entities/product/model/types'
+import { commerceProductToEntity } from '@/features/commerce/data/commerceEntityAdapters'
+import { getProductSelection } from '@/features/product-detail/model/productSelection'
 import { Button } from '@/shared/ui'
 import { colorSwatchHex } from '@/shared/lib/colorSwatch'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
@@ -43,7 +46,7 @@ export function OutfitProductPicker({ usedVariantIds, restrictToProductId, disab
   const [revision, setRevision] = useState(0)
   const [productId, setProductId] = useState<string | null>(restrictToProductId ?? null)
   const [color, setColor] = useState('')
-  const [variantId, setVariantId] = useState('')
+  const [size, setSize] = useState('')
 
   // Debounced search term.
   useEffect(() => {
@@ -76,14 +79,20 @@ export function OutfitProductPicker({ usedVariantIds, restrictToProductId, disab
 
   const visible = useMemo(() => products.filter(product => product.product_status === 'ACTIVE' && activeVariants(product).length > 0), [products])
   const product = visible.find(item => item.product_id === productId) ?? null
-  const variants = product ? activeVariants(product) : []
-  const colors = useMemo(() => [...new Set(variants.map(variant => variant.color || 'Mặc định'))], [variants])
-  const activeColor = colors.includes(color) ? color : colors.length === 1 ? colors[0] : ''
-  const sizes = variants.filter(variant => (variant.color || 'Mặc định') === activeColor)
-  const preview = imageOf(sizes[0]) ?? (product ? productImage(product) : undefined)
+  // Colour -> size grouping, size order and stock come from the same module the product page uses.
+  const entity = useMemo(() => (product ? commerceProductToEntity({ ...product, variants: product.variants.map(variant => ({ ...variant, size: variant.size?.trim() || 'Một cỡ' })) }) : null), [product])
+  const colorNames = useMemo(() => (entity ? getProductSelection(entity).colorOptions.map(option => option.color) : []), [entity])
+  const activeColor = colorNames.includes(color) ? color : colorNames.length === 1 ? colorNames[0] : ''
+  // An empty colour means "none chosen yet" (null would fall back to the first colour).
+  const selection = entity ? getProductSelection(entity, { color: activeColor, size: (size || null) as ProductSize | null }) : null
+  const sizeOptions = activeColor && selection ? selection.sizeOptions : []
+  const variantIdOf = (colorName: string, sizeName: string) => entity?.variants.find(variant => variant.active && variant.color === colorName && variant.size === sizeName)?.id ?? ''
+  const preview = (activeColor && selection ? selection.images[0]?.url : undefined) ?? (product ? productImage(product) : undefined)
 
-  const choose = (nextProduct: string | null, nextColor: string, nextVariant: string) => {
-    setProductId(nextProduct); setColor(nextColor); setVariantId(nextVariant); onSelect(nextVariant)
+  const choose = (nextProduct: string | null, nextColor: string, nextSize: string) => {
+    setProductId(nextProduct); setColor(nextColor); setSize(nextSize)
+    const nextEntity = nextProduct === product?.product_id ? entity : null
+    onSelect(nextEntity && nextColor && nextSize ? nextEntity.variants.find(variant => variant.active && variant.color === nextColor && variant.size === nextSize)?.id ?? '' : '')
   }
 
   return <div className="grid min-w-0 gap-4">
@@ -134,7 +143,7 @@ export function OutfitProductPicker({ usedVariantIds, restrictToProductId, disab
         <div className="grid min-w-0 content-start gap-3">
           <p className="break-words text-sm font-semibold">{product.name}</p>
           <div role="group" aria-label="Màu" className="flex flex-wrap gap-2">
-            {colors.map(name => <button
+            {colorNames.map(name => <button
               key={name} type="button" aria-pressed={name === activeColor} aria-label={`Màu ${name}`} onClick={() => choose(product.product_id, name, '')}
               className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] ${name === activeColor ? 'border-[#1C1B1B] bg-[#E9E8E7]' : 'border-[#C4C7C7] bg-white hover:border-[#1C1B1B]'}`}
             >
@@ -142,20 +151,21 @@ export function OutfitProductPicker({ usedVariantIds, restrictToProductId, disab
             </button>)}
           </div>
           {activeColor && <div role="group" aria-label="Kích cỡ" className="flex flex-wrap gap-2">
-            {sizes.map(variant => {
-              const used = usedVariantIds.has(variant.variant_id); const soldOut = variant.available_quantity <= 0
+            {sizeOptions.map(option => {
+              const optionId = variantIdOf(activeColor, option.size)
+              const used = usedVariantIds.has(optionId); const soldOut = option.stock <= 0
               return <button
-                key={variant.variant_id} type="button" disabled={used} aria-pressed={variant.variant_id === variantId}
-                aria-label={`Kích cỡ ${variant.size || 'Một cỡ'}${soldOut ? ', hết hàng' : ''}${used ? ', đã có trong outfit' : ''}`}
-                onClick={() => choose(product.product_id, activeColor, variant.variant_id)}
-                className={`grid min-h-10 min-w-12 place-items-center rounded-lg border px-3 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] disabled:cursor-not-allowed disabled:opacity-50 ${variant.variant_id === variantId ? 'border-[#1C1B1B] bg-[#1C1B1B] text-white' : 'border-[#C4C7C7] bg-white hover:border-[#1C1B1B]'}`}
+                key={option.size} type="button" disabled={used} aria-pressed={option.size === size}
+                aria-label={`Kích cỡ ${option.size}${soldOut ? ', hết hàng' : ''}${used ? ', đã có trong outfit' : ''}`}
+                onClick={() => choose(product.product_id, activeColor, option.size)}
+                className={`grid min-h-10 min-w-12 place-items-center rounded-lg border px-3 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] disabled:cursor-not-allowed disabled:opacity-50 ${option.size === size ? 'border-[#1C1B1B] bg-[#1C1B1B] text-white' : 'border-[#C4C7C7] bg-white hover:border-[#1C1B1B]'} ${soldOut && !used ? 'opacity-60' : ''}`}
               >
-                {variant.size || 'Một cỡ'}
+                {option.size}
                 {used ? <span className="text-[10px] font-medium">Đã có</span> : soldOut ? <span className="text-[10px] font-medium">Hết hàng</span> : null}
               </button>
             })}
           </div>}
-          {activeColor && sizes.some(variant => variant.available_quantity <= 0) && <p className="text-xs text-[#5E5F5D]">Món hết hàng vẫn thêm được vào outfit để phối đồ; chỉ không mua được khi hết hàng.</p>}
+          {activeColor && sizeOptions.some(option => option.stock <= 0) && <p className="text-xs text-[#5E5F5D]">Món hết hàng vẫn thêm được vào outfit để phối đồ; chỉ không mua được khi hết hàng.</p>}
         </div>
       </div>
     </fieldset>}

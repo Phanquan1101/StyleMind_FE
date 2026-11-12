@@ -33,6 +33,8 @@ export interface ProductCategory {
 export interface Product {
   id: string
   categoryId: string
+  /** Category name when the catalog API provides it (used to group outfit items). */
+  categoryName?: string
   name: string
   brand: string
   description: string

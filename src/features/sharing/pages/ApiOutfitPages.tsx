@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiOutfitManagement, OUTFIT_GRID_CLASS, OutfitItemsTotal } from '../components/ApiOutfitManagement'
 import { OutfitCartActions } from '../components/OutfitCartActions'
-import { communityApi, type OutfitDetailDto, type SharingDto, type Visibility } from '@/shared/api/communityApi'
+import { communityApi, type OutfitDetailDto, type OutfitSummaryDto, type SharingDto, type Visibility } from '@/shared/api/communityApi'
+import { ApiError } from '@/shared/api/http'
+import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog'
+import { categoryCountsOfSummary, formatOutfitSummary } from '../model/outfitCategories'
+import { outfitErrorMessage } from '../model/outfitErrors'
 import { useApiQuery } from '@/shared/api/useApiQuery'
 import { ApiModal, ApiPagination, ApiSection, ApiState } from '@/shared/api/ApiUi'
 import { Button } from '@/shared/ui'
-import { ArrowLeft, ArrowRight, Plus, Shirt } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, Shirt, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { friendLabel } from '@/features/friends/model/friendLabel'
 
@@ -14,7 +18,27 @@ const label: Record<Visibility, string> = { PRIVATE: 'Riêng tư', FRIENDS: 'B�
 export function ApiWardrobePage() {
   const [page, setPage] = useState(0)
   const query = useApiQuery(`own-outfits:${page}`, signal => communityApi.outfits(page, signal))
-  return <ApiSection title="Tủ đồ của tôi"><div className="mt-4 flex flex-wrap items-center justify-between gap-4"><p className="max-w-xl text-sm leading-6 text-[#5E5F5D]">Lưu lại những cách phối đồ yêu thích và chia sẻ phong cách của bạn.</p><Link to="/wardrobes/new" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1C1B1B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#444746] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"><Plus size={16} aria-hidden="true" />Tạo Outfit</Link></div><ApiState {...query} retry={query.refresh} />{query.data && <><div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{query.data.items.map(o => <Link className="group overflow-hidden rounded-[24px] border border-[#E3E2E2] bg-white transition hover:shadow-lg" key={o.outfit_id} to={`/outfits/${o.outfit_id}`}><div className="grid aspect-[16/10] place-items-center bg-[#F5F3F3] text-[#C4C7C7]"><Shirt size={48} strokeWidth={1} aria-hidden="true" /></div><div className="flex items-end justify-between gap-4 p-6"><div><p className="text-xs uppercase tracking-wider text-[#5E5F5D]">{label[o.visibility]}</p><h2 className="mt-2 font-display text-2xl">{o.name}</h2><p className="mt-2 text-sm text-[#5E5F5D]">{o.item_count} món</p></div><ArrowRight size={18} className="transition-transform group-hover:translate-x-1" aria-hidden="true" /></div></Link>)}</div>{!query.data.items.length && <div className="mt-8 rounded-[24px] border border-dashed border-[#C4C7C7] bg-white p-10 text-center"><Shirt className="mx-auto text-[#C4C7C7]" size={36} aria-hidden="true" /><p className="mt-4 font-display text-2xl font-semibold">Chưa có Outfit.</p><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#5E5F5D]">Tạo outfit đầu tiên: chọn vài món trong cửa hàng để phối thành một bộ, lưu lại và chia sẻ với bạn bè.</p><Link to="/wardrobes/new" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1C1B1B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#444746] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"><Plus size={16} aria-hidden="true" />Tạo outfit đầu tiên</Link></div>}<ApiPagination data={query.data} setPage={setPage} /></>}</ApiSection>
+  const [deleteTarget, setDeleteTarget] = useState<OutfitSummaryDto | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(new Set())
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return
+    const target = deleteTarget
+    setDeleting(true); setDeleteError('')
+    try {
+      await communityApi.deleteOutfit(target.outfit_id)
+    } catch (error) {
+      // 404: it is already gone (deleted elsewhere); treat like a success and refresh.
+      if (!(error instanceof ApiError && error.status === 404)) { setDeleteError(outfitErrorMessage(error)); setDeleting(false); return }
+    }
+    setDeleting(false); setDeleteTarget(null)
+    setRemovedIds(previous => new Set(previous).add(target.outfit_id))
+    // Last outfit of a later page gone: step back so the page is not empty.
+    if (page > 0 && (query.data?.items.filter(item => !removedIds.has(item.outfit_id)).length ?? 0) <= 1) setPage(page - 1); else query.refresh()
+  }
+  const items = query.data?.items.filter(item => !removedIds.has(item.outfit_id)) ?? []
+  return <ApiSection title="Tủ đồ của tôi"><div className="mt-4 flex flex-wrap items-center justify-between gap-4"><p className="max-w-xl text-sm leading-6 text-[#5E5F5D]">Lưu lại những cách phối đồ yêu thích và chia sẻ phong cách của bạn.</p><Link to="/wardrobes/new" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1C1B1B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#444746] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"><Plus size={16} aria-hidden="true" />Tạo Outfit</Link></div><ApiState {...query} retry={query.refresh} />{query.data && <><div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{items.map(o => <article className="group relative overflow-hidden rounded-[24px] border border-[#E3E2E2] bg-white transition hover:shadow-lg" key={o.outfit_id}><Link className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]" to={`/outfits/${o.outfit_id}`}><div className="grid aspect-[16/10] place-items-center bg-[#F5F3F3] text-[#C4C7C7]"><Shirt size={48} strokeWidth={1} aria-hidden="true" /></div><div className="flex items-end justify-between gap-4 p-6"><div className="min-w-0"><p className="text-xs uppercase tracking-wider text-[#5E5F5D]">{label[o.visibility]}</p><h2 className="mt-2 break-words font-display text-2xl">{o.name}</h2><p className="mt-2 text-sm text-[#5E5F5D]">{formatOutfitSummary(o.item_count, categoryCountsOfSummary(o.category_counts))}</p></div><ArrowRight size={18} className="shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" /></div></Link><button type="button" aria-label={`Xóa outfit ${o.name}`} title="Xóa outfit" onClick={() => { setDeleteError(''); setDeleteTarget(o) }} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#A94B4B] shadow-sm transition hover:bg-[#FCEAEA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A94B4B]"><Trash2 size={16} aria-hidden="true" /></button></article>)}</div>{!items.length && <div className="mt-8 rounded-[24px] border border-dashed border-[#C4C7C7] bg-white p-10 text-center"><Shirt className="mx-auto text-[#C4C7C7]" size={36} aria-hidden="true" /><p className="mt-4 font-display text-2xl font-semibold">Chưa có Outfit.</p><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#5E5F5D]">Tạo outfit đầu tiên: chọn vài món trong cửa hàng để phối thành một bộ, lưu lại và chia sẻ với bạn bè.</p><Link to="/wardrobes/new" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1C1B1B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#444746] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"><Plus size={16} aria-hidden="true" />Tạo outfit đầu tiên</Link></div>}<ApiPagination data={query.data} setPage={setPage} /></>}<ConfirmDeleteDialog open={deleteTarget !== null} title="Xóa outfit" message={`Xóa outfit “${deleteTarget?.name ?? ''}”?`} busy={deleting} error={deleteError} onClose={() => { if (!deleting) { setDeleteTarget(null); setDeleteError('') } }} onConfirm={() => void confirmDelete()} /></ApiSection>
 }
 export function ApiSharedWithMePage() {
   const [page, setPage] = useState(0), query = useApiQuery(`friends:${page}`, signal => communityApi.friends(page, signal))

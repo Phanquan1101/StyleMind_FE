@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/features/auth'
 import { ApiModal } from '@/shared/api/ApiUi'
 import { communityApi, type OutfitDetailDto, type OutfitItemDto } from '@/shared/api/communityApi'
-import { ApiError } from '@/shared/api/http'
 import { Button } from '@/shared/ui'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { Shirt } from 'lucide-react'
 import { OutfitProductPicker } from './OutfitProductPicker'
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog'
+import { categoryCountsOfItems, formatOutfitSummary } from '../model/outfitCategories'
+import { outfitErrorMessage } from '../model/outfitErrors'
 
 type Dialog = 'rename' | 'delete' | 'add' | 'change' | 'remove' | null
 
@@ -23,20 +25,6 @@ export function OutfitItemsTotal({ items }: { items: OutfitItemDto[] }) {
   </div>
 }
 
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    const messages: Record<string, string> = {
-      OUTFIT_LAST_ITEM: 'Outfit phải giữ lại ít nhất một món.',
-      OUTFIT_ITEM_LIMIT_REACHED: 'Mỗi outfit tối đa 10 món.',
-      OUTFIT_ITEM_DUPLICATE: 'Phiên bản này đã có trong outfit.',
-      OUTFIT_ITEM_UNAVAILABLE: 'Món này không còn khả dụng. Bạn có thể xóa và thêm món khác.',
-      VARIANT_NOT_ACTIVE: 'Phiên bản này không còn khả dụng.',
-    }
-    return messages[error.code] || error.message
-  }
-  return error instanceof Error ? error.message : 'Không thể cập nhật outfit. Vui lòng thử lại.'
-}
-
 export function ApiOutfitManagement({ detail, refresh, onDeleted }: { detail: OutfitDetailDto; refresh: () => void; onDeleted: () => void }) {
   const { currentUser } = useAuth()
   const owner = useRef(currentUser?.id)
@@ -50,6 +38,7 @@ export function ApiOutfitManagement({ detail, refresh, onDeleted }: { detail: Ou
   const [selected, setSelected] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
@@ -68,18 +57,25 @@ export function ApiOutfitManagement({ detail, refresh, onDeleted }: { detail: Ou
       setDialog(null)
       if (deleted) onDeleted(); else refresh()
     } catch (failure) {
-      if (mounted.current && owner.current === originalOwner && currentOutfit.current === originalOutfit) setError(errorMessage(failure))
+      if (mounted.current && owner.current === originalOwner && currentOutfit.current === originalOutfit) setError(outfitErrorMessage(failure))
     } finally { lock.current = false; if (mounted.current && owner.current === originalOwner) setBusy(false) }
   }
 
   const used = new Set(detail.items.map(item => item.variant_id))
+  const counts = categoryCountsOfItems(detail.items)
+  const activeFilter = counts.some(entry => entry.id === categoryFilter) ? categoryFilter : null
+  const shownItems = activeFilter ? detail.items.filter(item => item.category_id === activeFilter) : detail.items
   return <>
     <div className="mt-5 flex flex-wrap gap-3">
       <Button variant="secondary" onClick={() => open('rename')}>Đổi tên</Button>
       <Button variant="secondary" disabled={detail.items.length >= 10} onClick={() => open('add')}>Thêm món</Button>
       <Button variant="danger" onClick={() => open('delete')}>Xóa outfit</Button>
     </div>
-    <div className={OUTFIT_GRID_CLASS}>{detail.items.map(item => {
+    <p className="mt-5 text-sm font-medium text-[#5E5F5D]">{formatOutfitSummary(detail.items.length, counts)}</p>
+    {counts.length > 1 && <div role="group" aria-label="Lọc món theo danh mục" className="mt-3 flex flex-wrap gap-2">
+      {[{ id: null as string | null, name: 'Tất cả', count: detail.items.length }, ...counts].map(entry => <button key={entry.id ?? 'all'} type="button" aria-pressed={entry.id === activeFilter} onClick={() => setCategoryFilter(entry.id)} className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]/30 ${entry.id === activeFilter ? 'border-[#1C1B1B] bg-[#1C1B1B] text-white' : 'border-[#C4C7C7] bg-white text-[#3A3632] hover:border-[#1C1B1B]'}`}>{entry.name} ({entry.count})</button>)}
+    </div>}
+    <div className={OUTFIT_GRID_CLASS}>{shownItems.map(item => {
       const name = item.product_name || 'món này'
       return <article key={item.outfit_item_id} className="grid min-w-0 content-start gap-3 overflow-hidden rounded-xl border border-[#E3E2E2] bg-white p-3">
         {item.available && item.image_url ? <img src={item.image_url} alt="" className="aspect-[3/4] w-full rounded-lg bg-[#F5F3F3] object-cover" /> : <div className="grid aspect-[3/4] place-items-center rounded-lg bg-[#F5F3F3] text-[#C4C7C7]"><Shirt size={36} strokeWidth={1} aria-hidden="true" /></div>}
@@ -105,11 +101,15 @@ export function ApiOutfitManagement({ detail, refresh, onDeleted }: { detail: Ou
       </form>
     </ApiModal>
 
-    <ApiModal open={dialog === 'delete' || dialog === 'remove'} title={dialog === 'delete' ? 'Xóa outfit' : 'Xóa món'} onClose={close}>
-      <p className="text-sm">{dialog === 'delete' ? `Xóa outfit “${detail.name}”?` : `Xóa ${selectedItem?.product_name || 'món này'} khỏi outfit?`}</p>
-      {error && <p role="alert" className="mt-3 text-sm text-[#A94B4B]">{error}</p>}
-      <div className="mt-5 flex justify-end gap-3"><Button variant="ghost" disabled={busy} onClick={close}>Hủy</Button><Button variant="danger" loading={busy} onClick={() => { if (dialog === 'delete') void perform(() => communityApi.deleteOutfit(detail.outfit_id), true); else if (selectedItem) void perform(() => communityApi.removeOutfitItem(detail.outfit_id, selectedItem.outfit_item_id)) }}>Xác nhận xóa</Button></div>
-    </ApiModal>
+    <ConfirmDeleteDialog
+      open={dialog === 'delete' || dialog === 'remove'}
+      title={dialog === 'delete' ? 'Xóa outfit' : 'Xóa món'}
+      message={dialog === 'delete' ? `Xóa outfit “${detail.name}”?` : `Xóa ${selectedItem?.product_name || 'món này'} khỏi outfit?`}
+      busy={busy}
+      error={error}
+      onClose={close}
+      onConfirm={() => { if (dialog === 'delete') void perform(() => communityApi.deleteOutfit(detail.outfit_id), true); else if (selectedItem) void perform(() => communityApi.removeOutfitItem(detail.outfit_id, selectedItem.outfit_item_id)) }}
+    />
 
     <ApiModal open={dialog === 'add' || dialog === 'change'} title={dialog === 'add' ? 'Thêm món' : 'Đổi màu/size'} onClose={close}>
       <OutfitProductPicker

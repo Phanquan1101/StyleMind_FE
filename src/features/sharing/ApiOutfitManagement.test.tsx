@@ -130,3 +130,54 @@ it('does not navigate away from another outfit when an older delete completes', 
   await act(async () => { finish(); await Promise.resolve() })
   expect(deleted).not.toHaveBeenCalled()
 })
+
+const categorised = { ...detail, items: [
+  { ...detail.items[0], category_id: 'c-shirt', category_name: 'Áo' },
+  { ...detail.items[0], outfit_item_id: second, variant_id: second, product_name: 'Áo khoác', category_id: 'c-shirt', category_name: 'Áo' },
+  { ...detail.items[0], outfit_item_id: '90000000-0000-0000-0000-000000000009', variant_id: third, product_name: 'Quần', category_id: 'c-pants', category_name: 'Quần' },
+] }
+
+it('shows the item count per category and filters the items quickly by category', async () => {
+  const user = userEvent.setup(); render(<ApiOutfitManagement detail={categorised} refresh={vi.fn()} onDeleted={vi.fn()} />)
+  expect(screen.getByText('3 món · 2 áo · 1 quần')).toBeInTheDocument()
+  const filter = screen.getByRole('group', { name: 'Lọc món theo danh mục' })
+  expect(within(filter).getByRole('button', { name: 'Tất cả (3)', pressed: true })).toBeInTheDocument()
+  await user.click(within(filter).getByRole('button', { name: 'Quần (1)' }))
+  expect(screen.getByRole('button', { name: 'Đổi màu/size Quần' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Đổi màu/size Áo khoác' })).not.toBeInTheDocument()
+  await user.click(within(filter).getByRole('button', { name: 'Áo (2)' }))
+  expect(screen.getByRole('button', { name: 'Đổi màu/size Áo khoác' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Đổi màu/size Quần' })).not.toBeInTheDocument()
+  await user.click(within(filter).getByRole('button', { name: 'Tất cả (3)' }))
+  expect(screen.getAllByRole('button', { name: /^Đổi màu\/size/ })).toHaveLength(3)
+})
+
+it('shows only the total (and no filter) when the server sent no category data', () => {
+  render(<ApiOutfitManagement detail={detail} refresh={vi.fn()} onDeleted={vi.fn()} />)
+  expect(screen.getByText('1 món')).toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Lọc món theo danh mục' })).not.toBeInTheDocument()
+})
+
+it('translates VARIANT_NOT_ACTIVE and unknown server errors to Vietnamese', async () => {
+  const { ApiError } = await import('@/shared/api/http')
+  api.changeOutfitItem.mockRejectedValueOnce(new ApiError(409, 'VARIANT_NOT_ACTIVE', 'Variant does not exist or is inactive'))
+  const user = userEvent.setup(); render(<ApiOutfitManagement detail={detail} refresh={vi.fn()} onDeleted={vi.fn()} />)
+  await user.click(screen.getByRole('button', { name: 'Đổi màu/size Áo' }))
+  const change = await screen.findByRole('dialog', { name: 'Đổi màu/size' })
+  await user.click(await within(change).findByRole('button', { name: 'Màu Đen' }))
+  await user.click(within(change).getByRole('button', { name: /^Kích cỡ L/ }))
+  await user.click(within(change).getByRole('button', { name: 'Lưu phiên bản' }))
+  const alert = await within(change).findByRole('alert')
+  expect(alert).toHaveTextContent('không còn bán')
+  expect(alert).not.toHaveTextContent('Variant')
+})
+
+it('lists the sizes of the chosen colour in the usual order (letters, then numbers) with stock', async () => {
+  const sized = { product_id: productId, name: 'Áo', brand_name: 'Hãng A', product_status: 'ACTIVE', variants: ['XL', '10', 'M', '4', 'S', 'Một cỡ'].map((size, index) => v('a' + index + '000000-0000-0000-0000-000000000000', productId, 'Đen', size, size === 'M' ? 0 : 3)) }
+  api.get.mockResolvedValue(sized)
+  const user = userEvent.setup(); render(<ApiOutfitManagement detail={detail} refresh={vi.fn()} onDeleted={vi.fn()} />)
+  await user.click(screen.getByRole('button', { name: 'Đổi màu/size Áo' }))
+  const change = await screen.findByRole('dialog', { name: 'Đổi màu/size' })
+  const sizes = within(await within(change).findByRole('group', { name: /^Kích cỡ$/ })).getAllByRole('button')
+  expect(sizes.map(button => button.getAttribute('aria-label'))).toEqual(['Kích cỡ S', 'Kích cỡ M, hết hàng', 'Kích cỡ XL', 'Kích cỡ 4', 'Kích cỡ 10', 'Kích cỡ Một cỡ'])
+})

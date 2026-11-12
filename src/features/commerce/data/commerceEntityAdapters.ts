@@ -35,6 +35,7 @@ export function commerceProductToEntity(product: CommerceProduct): Product {
   return {
     id: product.product_id,
     categoryId: product.category_id,
+    categoryName: product.category_name || undefined,
     name: product.name,
     brand: product.brand_name,
     description: product.description || '',

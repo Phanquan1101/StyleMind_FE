@@ -164,10 +164,18 @@ async function handleRequest(input: RequestInfo | URL, init: RequestInit = {}): 
       .filter((variant: JsonRecord) => variant.active && ids.has(variant.id))
       .map((variant: JsonRecord) => ({ variant_id: variant.id, product_id: product.id, available_quantity: variant.stock }))) })
   }
+  if (url.pathname === '/commerce/api/v1/categories' && method === 'GET') {
+    return jsonResponse(200, { items: (currentDatabase()?.categories ?? []).filter((category: JsonRecord) => category.active).map((category: JsonRecord) => ({ id: category.id, name: category.label, slug: category.description, is_active: true })) })
+  }
   if (url.pathname === '/commerce/api/v1/products' && method === 'GET') {
     const database = currentDatabase()
     const categories = database?.categories ?? []
+    const plain = (value: unknown) => String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    const keyword = plain(url.searchParams.get('keyword')).trim()
+    const categoryIds = url.searchParams.getAll('category_id')
     const active = (database?.products ?? []).filter((product: JsonRecord) => product.active && categories.some((category: JsonRecord) => category.id === product.categoryId && category.active))
+      .filter((product: JsonRecord) => !keyword || plain(`${product.name} ${product.brand}`).includes(keyword))
+      .filter((product: JsonRecord) => categoryIds.length === 0 || categoryIds.includes(product.categoryId))
     const items = active.map((product: JsonRecord) => ({
       product_id: product.id, category_id: product.categoryId, category_name: categories.find((category: JsonRecord) => category.id === product.categoryId)?.label ?? '',
       brand_name: product.brand, name: product.name, description: product.description, product_status: 'ACTIVE',

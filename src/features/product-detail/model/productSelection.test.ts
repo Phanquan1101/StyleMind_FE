@@ -30,4 +30,14 @@ describe('getProductSelection', () => {
     expect(result.canPurchase).toBe(true)
     expect(result.error).toBeUndefined()
   })
+
+  it('sorts letter sizes first, then numeric sizes by value, then other labels', () => {
+    const labels = ['Một cỡ', '10', 'XL', '4', '28', 'S', '2XL', '6']
+    const variants = labels.map((size, index) => ({
+      id: `v-${index}`, color: 'Đen', colorHex: '#000', size: size as never, stock: 3, images: [], active: true,
+    }))
+    const sorted = getProductSelection({ ...product, variants }, { color: 'Đen' }).sizeOptions.map(option => option.size as string)
+
+    expect(sorted).toEqual(['S', 'XL', '2XL', '4', '6', '10', '28', 'Một cỡ'])
+  })
 })

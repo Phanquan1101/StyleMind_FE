@@ -6,7 +6,7 @@ import { LETTER_SIZES } from './sizeSuggestion'
 function sizeRank(size: string): number {
   const letter = LETTER_SIZES.indexOf(size.toUpperCase())
   if (letter >= 0) return letter
-  return /^d+$/.test(size) ? 1000 + Number(size) : 5000
+  return /^\d+$/.test(size) ? 1000 + Number(size) : 5000
 }
 
 export interface ProductSelectionInput {
