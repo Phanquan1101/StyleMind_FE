@@ -26,7 +26,7 @@ interface CommerceContextValue extends CommerceState {
   refreshCatalog: () => Promise<void>
   refreshCart: () => Promise<void>
   addCartItem: (variantId: string, quantity: number) => Promise<void>
-  updateCartItem: (cartItemId: string, quantity: number) => Promise<void>
+  updateCartItem: (cartItemId: string, variantId: string, quantity: number) => Promise<void>
   removeCartItem: (cartItemId: string) => Promise<void>
   clearCart: () => Promise<void>
   refreshOrders: () => Promise<void>
@@ -107,8 +107,8 @@ export function CommerceProvider({ children }: PropsWithChildren) {
     syncCart(cart)
   }, [guestKey, syncCart])
 
-  const updateCartItem = useCallback(async (cartItemId: string, quantity: number) => {
-    const cart = await commerceApi.cart.update(cartItemId, quantity, guestKey())
+  const updateCartItem = useCallback(async (cartItemId: string, variantId: string, quantity: number) => {
+    const cart = await commerceApi.cart.update(cartItemId, variantId, quantity, guestKey())
     syncCart(cart)
   }, [guestKey, syncCart])
 

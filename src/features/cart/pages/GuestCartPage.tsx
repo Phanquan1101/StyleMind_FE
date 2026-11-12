@@ -68,7 +68,13 @@ export default function GuestCartPage() {
             line: { id: item.cart_item_id, productId: product.id, variantId: variant.id, quantity: item.quantity, source: 'shop' },
             product, variant, image: variant.images.find(image => image.isPrimary) ?? variant.images[0] ?? null,
             quantity: item.quantity, unitPrice: item.unit_price_vnd, lineTotal: item.line_total_vnd,
-          }} unavailable={unavailable} onQuantityChange={quantity => void guest.updateItem(item.cart_item_id, quantity).catch(() => undefined)} onRemove={() => setRemoving(item)} /></div>
+          }} unavailable={unavailable}
+          onQuantityChange={quantity => void guest.updateItem(item.cart_item_id, variant.id, quantity).catch(() => undefined)}
+          onVariantChange={variantId => {
+            const target = product.variants.find(candidate => candidate.id === variantId)
+            if (target) void guest.updateItem(item.cart_item_id, variantId, Math.min(item.quantity, target.stock)).catch(() => undefined)
+          }}
+          onRemove={() => setRemoving(item)} /></div>
         })}
       </fieldset>
       <aside className="grid content-start gap-5 rounded-2xl border border-[#E3E2E2] bg-white p-6 shadow-sm lg:sticky lg:top-28">

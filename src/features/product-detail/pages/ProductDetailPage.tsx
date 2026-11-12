@@ -3,12 +3,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
-import { useDemoStore } from '@/app/store/DemoStoreProvider'
-import type { FashionMetadataOption, ProductSize } from '@/entities/product/model/types'
-import { useCommerce } from '@/features/commerce'
+import type { ProductSize } from '@/entities/product/model/types'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
 import { Button, EmptyState, useToast } from '@/shared/ui'
-import { useCommerceDisplay, useGuestCommerce } from '@/features/cart/model/GuestCommerceProvider'
+import { useCommerceDisplay } from '@/features/cart/model/GuestCommerceProvider'
 import { useAuth } from '@/features/auth'
 import { useActiveCommerce } from '@/features/cart/model/AccountCommerceProvider'
 import { guestCartErrorMessage } from '@/features/cart/data/guestCartApi'
@@ -20,10 +18,6 @@ import { SizeSelector } from '../components/SizeSelector'
 import { getProductSelection } from '../model/productSelection'
 import { describeSuggestion, sizeKindForCategory, suggestSize } from '../model/sizeSuggestion'
 
-function labelsFor(options: FashionMetadataOption[], ids: string[]) {
-  return ids.map(id => options.find(option => option.id === id)?.label ?? id)
-}
-
 function normalizeQuantity(value: number) {
   return Math.max(1, value)
 }
@@ -32,7 +26,6 @@ export function ProductDetailPage() {
   const { productId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const { dispatch } = useDemoStore()
   const { state, loading, error, retry } = useCommerceDisplay()
   const { currentUser } = useAuth()
   const guest = useActiveCommerce()
@@ -91,8 +84,6 @@ export function ProductDetailPage() {
     )
   }
 
-  const styleLabels = labelsFor(state.fashionMetadata.styles, product.styleIds)
-  const occasionLabels = labelsFor(state.fashionMetadata.occasions, product.occasionIds)
   const handleColorChange = (color: string) => {
     const nextSelection = getProductSelection(product, { color, size: selectedSize })
     setSelectedColor(color)
@@ -105,7 +96,7 @@ export function ProductDetailPage() {
     const nextSelection = getProductSelection(product, { color: selection.selectedColor, size })
     setSizeTouched(true)
     setSelectedSize(size)
-    setQuantity(current => normalizeQuantity(current))
+    setQuantity(current => Math.min(nextSelection.variant?.stock ?? 1, normalizeQuantity(current)))
     setValidationError(nextSelection.error ?? null)
   }
 
@@ -164,18 +155,15 @@ export function ProductDetailPage() {
           <p className="mt-4 text-2xl font-semibold text-[#1C1B1B]">{formatCurrency(selection.price)}</p>
         </div>
 
-        <p className="max-w-prose text-base leading-7 text-[#5D5853]">{product.description}</p>
-
         <ColorSelector options={selection.colorOptions} selectedColor={selection.selectedColor} onChange={handleColorChange} />
         <SizeSelector options={selection.sizeOptions} selectedSize={selectedSize} onChange={handleSizeChange} />
         {sizeSuggestion && <p data-testid="size-suggestion" className="-mt-3 text-sm font-medium text-[#5E5F5D]">{describeSuggestion(sizeSuggestion)}</p>}
-        {currentUser && !sizeSuggestion && <p className="-mt-3 text-sm text-[#5E5F5D]">Thêm chiều cao, cân nặng hoặc cỡ thường dùng trong <Link to={ROUTES.account} className="font-semibold underline">hồ sơ</Link> để nhận gợi ý size.</p>}
 
         <div className="grid gap-3">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm font-bold text-[#222222]">Số lượng</span>
             <span className="text-sm font-semibold text-[#5E5F5D]">
-              {selection.canPurchase ? 'Sẵn sàng thêm vào giỏ' : 'Chọn kích thước để tiếp tục'}
+              {selection.variant ? `Còn ${selection.variant.stock} sản phẩm` : 'Chọn kích thước để tiếp tục'}
             </span>
           </div>
           <div className="inline-flex w-fit items-center rounded-lg border border-[#C4C7C7] bg-white">
@@ -193,7 +181,8 @@ export function ProductDetailPage() {
             <button
               type="button"
               aria-label="Tăng số lượng"
-              onClick={() => setQuantity(current => normalizeQuantity(current + 1))}
+              disabled={!selection.variant || quantity >= selection.variant.stock}
+              onClick={() => setQuantity(current => Math.min(selection.variant?.stock ?? 1, normalizeQuantity(current + 1)))}
               className="grid h-11 w-11 place-items-center text-[#3A3632] transition hover:bg-[#EFEDED] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"
             >
               <Plus size={16} aria-hidden="true" />
@@ -213,11 +202,12 @@ export function ProductDetailPage() {
 
         <dl className="grid gap-3 border-t border-[#EFEDED] pt-6 text-sm">
           <DetailRow label="Chất liệu" value={product.material} />
-          <DetailRow label="Phom dáng" value={product.fit} />
-          <DetailRow label="Họa tiết" value={product.pattern} />
-          <DetailRow label="Phong cách" value={styleLabels.join(', ')} />
-          <DetailRow label="Dịp sử dụng" value={occasionLabels.join(', ')} />
         </dl>
+
+        <div className="grid gap-3 border-t border-[#EFEDED] pt-6">
+          <h2 className="font-display text-2xl font-semibold text-[#222222]">Mô tả sản phẩm</h2>
+          <p className="max-w-prose text-base leading-7 text-[#5D5853]">{product.description}</p>
+        </div>
       </section>
     </div>
   )

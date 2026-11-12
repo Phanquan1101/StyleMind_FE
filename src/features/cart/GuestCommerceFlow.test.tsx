@@ -12,12 +12,18 @@ import { GUEST_SESSION_KEY } from './model/guestSession'
 
 const productId = '11111111-1111-4111-8111-111111111111'
 const variantId = '22222222-2222-4222-8222-222222222222'
+const blackMediumVariantId = '22222222-2222-4222-8222-222222222223'
+const blackLargeVariantId = '22222222-2222-4222-8222-222222222224'
 const itemId = '33333333-3333-4333-8333-333333333333'
 const orderId = '44444444-4444-4444-8444-444444444444'
 const product = {
   product_id: productId, category_id: '55555555-5555-4555-8555-555555555555', category_name: 'Áo',
   brand_name: 'Server brand', name: 'Áo từ máy chủ', description: 'Sản phẩm thật', product_status: 'ACTIVE',
-  variants: [{ variant_id: variantId, size: 'M', color: 'Trắng', material: 'Cotton', unit_price_vnd: 123000, available_quantity: 10, variant_status: 'ACTIVE', images: [] }],
+  variants: [
+    { variant_id: variantId, size: 'M', color: 'Trắng', material: 'Cotton', unit_price_vnd: 123000, available_quantity: 10, variant_status: 'ACTIVE', images: [] },
+    { variant_id: blackMediumVariantId, size: 'M', color: 'Đen', material: 'Cotton', unit_price_vnd: 125000, available_quantity: 8, variant_status: 'ACTIVE', images: [] },
+    { variant_id: blackLargeVariantId, size: 'L', color: 'Đen', material: 'Cotton', unit_price_vnd: 126000, available_quantity: 6, variant_status: 'ACTIVE', images: [] },
+  ],
 }
 const json = (body: unknown, status = 200) => new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 let items: GuestCartItem[]
@@ -42,7 +48,7 @@ beforeEach(() => {
     if (!path.includes('/commerce/')) return identity(input, init)
     calls.push({ path, init })
     if (path.includes('/products?')) return catalogFails ? json({ detail: 'Unavailable' }, 503) : json({ items: [product], total_pages: 1 })
-    if (path.endsWith('/variants/batch-lookup')) return json({ items: [{ variant_id: variantId, product_id: productId, available_quantity: 10 }] })
+    if (path.endsWith('/variants/batch-lookup')) return json({ items: product.variants.map(variant => ({ variant_id: variant.variant_id, product_id: productId, available_quantity: variant.available_quantity })) })
     const key = new Headers(init.headers).get('X-Guest-Session-Key')
     if (!key) return json({ detail: 'Missing guest key' }, 401)
     const method = init.method ?? 'GET'
@@ -60,7 +66,17 @@ beforeEach(() => {
     if (path.endsWith('/cart/items/' + itemId) && method === 'PUT') {
       const body = JSON.parse(String(init.body))
       expect(body.guest_session_key).toBe(key)
-      items = items.map(item => ({ ...item, quantity: body.quantity, line_total_vnd: body.quantity * item.unit_price_vnd }))
+      const selectedVariant = product.variants.find(variant => variant.variant_id === body.variant_id)
+      expect(selectedVariant).toBeDefined()
+      items = items.map(item => ({
+        ...item,
+        variant_id: selectedVariant!.variant_id,
+        color: selectedVariant!.color,
+        size: selectedVariant!.size,
+        quantity: body.quantity,
+        unit_price_vnd: selectedVariant!.unit_price_vnd,
+        line_total_vnd: body.quantity * selectedVariant!.unit_price_vnd,
+      }))
       return json(cart())
     }
     if (path.endsWith('/cart/items/' + itemId) && method === 'DELETE') { items = []; return json(null, 204) }
@@ -127,6 +143,22 @@ describe('Guest Commerce integration', () => {
     expect(items).toHaveLength(0)
     expect(calls.find(call => call.init.method === 'DELETE')?.path).toMatch(/\/cart\/items\/[\da-f-]+$/)
     expect(addCalls()).toHaveLength(1)
+  })
+
+  it('updates the color and size of an existing cart item', async () => {
+    const view = mount('/products/' + productId)
+    const user = await chooseSize()
+    await user.click(screen.getByRole('button', { name: 'Thêm vào giỏ' }))
+    await waitFor(() => expect(items).toHaveLength(1))
+    await act(async () => { await view.router.navigate('/cart') })
+
+    await user.selectOptions(await screen.findByRole('combobox', { name: /Màu sắc/ }), 'Đen')
+    await waitFor(() => expect(items[0].variant_id).toBe(blackMediumVariantId))
+    await user.selectOptions(screen.getByRole('combobox', { name: /Kích cỡ/ }), 'L')
+    await waitFor(() => expect(items[0].variant_id).toBe(blackLargeVariantId))
+
+    const updates = calls.filter(call => call.init.method === 'PUT' && call.path.endsWith('/cart/items/' + itemId))
+    expect(JSON.parse(String(updates.at(-1)?.init.body))).toMatchObject({ variant_id: blackLargeVariantId, quantity: 1 })
   })
 
   it('asks guests to sign in before checkout and keeps items in the cart', async () => {

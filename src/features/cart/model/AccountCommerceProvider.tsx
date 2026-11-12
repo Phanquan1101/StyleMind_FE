@@ -20,7 +20,7 @@ interface AccountCartValue {
   cartError: string
   refreshCart: (signal?: AbortSignal) => Promise<GuestCart>
   addItem: (id: string, quantity: number) => Promise<void>
-  updateItem: (id: string, quantity: number) => Promise<void>
+  updateItem: (id: string, variantId: string, quantity: number) => Promise<void>
   removeItem: (id: string) => Promise<void>
 }
 const Context = createContext<AccountCartValue | null>(null)
@@ -81,7 +81,7 @@ export default function AccountCommerceProvider({ children }: PropsWithChildren)
 
   const value = useMemo(() => ({ cart: cartOwner === owner ? cart : emptyGuestCart(), cartLoading, busy, cartError, refreshCart,
     addItem: (id: string, quantity: number) => mutate(() => paymentApi.addCartItem(id, quantity)),
-    updateItem: (id: string, quantity: number) => mutate(() => paymentApi.updateCartItem(id, quantity)),
+    updateItem: (id: string, variantId: string, quantity: number) => mutate(() => paymentApi.updateCartItem(id, variantId, quantity)),
     removeItem: (id: string) => mutate(() => paymentApi.removeCartItem(id)),
   }), [cart, cartOwner, owner, cartLoading, busy, cartError, refreshCart, mutate])
   return <Context.Provider value={value}>{children}</Context.Provider>
