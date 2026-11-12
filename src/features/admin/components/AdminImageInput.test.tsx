@@ -13,7 +13,7 @@ afterEach(() => vi.restoreAllMocks())
 it('offers a file picker for product images instead of requiring an image URL', async () => {
   render(<MemoryRouter><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
   await userEvent.setup().click(screen.getByRole('button', { name: 'Thêm sản phẩm' }))
-  expect(screen.getByLabelText('Ảnh sản phẩm')).toHaveAttribute('type', 'file')
+  expect(screen.getByLabelText('Ảnh biến thể 1')).toHaveAttribute('type', 'file')
   expect(screen.queryByLabelText('URL ảnh')).not.toBeInTheDocument()
 })
 
@@ -28,11 +28,14 @@ it('uploads the selected file to the created variant', async () => {
   vi.spyOn(commerceApi.products, 'getAdmin').mockResolvedValue({ ...product, variants: [variant] })
   render(<MemoryRouter><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
   await user.click(screen.getByRole('button', { name: 'Thêm sản phẩm' }))
-  for (const [label, value] of Object.entries({ 'ID sản phẩm': 'new', 'Tên sản phẩm': 'Áo test', 'Thương hiệu': 'Test', 'Giá cơ bản': '100000', 'Mô tả': 'Áo', 'Chất liệu': 'Cotton', 'Phom dáng': 'Vừa', 'Họa tiết': 'Trơn', 'Màu': 'Trắng' })) {
-    await user.type(screen.getByLabelText(label), value)
-  }
+  await user.type(screen.getByLabelText('Tên sản phẩm'), 'Áo test')
+  await user.selectOptions(screen.getByLabelText('Thương hiệu'), 'brand')
+  await user.type(screen.getByLabelText('Giá bán biến thể 1 (VND)'), '100000')
+  await user.type(screen.getByLabelText('Mô tả'), 'Áo')
+  await user.type(screen.getByLabelText('Chất liệu biến thể 1'), 'Cotton')
+  await user.selectOptions(screen.getByLabelText('Màu biến thể 1'), 'Trắng')
   const file = new File(['image'], 'shirt.png', { type: 'image/png' })
-  await user.upload(screen.getByLabelText('Ảnh sản phẩm'), file)
+  await user.upload(screen.getByLabelText('Ảnh biến thể 1'), file)
   await user.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }))
-  expect(upload).toHaveBeenCalledWith('server-variant', file, 'Áo test')
+  expect(upload).toHaveBeenCalledWith('server-variant', file, 'Áo test - Trắng - M')
 })

@@ -119,7 +119,7 @@ export function createPaymentApi(options: PaymentApiOptions) {
     cancelOrder: (orderId: string, reason: string) => request<OrderResponse>(`/commerce/api/v1/orders/${encodeURIComponent(orderId)}/cancel`, 'POST', { reason }),
     mergeGuestCart: (key: string) => request<GuestCart>('/commerce/api/v1/cart/merge', 'POST', { guest_session_key: key }),
     addCartItem: (variantId: string, quantity: number) => request<GuestCart>('/commerce/api/v1/cart/items', 'POST', { variant_id: variantId, quantity, guest_session_key: null }),
-    updateCartItem: (id: string, quantity: number) => request<GuestCart>(`/commerce/api/v1/cart/items/${encodeURIComponent(id)}`, 'PUT', { quantity, guest_session_key: null }),
+    updateCartItem: (id: string, variantId: string, quantity: number) => request<GuestCart>(`/commerce/api/v1/cart/items/${encodeURIComponent(id)}`, 'PUT', { variant_id: variantId, quantity, guest_session_key: null }),
     removeCartItem: (id: string) => request<void>(`/commerce/api/v1/cart/items/${encodeURIComponent(id)}`, 'DELETE'),
     checkout: (body: CheckoutRequest, requestOptions?: RequestOptions) =>
       request<OrderResponse>('/commerce/api/v1/orders', 'POST', body, requestOptions),

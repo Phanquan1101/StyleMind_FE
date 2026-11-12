@@ -27,8 +27,8 @@ export const guestCartApi = {
   add: (key: string, variantId: string, quantity: number) => commerceRequest<GuestCart>('/cart/items', {
     method: 'POST', key, body: { variant_id: variantId, quantity, guest_session_key: key },
   }),
-  update: (key: string, itemId: string, quantity: number) => commerceRequest<GuestCart>(`/cart/items/${encodeURIComponent(itemId)}`, {
-    method: 'PUT', key, body: { quantity, guest_session_key: key },
+  update: (key: string, itemId: string, variantId: string, quantity: number) => commerceRequest<GuestCart>(`/cart/items/${encodeURIComponent(itemId)}`, {
+    method: 'PUT', key, body: { variant_id: variantId, quantity, guest_session_key: key },
   }),
   remove: (key: string, itemId: string) => commerceRequest<void>(`/cart/items/${encodeURIComponent(itemId)}`, { method: 'DELETE', key }),
 }

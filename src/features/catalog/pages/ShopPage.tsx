@@ -9,7 +9,7 @@ import { useCommerceDisplay } from '@/features/cart/model/GuestCommerceProvider'
 import type { ProductSize } from '@/entities/product/model/types'
 import type { Product } from '@/entities/product/model/types'
 import { commerceProductToEntity } from '@/features/commerce/data/commerceEntityAdapters'
-import { Button, EmptyState, useToast } from '@/shared/ui'
+import { Button, EmptyState } from '@/shared/ui'
 
 import { FilterPanel } from '../components/FilterPanel'
 import { MobileFilterSheet } from '../components/MobileFilterSheet'
@@ -44,6 +44,9 @@ function filtersFromSearchParams(searchParams: URLSearchParams): CatalogFilters 
       min: Number(searchParams.get('minPrice')) || 0,
       max: Number(searchParams.get('maxPrice')) || Number.MAX_SAFE_INTEGER,
     },
+    sort: searchParams.get('sort') === 'price_desc'
+      ? 'price-desc'
+      : searchParams.get('sort') === 'price_asc' ? 'price-asc' : 'featured',
   }
 }
 
@@ -67,6 +70,8 @@ function searchParamsFromFilters(filters: CatalogFilters) {
   filters.categoryIds.forEach(id => params.append('category', id))
   if (filters.price.min > 0) params.set('minPrice', String(filters.price.min))
   if (filters.price.max < Number.MAX_SAFE_INTEGER) params.set('maxPrice', String(filters.price.max))
+  if (filters.sort === 'price-asc') params.set('sort', 'price_asc')
+  if (filters.sort === 'price-desc') params.set('sort', 'price_desc')
   return params
 }
 
@@ -76,7 +81,6 @@ function pageFromSearchParams(searchParams: URLSearchParams) {
 }
 
 export function ShopPage() {
-  const toast = useToast()
   const { state, loading, error, retry } = useCommerceDisplay()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filters, setFilters] = useState(() => filtersFromSearchParams(searchParams))
@@ -116,6 +120,8 @@ export function ShopPage() {
       category_id: appliedFilters.categoryIds.length ? appliedFilters.categoryIds : undefined,
       min_price_vnd: appliedFilters.price.min > 0 ? appliedFilters.price.min : undefined,
       max_price_vnd: appliedFilters.price.max < Number.MAX_SAFE_INTEGER ? appliedFilters.price.max : undefined,
+      sort: appliedFilters.sort === 'price-asc' ? 'price_asc'
+        : appliedFilters.sort === 'price-desc' ? 'price_desc' : undefined,
     }
 
     setCatalogLoading(true)
@@ -162,6 +168,7 @@ export function ShopPage() {
     appliedFilters.price.max,
     appliedFilters.price.min,
     appliedFilters.query,
+    appliedFilters.sort,
     reloadKey,
     requestedPage,
     searchParams,
@@ -261,7 +268,7 @@ export function ShopPage() {
                 {appliedCount ? `${appliedCount} bộ lọc đang áp dụng` : 'Tất cả sản phẩm đang có sẵn'}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3"><label className="text-sm text-[#5E5F5D]">Sắp xếp sản phẩm<select aria-label="Sắp xếp sản phẩm" value="" onChange={() => toast.info('Chức năng chưa hỗ trợ.')} className="ml-2 min-h-11 rounded-lg border border-[#C4C7C7] bg-white px-3 text-sm text-[#222222]"><option value="">Mặc định</option><option value="newest">Mới nhất</option><option value="price_asc">Giá tăng dần</option><option value="price_desc">Giá giảm dần</option></select></label><MobileFilterSheet
+            <div className="flex flex-wrap items-center gap-3"><label className="text-sm text-[#5E5F5D]">Sắp xếp sản phẩm<select aria-label="Sắp xếp sản phẩm" value={appliedFilters.sort === 'price-asc' ? 'price_asc' : appliedFilters.sort === 'price-desc' ? 'price_desc' : ''} onChange={event => updateFilters({ ...filters, sort: event.target.value === 'price_asc' ? 'price-asc' : event.target.value === 'price_desc' ? 'price-desc' : 'featured' })} className="ml-2 min-h-11 rounded-lg border border-[#C4C7C7] bg-white px-3 text-sm text-[#222222]"><option value="">Mặc định</option><option value="price_asc">Giá tăng dần</option><option value="price_desc">Giá giảm dần</option></select></label><MobileFilterSheet
               filters={filters}
               emptyFilters={emptyFilters}
               categories={categories}

@@ -18,7 +18,7 @@ interface GuestCommerceValue {
   refreshCatalog: () => void
   refreshCart: (signal?: AbortSignal) => Promise<GuestCart>
   addItem: (variantId: string, quantity: number) => Promise<void>
-  updateItem: (id: string, quantity: number) => Promise<void>
+  updateItem: (id: string, variantId: string, quantity: number) => Promise<void>
   removeItem: (id: string) => Promise<void>
 }
 const GuestCommerceContext = createContext<GuestCommerceValue | null>(null)
@@ -95,7 +95,7 @@ export default function GuestCommerceProvider({ children }: PropsWithChildren) {
     products, categories, cart, catalogLoading, cartLoading, busy, catalogError, cartError,
     refreshCatalog: () => setVersion(value => value + 1), refreshCart,
     addItem: (id, quantity) => mutate(key => guestCartApi.add(key, id, quantity)),
-    updateItem: (id, quantity) => mutate(key => guestCartApi.update(key, id, quantity)),
+    updateItem: (id, variantId, quantity) => mutate(key => guestCartApi.update(key, id, variantId, quantity)),
     removeItem: id => mutate(key => guestCartApi.remove(key, id)),
   }), [products, categories, cart, catalogLoading, cartLoading, busy, catalogError, cartError, refreshCart, mutate])
   return <GuestCommerceContext.Provider value={value}>{children}</GuestCommerceContext.Provider>

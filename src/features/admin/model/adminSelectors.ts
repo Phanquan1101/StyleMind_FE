@@ -69,6 +69,21 @@ function skuLabel(skus: string[]) {
   return skus.length === 1 ? skus[0] : `${skus[0]} +${skus.length - 1}`
 }
 
+const SIZE_ORDER = new Map(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'MỘT CỠ'].map((size, index) => [size, index]))
+
+function compareVariantSize(first: string, second: string) {
+  const firstNormalized = first.trim().toLocaleUpperCase('vi')
+  const secondNormalized = second.trim().toLocaleUpperCase('vi')
+  const firstOrder = SIZE_ORDER.get(firstNormalized)
+  const secondOrder = SIZE_ORDER.get(secondNormalized)
+  if (firstOrder !== undefined || secondOrder !== undefined) {
+    if (firstOrder === undefined) return 1
+    if (secondOrder === undefined) return -1
+    return firstOrder - secondOrder
+  }
+  return first.localeCompare(second, 'vi', { numeric: true, sensitivity: 'base' })
+}
+
 export function selectAdminProducts(database: DemoDatabase, filters: AdminProductFilters = {}): AdminProductRow[] {
   const categoryLabels = new Map(database.categories.map(category => [category.id, category.label]))
 
@@ -99,7 +114,10 @@ export function selectAdminProducts(database: DemoDatabase, filters: AdminProduc
           size: variant.size,
           active: variant.active,
           price: variant.priceOverride ?? product.basePrice,
-        })),
+        })).sort((first, second) => {
+          const colorOrder = first.color.localeCompare(second.color, 'vi', { numeric: true, sensitivity: 'base' })
+          return colorOrder || compareVariantSize(first.size, second.size)
+        }),
       }
     })
 }

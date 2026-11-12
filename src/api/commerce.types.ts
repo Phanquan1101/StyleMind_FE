@@ -80,6 +80,7 @@ export interface ProductListQuery {
   min_price_vnd?: number
   max_price_vnd?: number
   demographic_segment?: string
+  sort?: 'price_asc' | 'price_desc'
   page?: number
   size?: number
 }

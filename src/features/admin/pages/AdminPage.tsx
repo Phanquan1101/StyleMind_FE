@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui'
 import { AdminPaymentsPage } from '@/features/payments'
 import { AdminOverviewLive } from '@/features/admin/components/AdminOverviewLive'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
+import { AdminBrandsPanel } from '@/features/admin/components/AdminBrandsPanel'
 import { AdminCustomersPanel } from '@/features/admin/components/AdminCustomersPanel'
 import { AdminOverviewPanel } from '@/features/admin/components/AdminOverviewPanel'
 import { AdminOrdersPanel } from '@/features/admin/components/AdminOrdersPanel'
@@ -130,7 +131,7 @@ export function AdminPage() {
     if (activeSection === 'overview') return apiMode() ? <AdminOverviewLive /> : <AdminOverviewPanel database={state} />
     if (activeSection === 'payments') return <AdminPaymentsPage embedded />
     if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
-    if (activeSection === 'categories') return <AdminCategoriesPanel database={state} dispatch={dispatch} />
+    if (activeSection === 'categories') return <><AdminCategoriesPanel database={state} dispatch={dispatch} /><AdminBrandsPanel /></>
     if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} onReload={() => setReloadVersion(value => value + 1)} />
     if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} onReload={() => setReloadVersion(value => value + 1)} />
     if (activeSection === 'customers') return <AdminCustomersPanel />

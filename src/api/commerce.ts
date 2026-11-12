@@ -105,8 +105,9 @@ export const commerceApi = {
         quantity,
         guest_session_key: guestSessionKey || null,
       }),
-    update: (cartItemId: UUID, quantity: number, guestSessionKey?: string | null) =>
+    update: (cartItemId: UUID, variantId: UUID, quantity: number, guestSessionKey?: string | null) =>
       put<CartResponse>(`/api/v1/cart/items/${cartItemId}`, {
+        variant_id: variantId,
         quantity,
         guest_session_key: guestSessionKey || null,
       }),

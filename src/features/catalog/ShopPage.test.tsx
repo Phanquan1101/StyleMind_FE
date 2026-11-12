@@ -51,6 +51,11 @@ function productPage(query: ProductListQuery = {}) {
     (!keyword || product.name.toLocaleLowerCase('vi').includes(keyword))
     && (!query.category_id || [query.category_id].flat().includes(product.categoryId)),
   )
+  if (query.sort) {
+    filtered.sort((left, right) => query.sort === 'price_asc'
+      ? left.basePrice - right.basePrice
+      : right.basePrice - left.basePrice)
+  }
   return {
     items: filtered.slice(page * size, (page + 1) * size).map(toCommerceProduct),
     page,
@@ -80,13 +85,21 @@ describe('ShopPage', () => {
     vi.unstubAllEnvs()
   })
 
-  it('reports unsupported sorting without pretending to apply it', async () => {
+  it('sends ascending and descending price sorting to the Commerce API', async () => {
     const user = userEvent.setup()
     renderShop()
     const sort = await screen.findByLabelText('Sắp xếp sản phẩm')
     await user.selectOptions(sort, 'price_asc')
-    expect(await screen.findByText('Chức năng chưa hỗ trợ.')).toBeInTheDocument()
-    expect(sort).toHaveValue('')
+    await waitFor(() => expect(commerceApi.products.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: 'price_asc', page: 0, size: 12 }),
+    ))
+    expect(sort).toHaveValue('price_asc')
+
+    await user.selectOptions(sort, 'price_desc')
+    await waitFor(() => expect(commerceApi.products.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: 'price_desc', page: 0, size: 12 }),
+    ))
+    expect(sort).toHaveValue('price_desc')
   })
 
   it('clears all active filters and restores the catalog', async () => {

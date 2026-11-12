@@ -60,6 +60,22 @@ describe('ProductDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Kích thước L' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('shows selected variant stock and keeps the description in the lower details section', async () => {
+    const user = userEvent.setup()
+    renderProductDetail('prd-blouse-01')
+
+    await user.click(await screen.findByRole('button', { name: 'Kích thước M' }))
+    expect(screen.getByText(/^Còn \d+ sản phẩm$/)).toBeInTheDocument()
+    expect(screen.queryByText(/Thêm chiều cao, cân nặng/)).not.toBeInTheDocument()
+    for (const removedLabel of ['Phom dáng', 'Họa tiết', 'Phong cách', 'Dịp sử dụng']) {
+      expect(screen.queryByText(removedLabel)).not.toBeInTheDocument()
+    }
+
+    const material = screen.getByText('Chất liệu')
+    const descriptionHeading = screen.getByRole('heading', { name: 'Mô tả sản phẩm' })
+    expect(material.compareDocumentPosition(descriptionHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('buy now keeps the cart unchanged and navigates to checkout', async () => {
     const user = userEvent.setup()
     renderProductDetail('prd-blouse-01')
