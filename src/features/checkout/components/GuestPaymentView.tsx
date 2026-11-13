@@ -47,7 +47,8 @@ export default function GuestPaymentView({
   const [copyError, setCopyError] = useState('')
   const online = order?.payment_method === 'SEPAY_VIETQR'
   const vnpay = order?.payment_method === 'VNPAY'
-  const paid = order?.order_status === 'PAID'
+  const vnpayPaid = vnpay && attempt?.status === 'PAID'
+  const paid = order?.order_status === 'PAID' || order?.payment_status === 'PAID' || vnpayPaid
   const qrExpired = pending && online && expired
   const blocked = attempt?.status === 'CANCELLED' || attempt?.status === 'EXCEPTION'
   const closed = order?.order_status === 'CANCELLED' || order?.order_status === 'EXPIRED'
@@ -95,16 +96,16 @@ export default function GuestPaymentView({
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-accent-mid">Mua sắm cùng StyleMind</p>
         <h1 className="font-display text-3xl font-medium leading-tight text-charcoal sm:text-4xl">{ownerType === 'guest' ? 'Thông tin đơn hàng' : online && pending ? 'Thanh toán đơn hàng' : 'Chi tiết đơn hàng'}</h1>
         <p className="mt-3 max-w-xl text-sm leading-6 text-secondary">
-          {blocked ? 'Khoản thanh toán cần được kiểm tra. Hãy xem trạng thái đơn hoặc liên hệ hỗ trợ.' : paid ? 'Cảm ơn bạn đã lựa chọn StyleMind. Đơn hàng của bạn đang được tiếp nhận.'
+          {blocked ? 'Khoản thanh toán cần được kiểm tra. Hãy xem trạng thái đơn hoặc liên hệ hỗ trợ.' : pending && vnpayPaid ? 'VNPAY đã xác nhận thanh toán. Đơn hàng đang được đồng bộ.' : paid ? 'Cảm ơn bạn đã lựa chọn StyleMind. Đơn hàng của bạn đang được tiếp nhận.'
             : pending && online ? 'Chỉ còn một bước nữa để hoàn tất thanh toán cho đơn hàng của bạn.'
             : pending && vnpay ? 'Đang xác nhận thanh toán với VNPAY. Trạng thái sẽ cập nhật từ hệ thống.'
             : order?.payment_method === 'COD' ? 'Thông tin đơn hàng đã được lưu. Bạn có thể theo dõi cập nhật ngay tại đây.'
             : 'Xem thông tin và theo dõi trạng thái đơn hàng của bạn.'}
         </p>
       </div>
-      {order && <span className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${pending ? 'border-warning/20 bg-warning-bg text-warning-ink' : closed ? 'border-sand bg-sand/40 text-secondary' : 'border-success/20 bg-success-bg text-success'}`}>
-        {pending ? <Clock3 size={15} aria-hidden="true" /> : <PackageCheck size={15} aria-hidden="true" />}
-        {confirmedByShop ? 'Đã xác nhận' : orderLabels[order.order_status] ?? 'Đang cập nhật'}
+      {order && <span className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${pending && !paid ? 'border-warning/20 bg-warning-bg text-warning-ink' : closed ? 'border-sand bg-sand/40 text-secondary' : 'border-success/20 bg-success-bg text-success'}`}>
+        {pending && !paid ? <Clock3 size={15} aria-hidden="true" /> : <PackageCheck size={15} aria-hidden="true" />}
+        {pending && paid ? 'Đã thanh toán · đang cập nhật đơn' : confirmedByShop ? 'Đã xác nhận' : orderLabels[order.order_status] ?? 'Đang cập nhật'}
       </span>}
     </header>
 
@@ -140,14 +141,15 @@ export default function GuestPaymentView({
             </div>
             <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs text-secondary"><Smartphone size={15} className="shrink-0" aria-hidden="true" />Mở ứng dụng ngân hàng và quét mã VietQR</p>
           </> : <div className={`grid gap-4 ${online ? 'mx-auto max-w-md place-items-center py-4 text-center' : 'grid-cols-[auto_minmax(0,1fr)] items-start rounded-2xl bg-[#F7F7F2] p-5'}`}>
-            <span className={`grid h-14 w-14 place-items-center rounded-full ${blocked || qrExpired || (pending && online) ? 'bg-warning-bg text-warning-ink' : closed ? 'bg-sand text-secondary' : 'bg-success-bg text-success'}`}>
-              {blocked ? <AlertTriangle size={25} strokeWidth={1.5} aria-hidden="true" /> : qrExpired || (pending && online) ? <Clock3 size={25} strokeWidth={1.5} aria-hidden="true" /> : paid || order.order_status === 'COMPLETED' ? <CheckCircle2 size={25} strokeWidth={1.5} aria-hidden="true" /> : <Truck size={25} strokeWidth={1.5} aria-hidden="true" />}
+            <span className={`grid h-14 w-14 place-items-center rounded-full ${blocked || qrExpired || (pending && online) || (pending && vnpay && !paid) ? 'bg-warning-bg text-warning-ink' : closed ? 'bg-sand text-secondary' : 'bg-success-bg text-success'}`}>
+              {blocked ? <AlertTriangle size={25} strokeWidth={1.5} aria-hidden="true" /> : qrExpired || (pending && online) || (pending && vnpay && !paid) ? <Clock3 size={25} strokeWidth={1.5} aria-hidden="true" /> : paid || order.order_status === 'COMPLETED' ? <CheckCircle2 size={25} strokeWidth={1.5} aria-hidden="true" /> : <Truck size={25} strokeWidth={1.5} aria-hidden="true" />}
             </span>
             <div className={online ? 'grid gap-3' : 'grid gap-2'}>
-            <h3 className="font-display text-2xl font-medium text-charcoal">{!online && codDisplay ? codDisplay.title : blocked ? 'Thanh toán cần kiểm tra' : qrExpired ? 'Mã QR đã hết hạn' : paid ? 'Thanh toán thành công' : closed ? 'Đơn hàng đã kết thúc' : pending && online ? 'Đang chờ thanh toán' : 'Thông tin thanh toán'}</h3>
-            {paid && <p role="status" className="text-sm leading-6 text-secondary">Máy chủ đã xác nhận thanh toán.</p>}
-            {!online && <p className="text-sm leading-6 text-secondary">{codDisplay?.detail ?? 'Theo dõi trạng thái đơn hàng của bạn tại đây.'}{!closed && ' Trạng thái đặt đơn không xác nhận đã thu tiền.'}</p>}
-            {pending && !expired && !blocked && <p role="status" className="text-sm leading-6 text-secondary">Đơn hàng đã được lưu, đang chờ bước thanh toán. Bạn có thể thử lại trên đơn này.</p>}
+            <h3 className="font-display text-2xl font-medium text-charcoal">{!online && !vnpay && codDisplay ? codDisplay.title : blocked ? 'Thanh toán cần kiểm tra' : qrExpired ? 'Mã QR đã hết hạn' : paid ? 'Thanh toán thành công' : closed ? 'Đơn hàng đã kết thúc' : pending && (online || vnpay) ? 'Đang chờ thanh toán' : 'Thông tin thanh toán'}</h3>
+            {paid && <p role="status" className="text-sm leading-6 text-secondary">{pending && vnpay ? 'VNPAY đã xác nhận thanh toán; đơn hàng đang được đồng bộ.' : 'Máy chủ đã xác nhận thanh toán.'}</p>}
+            {!online && !vnpay && <p className="text-sm leading-6 text-secondary">{codDisplay?.detail ?? 'Theo dõi trạng thái đơn hàng của bạn tại đây.'}{!closed && ' Trạng thái đặt đơn không xác nhận đã thu tiền.'}</p>}
+            {pending && vnpay && !paid && <p role="status" className="text-sm leading-6 text-secondary">Đang đợi VNPAY xác nhận. Trang sẽ tự cập nhật trạng thái.</p>}
+            {pending && online && !expired && !blocked && <p role="status" className="text-sm leading-6 text-secondary">Đơn hàng đã được lưu, đang chờ bước thanh toán. Bạn có thể thử lại trên đơn này.</p>}
             </div>
           </div>}
 
@@ -164,11 +166,12 @@ export default function GuestPaymentView({
 
           <div className="mt-7 grid gap-2 border-t border-sand/70 pt-6 sm:grid-cols-2">
             <Button className={`rounded-xl ${pending ? '' : 'sm:col-span-2'}`} loading={busy} onClick={onRefresh} icon={<RefreshCw size={15} aria-hidden="true" />}>Kiểm tra trạng thái đơn</Button>
-            {pending && !blocked && !expired && vnpay && attempt?.paymentUrl && <Button variant="ghost" className="rounded-xl text-xs" onClick={() => window.location.assign(attempt.paymentUrl!)}>Tiếp tục thanh toán VNPAY</Button>}
+            {pending && !paid && !blocked && !expired && vnpay && attempt?.paymentUrl && <Button variant="ghost" className="rounded-xl text-xs" onClick={() => window.location.assign(attempt.paymentUrl!)}>Tiếp tục thanh toán VNPAY</Button>}
             {pending && !blocked && !expired && !vnpay && <Button variant="ghost" className="rounded-xl text-xs" disabled={busy} onClick={onRecover}>Tải lại thông tin thanh toán</Button>}
           </div>
           <div className="mt-3"><CheckFeedback lastCheck={lastCheck} busy={busy} /></div>
-          {pending && !blocked && !expired && <p className="mt-3 text-xs text-secondary">Tải lại thông tin của đơn này khi mã thanh toán chưa hiển thị. Thao tác không tạo đơn mới.</p>}
+          {pending && paid && vnpay && <p className="mt-3 text-xs text-secondary">Đơn hàng sẽ tự cập nhật khi Commerce nhận xác nhận thanh toán.</p>}
+          {pending && !paid && !blocked && !expired && !vnpay && <p className="mt-3 text-xs text-secondary">Tải lại thông tin của đơn này khi mã thanh toán chưa hiển thị. Thao tác không tạo đơn mới.</p>}
         </div>
       </div>
 
