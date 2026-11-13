@@ -264,3 +264,105 @@ export interface PaymentAttempt {
 }
 
 
+
+/** GET /api/v1/admin/dashboard — money is VND, dates are shop-local days (Asia/Ho_Chi_Minh). */
+export interface AdminDashboardKpi {
+  revenue_vnd: number
+  placed_order_count: number
+  paid_order_count: number
+  average_order_value_vnd: number
+}
+
+export interface AdminDashboardDay {
+  date: string
+  revenue_vnd: number
+  paid_order_count: number
+  placed_order_count: number
+}
+
+export type AdminDashboardStatusKey =
+  | 'AWAITING_CONFIRMATION'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'COMPLETED'
+  | 'PENDING_PAYMENT'
+  | 'CANCELLED'
+
+export interface AdminDashboard {
+  timezone: string
+  from: string
+  to: string
+  days: number
+  previous_from: string
+  previous_to: string
+  generated_at: string
+  kpis: { current: AdminDashboardKpi; previous: AdminDashboardKpi }
+  revenue_by_day: AdminDashboardDay[]
+  orders_by_status: { status: AdminDashboardStatusKey; count: number }[]
+  revenue_by_payment_method: { payment_method: 'VNPAY' | 'COD' | 'SEPAY_VIETQR'; revenue_vnd: number }[]
+  top_products: { product_id: UUID; name: string; image_url: string | null; quantity: number; revenue_vnd: number }[]
+  pending: { awaiting_confirmation_orders: number; pending_cancellation_requests: number; low_stock_variants: number }
+  recent_orders: {
+    order_id: UUID
+    order_number: string
+    customer_name: string | null
+    total_vnd: number
+    order_status: string
+    confirmation_state: string
+    paid: boolean
+    placed_at: string
+  }[]
+}
+
+export interface AdminDashboardQuery {
+  from?: string
+  to?: string
+}
+
+/** GET /api/v1/admin/revenue — collected money by period, same revenue definition as the dashboard. */
+export interface AdminRevenueMetrics {
+  paid_order_count: number
+  revenue_vnd: number
+  refunded_vnd: number
+  net_revenue_vnd: number
+}
+
+export type AdminRevenueGroup = 'day' | 'week' | 'month'
+
+export interface AdminRevenuePeriod {
+  from: string
+  to: string
+  previous_from: string
+  previous_to: string
+  current: AdminRevenueMetrics
+  previous: AdminRevenueMetrics
+}
+
+export interface AdminRevenueReport {
+  timezone: string
+  from: string
+  to: string
+  days: number
+  previous_from: string
+  previous_to: string
+  group: AdminRevenueGroup
+  generated_at: string
+  totals: { current: AdminRevenueMetrics; previous: AdminRevenueMetrics }
+  periods: AdminRevenuePeriod[]
+  by_category: { category_id: UUID; name: string; revenue_vnd: number; quantity: number }[]
+  by_payment_method: {
+    payment_method: 'VNPAY' | 'COD' | 'SEPAY_VIETQR'
+    revenue_vnd: number
+    refunded_vnd: number
+    net_revenue_vnd: number
+    paid_order_count: number
+  }[]
+  top_products: { product_id: UUID; name: string; image_url: string | null; quantity: number; revenue_vnd: number }[]
+}
+
+export interface AdminRevenueQuery {
+  from?: string
+  to?: string
+  group?: AdminRevenueGroup
+}

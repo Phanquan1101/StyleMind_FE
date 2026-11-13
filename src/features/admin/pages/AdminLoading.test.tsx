@@ -6,8 +6,8 @@ import { createDemoSeed } from '@/app/data/demoSeed'
 import { ToastProvider } from '@/shared/ui'
 import { AdminPage } from './AdminPage'
 
-const mocks = vi.hoisted(() => ({ products: vi.fn(), categories: vi.fn(), orders: vi.fn(), dispatch: vi.fn() }))
-vi.mock('@/api/commerce', () => ({ commerceApi: { categories: { listAdmin: mocks.categories }, orders: { listAdmin: mocks.orders }, products: { listAdmin: mocks.products } } }))
+const mocks = vi.hoisted(() => ({ products: vi.fn(), categories: vi.fn(), orders: vi.fn(), dashboard: vi.fn(), dispatch: vi.fn() }))
+vi.mock('@/api/commerce', () => ({ commerceApi: { categories: { listAdmin: mocks.categories }, orders: { listAdmin: mocks.orders }, products: { listAdmin: mocks.products }, dashboard: { get: mocks.dashboard } } }))
 vi.mock('@/features/auth', () => ({ useAuth: () => ({ currentUser: { id: 'admin', role: 'admin', fullName: 'Admin', email: 'admin@example.test' }, logout: vi.fn() }) }))
 vi.mock('@/app/store/DemoStoreProvider', () => ({ useDemoStore: () => ({ state: { ...createDemoSeed(), products: [], categories: [] }, dispatch: mocks.dispatch }) }))
 
@@ -24,14 +24,21 @@ it('offers retry and avoids showing an empty product list when loading fails', a
   expect(mocks.products).toHaveBeenCalledTimes(2)
 })
 
-it('shows server totals on the overview without downloading orders or products', async () => {
+it('loads the overview from one aggregate dashboard request without downloading orders or products', async () => {
   mocks.categories.mockResolvedValue({ items: [] })
-  mocks.orders.mockReset().mockResolvedValue({ items: [], page: 0, size: 1, total_elements: 6, total_pages: 6 })
-  mocks.products.mockReset().mockResolvedValue({ items: [], page: 0, size: 1, total_elements: 203, total_pages: 203 })
+  mocks.orders.mockReset()
+  mocks.products.mockReset()
+  const zero = { revenue_vnd: 0, placed_order_count: 0, paid_order_count: 0, average_order_value_vnd: 0 }
+  mocks.dashboard.mockReset().mockResolvedValue({
+    timezone: 'Asia/Ho_Chi_Minh', from: '2026-10-15', to: '2026-11-13', days: 30, previous_from: '2026-09-15', previous_to: '2026-10-14', generated_at: '2026-11-13T14:30:00Z',
+    kpis: { current: { ...zero, revenue_vnd: 6_000_000, placed_order_count: 6, paid_order_count: 6, average_order_value_vnd: 1_000_000 }, previous: zero },
+    revenue_by_day: [], orders_by_status: [], revenue_by_payment_method: [], top_products: [], recent_orders: [],
+    pending: { awaiting_confirmation_orders: 0, pending_cancellation_requests: 0, low_stock_variants: 0 },
+  })
   render(<MemoryRouter initialEntries={['/admin']}><ToastProvider><AdminPage /></ToastProvider></MemoryRouter>)
-  expect(await screen.findByText('Tổng đơn hàng')).toBeInTheDocument()
-  expect(await screen.findByText('6')).toBeInTheDocument()
-  expect(await screen.findByText('203')).toBeInTheDocument()
-  expect(mocks.orders).toHaveBeenCalledWith({ page: 0, size: 1 })
+  expect(await screen.findByRole('region', { name: 'Chỉ số chính' })).toHaveTextContent('Doanh thu đã thu')
+  expect(mocks.dashboard).toHaveBeenCalledTimes(1)
+  expect(mocks.orders).not.toHaveBeenCalled()
+  expect(mocks.products).not.toHaveBeenCalled()
   expect(screen.getAllByText('Tài khoản').length).toBeGreaterThan(0)
 })

@@ -165,7 +165,11 @@ export function AdminOrdersPanel({
   const [customerEmails, setCustomerEmails] = useState<Map<string, string>>(
     new Map(),
   )
-  const [queue, setQueue] = useState("all")
+  // `?queue=confirmation` (dashboard "Đơn chờ xác nhận") opens the matching quick filter.
+  const [queue, setQueue] = useState(() => {
+    const requested = searchParams.get("queue")
+    return requested === "confirmation" || requested === "shipping" || requested === "cancellation" ? requested : "all"
+  })
   const [page, setPage] = useState(0)
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")

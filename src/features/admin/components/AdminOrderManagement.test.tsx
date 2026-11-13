@@ -208,3 +208,12 @@ it("loads all server return pages for searching, then opens the selected return 
     expect(screen.getByRole("alert")).toHaveTextContent("Không thể kết nối"),
   )
 })
+
+it('opens the confirmation queue straight from the dashboard link (?queue=confirmation)', () => {
+  const database = ordersDatabase()
+  database.orders[0] = { ...database.orders[0], status: 'cancelled', backendStatus: 'CANCELLED' }
+  database.orders[1] = { ...database.orders[1], confirmationState: 'CONFIRMED' }
+  render(<MemoryRouter initialEntries={['/admin?section=orders&queue=confirmation']}><ToastProvider><AdminOrdersPanel database={database} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
+  expect(screen.getByRole('button', { name: /Chờ xác nhận\s*16/ })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText('1–15 trong 16 kết quả')).toBeVisible()
+})
