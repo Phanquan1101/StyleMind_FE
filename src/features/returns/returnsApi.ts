@@ -52,6 +52,7 @@ export interface ReturnPage {
 export interface Refund {
   has_receipt?: boolean
   refund_id: string
+  completion_id?: string | null
   source_type: RefundSource
   source_id: string
   order_id: string
@@ -186,6 +187,13 @@ async function refundRequest(source: RefundSource, id: string, path: string, opt
 }
 
 export const refundsApi = {
+  completeWithReceipt(source: RefundSource, id: string, refundId: string, image: File) {
+    const form = new FormData()
+    form.append('image', image)
+    form.append('refund_id', refundId)
+    form.append('transfer_confirmed', 'true')
+    return refundRequest(source, id, adminRefundPath(source, id) + '/complete-with-receipt', { method: 'POST', body: form }, 'REFUNDED')
+  },
   async uploadReceipt(source: RefundSource, id: string, image: File) {
     const form = new FormData()
     form.append('image', image)

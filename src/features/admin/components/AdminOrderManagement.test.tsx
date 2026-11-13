@@ -11,6 +11,24 @@ import AdminReturnsPanel from "./AdminReturnsPanel"
 
 afterEach(() => vi.restoreAllMocks())
 
+it('shows live return work and the VNPAY method while giving cancellation priority', () => {
+  const database = createDemoSeed()
+  const template = database.orders[0]
+  database.orders = [
+    { ...template, id: 'return-order', orderNumber: 'SM-RETURN', paymentMethod: 'vnpay', status: 'completed' },
+    { ...template, id: 'cancel-order', orderNumber: 'SM-CANCEL', paymentMethod: 'vnpay', status: 'confirmed', confirmationState: 'UNCONFIRMED' },
+  ]
+  database.cancellationRequests = [{ id: 'cancel-request', orderId: 'cancel-order', userId: template.userId, status: 'submitted', reason: 'Không cần nữa', createdAt: template.createdAt }]
+  const returnStatuses = new Map([['return-order', 'PICKUP_APPROVED'], ['cancel-order', 'REQUESTED']])
+  render(<MemoryRouter><ToastProvider><AdminOrdersPanel database={database} dispatch={vi.fn()} returnStatuses={returnStatuses} /></ToastProvider></MemoryRouter>)
+  const returned = screen.getByRole('row', { name: /SM-RETURN/ })
+  expect(within(returned).getByText('Chờ lấy hàng')).toBeVisible()
+  expect(within(returned).getByText('VNPAY')).toBeVisible()
+  const cancelled = screen.getByRole('row', { name: /SM-CANCEL/ })
+  expect(within(cancelled).getByText('Chờ duyệt hủy')).toBeVisible()
+  expect(within(cancelled).queryByText('Chờ duyệt trả hàng')).not.toBeInTheDocument()
+})
+
 it('opens the cancellation selected by a link from order detail', () => {
   const database = createDemoSeed()
   database.cancellationRequests = [{
@@ -41,6 +59,17 @@ function ordersDatabase() {
   }))
   return database
 }
+
+it('lets admin ship an automatically prepared VietQR order without another confirmation', async () => {
+  const user = userEvent.setup()
+  const database = ordersDatabase()
+  database.orders = [{ ...database.orders[0], paymentMethod: 'vietqr', paymentStatus: 'paid', status: 'processing', backendStatus: 'PROCESSING', confirmationState: 'AUTO_CONFIRMED' }]
+  render(<MemoryRouter><ToastProvider><AdminOrdersPanel database={database} dispatch={vi.fn()} /></ToastProvider></MemoryRouter>)
+  await user.click(screen.getByRole('button', { name: 'Chi tiết đơn SM-TEST-00' }))
+  expect(screen.getByText('Đang chuẩn bị')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Xác nhận đơn' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Bắt đầu giao hàng' })).toBeVisible()
+})
 
 it('uses the server confirmation state for both the pending filter and queue', async () => {
   const user = userEvent.setup()

@@ -22,10 +22,12 @@ it('lists pending and expired QR checkouts above the orders, with a way to conti
   mocks.unpaid.mockResolvedValue({ items: [
     { checkoutId: 'aaaaaaaa-1111-4111-8111-111111111111', status: 'AWAITING_PAYMENT', totalVnd: 350000, createdAt: soon, expiresAt: soon },
     { checkoutId: 'bbbbbbbb-2222-4222-8222-222222222222', status: 'EXPIRED', totalVnd: 120000, createdAt: soon, expiresAt: '2026-01-01T00:00:00Z' },
+    { checkoutId: 'cccccccc-3333-4333-8333-333333333333', status: 'CANCELLED', totalVnd: 120000, createdAt: soon, expiresAt: '2026-01-01T00:00:00Z' },
   ] })
   render(<MemoryRouter><AccountOrdersPage /></MemoryRouter>)
   expect(await screen.findByLabelText('Thanh toán đang chờ')).toBeInTheDocument()
   expect(screen.getByText('Đã hết hạn')).toBeInTheDocument()
+  expect(screen.getByText('Đã hủy phiên thanh toán')).toBeVisible()
   expect(screen.getByText(/Còn 4 phút|Còn 5 phút/)).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Tiếp tục thanh toán' })).toHaveAttribute('href', '/checkout/qr/aaaaaaaa-1111-4111-8111-111111111111')
   expect(screen.getAllByRole('link', { name: 'Tiếp tục thanh toán' })).toHaveLength(1)
@@ -45,6 +47,6 @@ it('shows the refund result and amount alongside delivery status', async () => {
   mocks.unpaid.mockResolvedValue({ items: [] })
   render(<MemoryRouter><AccountOrdersPage /></MemoryRouter>)
   expect(await screen.findByText('Đã hoàn tiền một phần')).toBeVisible()
-  expect(screen.getByText('Giao hàng: Đã hoàn tất')).toBeVisible()
+  expect(screen.getByText('Giao hàng: Đã giao hàng')).toBeVisible()
   expect(screen.getByText(/Đã hoàn: 60\.000/)).toBeVisible()
 })

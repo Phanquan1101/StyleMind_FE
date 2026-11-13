@@ -66,15 +66,26 @@ export default function AccountCheckoutPage() {
     locked.current = true; setBusy(true); setError('')
     const body = draft.submitted ?? { checkout_key: draft.checkoutKey, shipping_address_id: selected.address_id, payment_method: draft.method }
     const qrSelection = draft.selection ?? (prices ? { kind: 'selected' as const, cart_item_ids: prices.items.map(item => item.cart_item_id) } : undefined)
-    const submitted = { ...draft, submitted: body, ...(body.payment_method === 'SEPAY_VIETQR' ? { selection: qrSelection } : {}) }
+    const submitted = { ...draft, submitted: body, ...(body.payment_method !== 'COD' ? { selection: qrSelection } : {}) }
     update(submitted)
     try {
-      if (body.payment_method === 'SEPAY_VIETQR') {
+      if (body.payment_method === 'SEPAY_VIETQR' || body.payment_method === 'VNPAY') {
         if (!qrSelection) throw new Error('Chưa có sản phẩm để thanh toán.')
         const checkout = qrSelection.kind === 'buy-now'
           ? await paymentApi.prepareQrBuyNow({ ...body, variant_id: qrSelection.variant_id, quantity: qrSelection.quantity })
           : await paymentApi.prepareQrSelection({ ...body, cart_item_ids: qrSelection.cart_item_ids })
         saveAccountDraft(owner, { ...submitted, qrCheckoutId: checkout.checkoutId })
+        if (body.payment_method === 'VNPAY') {
+          window.localStorage.setItem('stylemind.vnpay.return-order', JSON.stringify({ checkoutId: checkout.checkoutId, owner: 'account' }))
+          try {
+            const attempt = await paymentApi.getQrAttempt(checkout.checkoutId)
+            if (!attempt.paymentUrl) throw new Error('Chưa nhận được liên kết thanh toán VNPAY.')
+            window.location.assign(attempt.paymentUrl)
+          } catch (failure) {
+            if (!controller.signal.aborted) navigate(`/checkout/qr/${encodeURIComponent(checkout.checkoutId)}`, { replace: true })
+          }
+          return
+        }
         if (!controller.signal.aborted) navigate(`/checkout/qr/${encodeURIComponent(checkout.checkoutId)}`, { replace: true })
         return
       }
@@ -83,14 +94,6 @@ export default function AccountCheckoutPage() {
         : await paymentApi.checkout(body)
       if (!order.order_id) throw new Error('Không nhận được mã đơn hàng; kết quả chưa xác định.')
       rememberOrder({ orderId: order.order_id, owner: 'account', accountId: owner })
-      if (body.payment_method === 'VNPAY') {
-        const attempt = await paymentApi.getOrderPaymentAttempt(order.order_id)
-        if (!attempt.paymentUrl) throw new Error('Chưa nhận được liên kết thanh toán VNPAY.')
-        saveAccountDraft(owner, { ...submitted, orderId: order.order_id })
-        window.localStorage.setItem('stylemind.vnpay.return-order', JSON.stringify({ orderId: order.order_id, owner: 'account' }))
-        window.location.assign(attempt.paymentUrl)
-        return
-      }
       saveAccountDraft(owner, { ...submitted, orderId: order.order_id })
       if (controller.signal.aborted) return
       setDraft({ ...submitted, orderId: order.order_id })
@@ -100,7 +103,7 @@ export default function AccountCheckoutPage() {
       if (controller.signal.aborted) return
       if (failure instanceof PaymentApiError && failure.code === 'DUPLICATE_CHECKOUT') {
         try {
-          if (body.payment_method === 'SEPAY_VIETQR') {
+          if (body.payment_method === 'SEPAY_VIETQR' || body.payment_method === 'VNPAY') {
             const checkout = await paymentApi.recoverQrCheckout(draft.checkoutKey)
             saveAccountDraft(owner, { ...submitted, qrCheckoutId: checkout.checkoutId })
             if (!controller.signal.aborted) navigate(`/checkout/qr/${encodeURIComponent(checkout.checkoutId)}`, { replace: true })

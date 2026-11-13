@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -41,14 +41,16 @@ it('opens real returns from admin requests and submits a request for more images
 it('starts a refund, reveals its bank destination and records the completed transfer', async () => {
   saveApiSession('admin-token', Date.now() + 60000)
   const refund = { refund_id: id, source_id: id, source_type: 'RETURN', order_id: orderId, amount_vnd: 120000, status: 'PENDING', has_receipt: false }
-  let completion: unknown
+  let completion: FormData | undefined
   vi.stubGlobal('fetch', vi.fn(async (url, options) => {
     expect(options.headers.Authorization).toBe('Bearer admin-token')
     if (String(url).endsWith('/start')) return json({ ...refund, status: 'PROCESSING' })
     if (String(url).endsWith('/destination')) return json({ bank_name: 'Ngân hàng kiểm thử', account_number: '123456789', account_holder: 'NGUYEN VAN A' })
-    if (String(url).endsWith('/complete')) {
-      completion = JSON.parse(options.body)
-      return json({ ...refund, status: 'REFUNDED', transfer_reference: 'TEST-TRANSFER', refunded_at: '2026-11-12T00:00:00Z' })
+    if (String(url).endsWith('/complete-with-receipt')) {
+      completion = options.body
+      expect(options.method).toBe('POST')
+      expect(options.headers['Content-Type']).toBeUndefined()
+      return json({ ...refund, status: 'REFUNDED', has_receipt: true, refunded_at: '2026-11-12T00:00:00Z' })
     }
     return json(refund)
   }))
@@ -57,9 +59,18 @@ it('starts a refund, reveals its bank destination and records the completed tran
   await user.click(await screen.findByRole('button', { name: 'Bắt đầu hoàn tiền' }))
   await user.click(await screen.findByRole('button', { name: 'Xem tài khoản nhận tiền' }))
   expect(await screen.findByText('123456789')).toBeVisible()
-  await user.type(screen.getByLabelText('Mã giao dịch chuyển khoản'), 'TEST-TRANSFER')
-  await user.type(screen.getByLabelText('Mã chứng từ'), 'TEST-PROOF')
-  await user.click(screen.getByRole('button', { name: 'Xác nhận đã chuyển khoản' }))
+  const complete = screen.getByRole('button', { name: 'Xác nhận đã chuyển khoản' })
+  expect(complete).toBeDisabled()
+  const image = new File(['receipt'], 'refund.png', { type: 'image/png' })
+  await user.upload(screen.getByLabelText('Ảnh biên nhận chuyển khoản'), image)
+  expect(complete).toBeDisabled()
+  await user.click(screen.getByRole('checkbox', { name: 'Tôi đã chuyển đủ tiền cho khách và đính kèm đúng biên nhận.' }))
+  expect(complete).toBeEnabled()
+  fireEvent.submit(complete.closest('form')!)
   expect(await screen.findByText('Đã hoàn tiền')).toBeVisible()
-  expect(completion).toEqual({ transfer_reference: 'TEST-TRANSFER', proof_reference: 'TEST-PROOF' })
+  expect(completion?.get('image')).toEqual(image)
+  expect(completion?.get('refund_id')).toBe(id)
+  expect(completion?.get('transfer_confirmed')).toBe('true')
+  expect(completion?.has('transfer_reference')).toBe(false)
+  expect(completion?.has('proof_reference')).toBe(false)
 })

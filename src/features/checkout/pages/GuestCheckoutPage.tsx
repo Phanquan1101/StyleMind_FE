@@ -77,7 +77,7 @@ export default function GuestCheckoutPage() {
     if (inFlight.current || !key) return
     inFlight.current = true; setBusy(true); setError('')
     try {
-      if (draft.method === 'vietqr') {
+      if (draft.method === 'vietqr' || draft.method === 'vnpay') {
         const checkout = await guestCheckoutApi.recoverQr(key, draft.checkoutKey)
         update({ ...draft, qrCheckoutId: checkout.checkoutId })
         if (mounted.current) navigate('/guest/checkout/qr/' + encodeURIComponent(checkout.checkoutId), { replace: true })
@@ -111,14 +111,25 @@ export default function GuestCheckoutPage() {
         shipping_address: address,
       }
       const selection = draft.selection ?? (prices ? { kind: 'selected' as const, cart_item_ids: prices.items.map(item => item.cart_item_id) } : undefined)
-      const pending = { ...draft, address, submitted: body, ...(body.payment_method === 'SEPAY_VIETQR' ? { selection } : {}) }
+      const pending = { ...draft, address, submitted: body, ...(body.payment_method !== 'COD' ? { selection } : {}) }
       update(pending)
-      if (body.payment_method === 'SEPAY_VIETQR') {
+      if (body.payment_method !== 'COD') {
         if (!selection) throw new Error('Chưa có sản phẩm để thanh toán')
         const checkout = selection.kind === 'buy-now'
           ? await guestCheckoutApi.prepareQrBuyNow(key, { ...body, variant_id: selection.variant_id, quantity: selection.quantity })
           : await guestCheckoutApi.prepareQrSelection(key, { ...body, cart_item_ids: selection.cart_item_ids })
         update({ ...pending, qrCheckoutId: checkout.checkoutId })
+        if (body.payment_method === 'VNPAY') {
+          try {
+            const attempt = await guestCheckoutApi.qrAttempt(key, checkout.checkoutId)
+            if (!attempt.paymentUrl) throw new Error('Chưa nhận được liên kết thanh toán VNPAY.')
+            window.localStorage.setItem('stylemind.vnpay.return-order', JSON.stringify({ checkoutId: checkout.checkoutId, owner: 'guest' }))
+            window.location.assign(attempt.paymentUrl)
+            return
+          } catch (failure) {
+            if (mounted.current) setError(guestErrorMessage(failure))
+          }
+        }
         if (mounted.current) navigate('/guest/checkout/qr/' + encodeURIComponent(checkout.checkoutId), { replace: true })
         return
       }
@@ -126,17 +137,6 @@ export default function GuestCheckoutPage() {
         : draft.selection?.kind === 'buy-now' ? await guestCheckoutApi.checkoutBuyNow(key, { ...body, variant_id: draft.selection.variant_id, quantity: draft.selection.quantity })
         : await guestCheckoutApi.createOrder(key, body)
       if (!order.order_id) throw new Error("Missing order id")
-      if (body.payment_method === 'VNPAY') {
-        const attempt = await guestCheckoutApi.paymentAttempt(key, order.order_id)
-        if (!attempt.paymentUrl) throw new Error('Chưa nhận được liên kết thanh toán VNPAY.')
-        window.localStorage.setItem('stylemind.vnpay.return-order', JSON.stringify({ orderId: order.order_id, owner: 'guest' }))
-        window.localStorage.setItem(GUEST_LATEST_ORDER, order.order_id)
-        rememberOrder({ orderId: order.order_id, owner: 'guest' })
-        update({ ...pending, orderId: order.order_id })
-        void guest.refreshCart().catch(() => undefined)
-        window.location.assign(attempt.paymentUrl)
-        return
-      }
       // Persist before clearing the cart or navigating, so refresh cannot submit a new order.
       window.localStorage.setItem(GUEST_LATEST_ORDER, order.order_id)
       rememberOrder({ orderId: order.order_id, owner: 'guest' })

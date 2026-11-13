@@ -6,7 +6,7 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
   payment_pending: 'Chờ thanh toán',
   paid: 'Đã thanh toán',
   confirmed: 'Đã xác nhận',
-  processing: 'Đang xử lý',
+  processing: 'Đang chuẩn bị',
   shipped: 'Đang giao',
   completed: 'Hoàn tất',
   cancelled: 'Đã hủy',

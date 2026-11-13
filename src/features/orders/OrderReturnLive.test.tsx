@@ -15,11 +15,22 @@ const request = { return_id: returnId, order_id: orderId, order_number: 'SM-1001
 const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } })
 afterEach(() => { vi.unstubAllGlobals(); sessionStorage.clear() })
 
+it.each(['REQUESTED', 'REJECTED'])('giữ lịch sử %s và chặn yêu cầu trả hàng lần hai', async status => {
+  saveApiSession('owner-token', Date.now() + 60000)
+  vi.stubGlobal('fetch', vi.fn(async () => json({ eligible: true, available_items: [item], items: [{ ...request, status }] })))
+  render(<OrderDetailSections order={order} onRefresh={vi.fn()} />)
+  expect(await screen.findByText('Sản phẩm bị lỗi')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Yêu cầu trả hàng' })).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Ảnh bổ sung')).not.toBeInTheDocument()
+  expect(screen.getByText(/Mỗi đơn hàng chỉ được gửi một yêu cầu trả hàng/)).toBeVisible()
+})
+
 it('giải thích thiếu khoản thu thay vì báo hết món trả hàng', async () => {
   saveApiSession('owner-token', Date.now() + 60000)
   vi.stubGlobal('fetch', vi.fn(async () => json({ eligible: false, ineligible_reason: 'PAYMENT_NOT_CONFIRMED', available_items: [], items: [] })))
   render(<OrderDetailSections order={order} onRefresh={vi.fn()} />)
   expect(await screen.findByText(/hệ thống chưa xác nhận khoản thu/)).toBeVisible()
+  expect(screen.getByText('Đã giao hàng')).toBeVisible()
   expect(screen.queryByText('Đơn hàng hiện không còn sản phẩm đủ điều kiện trả.')).not.toBeInTheDocument()
 })
 

@@ -50,7 +50,7 @@ describe('customer routes', () => {
     vi.spyOn(communityApi, 'outfit').mockResolvedValue(outfit)
     vi.spyOn(communityApi, 'sharing').mockResolvedValue({ outfit_id: outfitId, visibility: 'PRIVATE', public_enabled: false, public_token: null, public_enabled_at: null })
     const entries = [
-      ['/account', 'Tài khoản'],
+      ['/account', 'Hồ sơ cá nhân'],
       ['/account/addresses', 'Địa chỉ giao hàng'],
       ['/orders', 'Đơn hàng'],
       ['/orders/missing-order', 'Thanh toán đơn hàng'],
