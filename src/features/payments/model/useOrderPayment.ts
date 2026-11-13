@@ -100,6 +100,15 @@ export default function useOrderPayment(owner: 'guest' | 'account', orderId: str
         const latest = await getOrder(controller.signal)
         again = latest.order_status === 'PENDING_PAYMENT'
         if (!controller.signal.aborted) setOrder(latest)
+        if (again && latest.payment_method === 'VNPAY') {
+          // Payment can be confirmed before Commerce finishes applying its order event.
+          try {
+            const latestAttempt = await getAttempt(controller.signal)
+            if (!controller.signal.aborted) setAttempt(latestAttempt)
+          } catch {
+            // Keep checking the order if the attempt endpoint is temporarily unavailable.
+          }
+        }
       } catch (failure) {
         again = false
         if (!controller.signal.aborted) { setError(message(failure)); setPollStopped(true) }
@@ -110,7 +119,7 @@ export default function useOrderPayment(owner: 'guest' | 'account', orderId: str
     }
     timer = setTimeout(check, PAYMENT_POLL_INTERVAL_MS)
     return () => { controller.abort(); clearTimeout(timer) }
-  }, [pending, blockedAttempt, pollStopped, getOrder, message])
+  }, [pending, blockedAttempt, pollStopped, getOrder, getAttempt, message])
 
   useEffect(() => {
     setNow(Date.now())
