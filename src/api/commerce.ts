@@ -70,6 +70,8 @@ export const commerceApi = {
     create: (input: CatalogReferenceInput) => post<CatalogReference>('/api/v1/admin/brands', input),
     replace: (id: UUID, input: CatalogReferenceInput) => put<CatalogReference>(`/api/v1/admin/brands/${id}`, input),
     remove: (id: UUID) => del(`/api/v1/admin/brands/${id}`),
+    /** Non-restorable delete; historical product references are preserved by the server. */
+    removePermanently: (id: UUID) => del(`/api/v1/admin/brands/${id}?permanent=true`),
   },
   products: {
     list: (query: ProductListQuery = {}) => publicGet<ProductListResponse>(`/api/v1/products${queryString(query)}`),

@@ -8,15 +8,18 @@ import { AdminBrandsPanel } from './AdminBrandsPanel'
 
 afterEach(() => vi.restoreAllMocks())
 
-it('lists, creates, edits and soft-deletes brands with the Commerce APIs', async () => {
+it('lists without slugs, creates, edits and permanently deletes brands with the Commerce APIs', async () => {
   const user = userEvent.setup()
   vi.spyOn(commerceApi.brands, 'listAdmin').mockResolvedValue({ items: [{ id: 'b-1', name: 'Local Brand', slug: 'local-brand', is_active: true }] })
-  const create = vi.spyOn(commerceApi.brands, 'create').mockResolvedValue({ id: 'b-2', name: 'Nhãn mới', slug: 'nhan-moi', is_active: true })
+  const create = vi.spyOn(commerceApi.brands, 'create')
+    .mockResolvedValueOnce({ id: 'b-2', name: 'Nhãn mới', slug: 'nhan-moi', is_active: true })
+    .mockResolvedValueOnce({ id: 'b-3', name: 'Local Brand mới', slug: 'local-brand-moi', is_active: true })
   const replace = vi.spyOn(commerceApi.brands, 'replace').mockResolvedValue({ id: 'b-1', name: 'Local Brand mới', slug: 'local-brand-moi', is_active: true })
-  const remove = vi.spyOn(commerceApi.brands, 'remove').mockResolvedValue(undefined)
+  const removePermanently = vi.spyOn(commerceApi.brands, 'removePermanently').mockResolvedValue(undefined)
 
   render(<ToastProvider><AdminBrandsPanel /></ToastProvider>)
   expect(await screen.findByText('Local Brand')).toBeInTheDocument()
+  expect(screen.queryByText('/local-brand')).not.toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: 'Thêm thương hiệu' }))
   expect(screen.queryByLabelText('Mã định danh (slug)')).not.toBeInTheDocument()
@@ -34,6 +37,13 @@ it('lists, creates, edits and soft-deletes brands with the Commerce APIs', async
   await waitFor(() => expect(replace).toHaveBeenCalledWith('b-1', { name: 'Local Brand mới', slug: 'local-brand-moi', is_active: true }))
 
   await user.click(screen.getByRole('button', { name: 'Xóa thương hiệu Local Brand mới' }))
-  await user.click(screen.getByRole('button', { name: 'Ẩn thương hiệu' }))
-  await waitFor(() => expect(remove).toHaveBeenCalledWith('b-1'))
+  await user.click(screen.getByRole('button', { name: 'Xóa thương hiệu' }))
+  await waitFor(() => expect(removePermanently).toHaveBeenCalledWith('b-1'))
+  expect(screen.queryByText('Local Brand mới')).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Thêm thương hiệu' }))
+  await user.type(screen.getByLabelText('Tên thương hiệu'), 'Local Brand mới')
+  await user.click(screen.getByRole('button', { name: 'Lưu thương hiệu' }))
+  await waitFor(() => expect(create).toHaveBeenLastCalledWith({ name: 'Local Brand mới', slug: 'local-brand-moi', is_active: true }))
+  expect(await screen.findByText('Local Brand mới')).toBeInTheDocument()
 })
