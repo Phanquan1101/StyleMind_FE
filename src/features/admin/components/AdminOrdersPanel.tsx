@@ -12,10 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { commerceApi } from "@/api/commerce"
-import {
-  paymentApi,
-  paymentErrorMessage,
-} from "@/features/payments/api/paymentClient"
+import { projectAdminOrderAttention } from "@/features/admin/model/adminOrderAttention"
 import { orderRefundLabel } from "@/features/orders/model/orderRefundStatus"
 import type { DemoAction, DemoDatabase } from "@/app/store/types"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
@@ -37,7 +34,9 @@ import { AdminPagination, StatusBadge } from "./AdminCommon"
 interface AdminOrdersPanelProps {
   database: DemoDatabase
   dispatch: React.Dispatch<DemoAction>
+  embedded?: boolean
   onReload?: () => void
+  returnStatuses?: ReadonlyMap<string, string>
 }
 
 const statusOptions: {
@@ -59,7 +58,7 @@ const nextStatusMap: Partial<Record<OrderStatus, OrderStatus[]>> = {
   pending: ["confirmed", "cancelled"],
   // PENDING_PAYMENT leaves this state only through the payment itself (QR webhook / COD collection), never by a button.
   payment_pending: ["cancelled"],
-  paid: ["confirmed"],
+  paid: ["processing"],
   confirmed: ["processing"],
   processing: ["shipped"],
   shipped: ["completed"],
@@ -145,7 +144,9 @@ export function primaryVariantImage(variant: ProductVariant) {
 export function AdminOrdersPanel({
   database,
   dispatch,
+  embedded = false,
   onReload,
+  returnStatuses,
 }: AdminOrdersPanelProps) {
   const toast = useToast()
   const [filters, setFilters] = useState<AdminOrderFilters>({
@@ -240,7 +241,7 @@ export function AdminOrdersPanel({
 
         return true
       }),
-    [database, filters, customerEmails, queue, fromDate, toDate],
+    [database, filters, customerEmails, queue, fromDate, toDate, returnStatuses],
   )
   const currentPage = Math.min(
     page,
@@ -253,6 +254,11 @@ export function AdminOrdersPanel({
   const selectedOrder = selectedOrderId
     ? (database.orders.find((order) => order.id === selectedOrderId) ?? null)
     : null
+  useEffect(() => {
+    if (selectedOrder?.status !== "completed" || selectedOrder.paymentMethod !== "cod" || selectedOrder.paymentStatus === "paid") return
+    const timer = window.setInterval(() => onReload?.(), 5000)
+    return () => window.clearInterval(timer)
+  }, [selectedOrder?.id, selectedOrder?.status, selectedOrder?.paymentMethod, selectedOrder?.paymentStatus, onReload])
   const [variantImages, setVariantImages] = useState<Map<string, string>>(
     new Map(),
   )
@@ -368,48 +374,13 @@ export function AdminOrdersPanel({
     }
   }
   const [updating, setUpdating] = useState<string | null>(null)
-  const [collectedCod, setCollectedCod] = useState<Set<string>>(() => new Set())
-  const collectCod = async (orderId: string) => {
-    const result = await paymentApi.confirmDeliveredCod(orderId)
-
-    if (
-      result.status !== "PAID" ||
-      result.orderId !== orderId ||
-      result.method !== "COD"
-    ) {
-      throw new Error("Chưa nhận được xác nhận thu COD từ máy chủ.")
-    }
-
-    setCollectedCod((current) => new Set(current).add(orderId))
-  }
-  const retryCod = async (orderId: string) => {
-    if (updating) return
-
-    setUpdating(orderId)
-
-    try {
-      await collectCod(orderId)
-
-      toast.success(
-        "Đã ghi nhận thu COD. Quyền trả hàng cập nhật sau khi hệ thống đồng bộ thanh toán.",
-      )
-
-      onReload?.()
-    } catch (error) {
-      toast.error(paymentErrorMessage(error))
-    } finally {
-      setUpdating(null)
-    }
-  }
   const changeStatus = async (orderId: string, status: OrderStatus) => {
     if (updating) return
 
     setUpdating(orderId)
 
-    let delivered = false
-
     try {
-      await commerceApi.orders.updateStatus(orderId, commerceStatus[status])
+      const result = await commerceApi.orders.updateStatus(orderId, commerceStatus[status])
 
       dispatch({
         type: "admin/orderStatusChanged",
@@ -417,22 +388,14 @@ export function AdminOrdersPanel({
         payload: { orderId, status, at: new Date().toISOString() },
       })
 
-      const order = database.orders.find((item) => item.id === orderId)
-
-      if (status === "completed" && order?.paymentMethod === "cod") {
-        delivered = true
-
-        await collectCod(orderId)
-      }
-
-      toast.success("Đã cập nhật trạng thái đơn hàng.")
+      toast.success(result.order_status === "COMPLETED" && result.payment_method === "COD"
+        ? "Đã ghi nhận giao hàng. Hệ thống đang cập nhật thanh toán COD."
+        : "Đã cập nhật trạng thái đơn hàng.")
 
       onReload?.()
     } catch (error) {
       toast.error(
-        delivered
-          ? "Đã lưu giao hàng thành công nhưng chưa xác nhận thu COD. Bấm “Xác nhận đã thu COD” để thử lại trên cùng đơn."
-          : error instanceof Error
+        error instanceof Error
             ? error.message
             : "Không thể cập nhật trạng thái đơn hàng",
       )
@@ -451,15 +414,7 @@ export function AdminOrdersPanel({
         ? ["cancelled" as OrderStatus]
         : []
       : nextStatuses(selectedOrder.status)
-    const canCollect =
-      selectedOrder.status === "completed" &&
-      selectedOrder.paymentMethod === "cod" &&
-      selectedOrder.paymentStatus !== "paid" &&
-      !collectedCod.has(selectedOrder.id) &&
-      !selectedOrder.refundStatus
-    const paymentLabel = collectedCod.has(selectedOrder.id)
-      ? "Đã thu tiền"
-      : paymentStatusLabel[selectedOrder.paymentStatus]
+    const paymentLabel = paymentStatusLabel[selectedOrder.paymentStatus]
 
     return (
       <section className="space-y-6">
@@ -511,17 +466,9 @@ export function AdminOrdersPanel({
             >
               Tải lại
             </Button>
-            {canCollect && (
-              <Button
-                disabled={Boolean(updating) || Boolean(confirming)}
-                onClick={() => void retryCod(selectedOrder.id)}
-              >
-                Xác nhận đã thu COD
-              </Button>
-            )}
             {needsConfirmation ? (
               <Button
-                disabled={Boolean(confirming) || Boolean(updating)}
+                disabled={Boolean(pendingCancellation) || Boolean(confirming) || Boolean(updating)}
                 onClick={() => void confirmOrder(selectedOrder.id)}
               >
                 Xác nhận đơn
@@ -531,12 +478,12 @@ export function AdminOrdersPanel({
                 <Button
                   key={status}
                   variant={status === "cancelled" ? "danger-soft" : "primary"}
-                  disabled={Boolean(updating) || Boolean(confirming)}
+                  disabled={Boolean(pendingCancellation) || Boolean(updating) || Boolean(confirming)}
                   onClick={() => void changeStatus(selectedOrder.id, status)}
                 >
                   {status === "completed" &&
                   selectedOrder.paymentMethod === "cod"
-                    ? "Giao thành công và thu COD"
+                    ? "Đã giao hàng"
                     : actionLabel[status]}
                 </Button>
               ))
@@ -550,7 +497,8 @@ export function AdminOrdersPanel({
               type="button"
               className="inline-flex items-center gap-1 font-semibold underline"
               onClick={() => setSearchParams({
-                section: "requests",
+                section: "orders",
+                view: "cancellations",
                 requestId: pendingCancellation.id,
               })}
             >
@@ -560,7 +508,7 @@ export function AdminOrdersPanel({
         )}
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
           <div className="min-w-0 space-y-5">
-            <section className="rounded-2xl border border-divider bg-white p-5 sm:p-6">
+            <section className="rounded-xl border border-divider bg-white p-5 sm:p-6">
               <h2 className="flex items-center gap-2 font-semibold">
                 <Package size={18} /> Sản phẩm trong đơn
               </h2>
@@ -744,7 +692,7 @@ export function AdminOrdersPanel({
   }
   return (
     <section className="min-w-0 space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      {!embedded && <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold">
             Quản lý đơn hàng
@@ -757,9 +705,9 @@ export function AdminOrdersPanel({
         >
           Tải lại
         </Button>
-      </header>
+      </header>}
       <div
-        className="flex gap-1 overflow-x-auto border-b border-divider"
+        className="flex flex-wrap items-center gap-2"
         role="group"
         aria-label="Nhóm đơn hàng"
       >
@@ -772,20 +720,20 @@ export function AdminOrdersPanel({
               setQueue(item.value)
               setPage(0)
             }}
-            className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+            className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
               queue === item.value
-                ? "border-accent text-accent"
-                : "border-transparent text-secondary hover:text-accent"
+                ? "border-charcoal bg-charcoal text-white"
+                : "border-divider bg-white text-secondary hover:border-charcoal hover:text-charcoal"
             }`}
           >
             {item.label}
-            <span className="rounded-md bg-sand px-1.5 py-0.5 text-xs tabular-nums">
+            <span className="rounded-full bg-sand px-1.5 py-0.5 text-[11px] text-charcoal tabular-nums">
               {item.count}
             </span>
           </button>
         ))}
       </div>
-      <div className="rounded-2xl border border-divider bg-white p-4 sm:p-5">
+      <div className="rounded-xl border border-divider bg-white p-4">
         <div className="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-[minmax(180px,1.5fr)_minmax(120px,1fr)_minmax(130px,1fr)_140px_140px] [&>label]:min-w-0">
           <label className="grid gap-2 text-sm font-semibold">
             Tìm đơn hàng
@@ -843,6 +791,7 @@ export function AdminOrdersPanel({
             <option value="all">Tất cả</option>
             <option value="cod">COD</option>
             <option value="vietqr">{paymentMethodLabel.vietqr}</option>
+            <option value="vnpay">{paymentMethodLabel.vnpay}</option>
           </SelectField>
           <TextField
             className="w-full min-w-0"
@@ -894,7 +843,7 @@ export function AdminOrdersPanel({
             </colgroup>
             <thead className="border-b border-divider bg-ivory text-xs font-semibold uppercase tracking-wide text-secondary">
               <tr>
-                <th scope="col" className="px-5 py-4">
+                <th scope="col" className="px-4 py-3">
                   Đơn hàng
                 </th>
                 <th scope="col" className="px-5 py-4">
@@ -906,7 +855,7 @@ export function AdminOrdersPanel({
                 <th scope="col" className="px-5 py-4">
                   Trạng thái
                 </th>
-                <th scope="col" className="px-5 py-4 text-right">
+                <th scope="col" className="px-4 py-3 text-right">
                   Tổng tiền
                 </th>
                 <th scope="col" className="px-3 py-4">
@@ -930,8 +879,15 @@ export function AdminOrdersPanel({
                     (item) => item.id === row.id,
                   )
                   const needsConfirmation = requiresOrderConfirmation(order)
+                  const attention = projectAdminOrderAttention({
+                    fulfillment: orderStatusLabel[row.status],
+                    pendingCancellation: pendingCancellations.has(row.id),
+                    returnStatus: returnStatuses?.get(row.id),
+                    refundStatus: order?.refundStatus,
+                    needsConfirmation,
+                  })
                   const paid =
-                    row.paymentStatus === "paid" || collectedCod.has(row.id)
+                    row.paymentStatus === "paid"
                   return (
                     <tr
                       key={row.id}
@@ -961,7 +917,7 @@ export function AdminOrdersPanel({
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-medium">
-                          {row.paymentMethod === "cod" ? "COD" : "VietQR"}
+                          {row.paymentMethod === "cod" ? "COD" : paymentMethodLabel[row.paymentMethod]}
                         </p>
                         <p className="mt-1.5 text-xs text-secondary">
                           {paid
@@ -974,28 +930,25 @@ export function AdminOrdersPanel({
                       </td>
                       <td className="px-5 py-4">
                         <StatusBadge
-                          tone={order?.refundStatus === "PENDING_REFUND" || needsConfirmation ? "warning" : statusTone(row.status)}
+                          tone={attention.tone}
                         >
-                          {orderRefundLabel(order?.refundStatus) ??
-                            (needsConfirmation
-                              ? "Chờ xác nhận"
-                              : orderStatusLabel[row.status])}
+                          {attention.label}
                         </StatusBadge>
                         {pendingCancellations.has(row.id) && (
                           <p className="mt-2 text-xs font-semibold text-warning-ink">
                             Yêu cầu hủy chờ duyệt
                           </p>
                         )}
-                        {order?.refundStatus && (
+                        {attention.label !== orderStatusLabel[row.status] && (
                           <p className="mt-2 text-xs text-secondary">
                             Giao hàng: {orderStatusLabel[row.status]}
                           </p>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right font-semibold tabular-nums">
+                      <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums">
                         {formatCurrency(row.total)}
                       </td>
-                      <td className="px-2 py-4">
+                      <td className="px-2 py-3">
                         <button
                           type="button"
                           aria-label={`Chi tiết đơn ${row.orderNumber}`}

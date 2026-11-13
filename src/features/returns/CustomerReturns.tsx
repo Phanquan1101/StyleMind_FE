@@ -130,7 +130,9 @@ export default function CustomerReturns({ orderId }: { orderId: string }) {
   const items = selectedLines.map(item => ({ order_item_id: item.order_item_id, quantity: Number(quantities[item.order_item_id]) }))
   const invalidQuantity = items.some((item, index) => !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > selectedLines[index].quantity)
   const estimatedAmount = invalidQuantity ? null : items.reduce((total, item, index) => total + item.quantity * selectedLines[index].unit_price_vnd, 0)
-  const canSubmit = data?.eligible && !loading && !loadError && items.length > 0 && !invalidQuantity && normalizeReason(reason) && files.length > 0
+  const requestUsed = !!data?.items.length || data?.ineligible_reason === 'RETURN_ALREADY_REQUESTED'
+  const eligible = data?.eligible && !requestUsed
+  const canSubmit = eligible && !loading && !loadError && items.length > 0 && !invalidQuantity && normalizeReason(reason) && files.length > 0
 
   function setSelectedQuantity(id: string, value?: string) {
     setQuantities(current => {
@@ -189,14 +191,14 @@ export default function CustomerReturns({ orderId }: { orderId: string }) {
             <p className="mt-1 text-sm leading-6 text-secondary">Gửi yêu cầu trong vòng 7 ngày kể từ khi đơn giao thành công.</p>
           </div>
         </div>
-        {!loading && !loadError && data?.eligible && !open && (
+        {!loading && !loadError && eligible && !open && (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>Yêu cầu trả hàng</Button>
         )}
       </header>
       {loading && <p role="status" className="text-sm text-secondary">Đang tải thông tin trả hàng…</p>}
       {loadError && <p role="alert" className="text-sm text-red-700">{loadError}</p>}
-      {!loading && !loadError && data && !data.eligible && <p className="rounded-xl bg-ivory px-4 py-3 text-sm text-secondary">{data.ineligible_reason === 'PAYMENT_NOT_CONFIRMED' ? 'Đơn đã giao nhưng hệ thống chưa xác nhận khoản thu. Vui lòng liên hệ cửa hàng xác nhận thu COD, sau đó tải lại trang.' : data.ineligible_reason === 'RETURN_WINDOW_EXPIRED' ? 'Đơn hàng đã quá thời hạn trả hàng 7 ngày.' : data.ineligible_reason === 'NOT_DELIVERED' ? 'Bạn có thể yêu cầu trả hàng sau khi đơn được giao thành công.' : 'Đơn hàng hiện không còn sản phẩm đủ điều kiện trả.'}</p>}
-      {open && data?.eligible && !loadError && (
+      {!loading && !loadError && data && !eligible && <p className="rounded-xl bg-ivory px-4 py-3 text-sm text-secondary">{requestUsed ? 'Mỗi đơn hàng chỉ được gửi một yêu cầu trả hàng, kể cả khi yêu cầu đã bị từ chối. Bạn có thể bổ sung ảnh khi cửa hàng yêu cầu.' : data.ineligible_reason === 'PAYMENT_NOT_CONFIRMED' ? 'Đơn đã giao nhưng hệ thống chưa xác nhận khoản thu. Vui lòng tải lại trang để kiểm tra trạng thái thanh toán.' : data.ineligible_reason === 'RETURN_WINDOW_EXPIRED' ? 'Đơn hàng đã quá thời hạn trả hàng 7 ngày.' : data.ineligible_reason === 'NOT_DELIVERED' ? 'Bạn có thể yêu cầu trả hàng sau khi đơn được giao thành công.' : 'Đơn hàng hiện không còn sản phẩm đủ điều kiện trả.'}</p>}
+      {open && eligible && data && !loadError && (
         <form onSubmit={submit} className="grid gap-5 rounded-xl border border-divider p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(230px,0.46fr)]">
           <div className="grid min-w-0 gap-5">
           <fieldset className="grid min-w-0 gap-2" disabled={busy || loading}>

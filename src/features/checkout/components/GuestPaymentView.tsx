@@ -29,7 +29,7 @@ interface GuestPaymentViewProps {
 const orderLabels: Record<string, string> = {
   PENDING_PAYMENT: 'Chờ thanh toán', PLACED: 'Đã đặt hàng', PAID: 'Đã thanh toán',
   CONFIRMED: 'Đã xác nhận', PROCESSING: 'Đang chuẩn bị', FULFILLING: 'Đang chuẩn bị',
-  SHIPPED: 'Đang giao hàng', DELIVERED: 'Đã giao hàng', COMPLETED: 'Đã hoàn tất',
+  SHIPPED: 'Đang giao hàng', DELIVERED: 'Đã giao hàng', COMPLETED: 'Đã giao hàng',
   CANCELLED: 'Đã hủy', EXPIRED: 'Đã hết hạn',
 }
 

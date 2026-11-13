@@ -156,6 +156,26 @@ function currentSearch() {
 }
 
 describe('AdminPage', () => {
+  it('keeps order work in one admin navigation area', async () => {
+    const user = setupUser()
+    renderAt('/admin?section=orders', adminDatabase())
+
+    const navigation = await screen.findByRole('navigation', { name: 'Khu vực quản trị' })
+    expect(within(navigation).getByRole('link', { name: 'Đơn hàng' })).toBeInTheDocument()
+    expect(within(navigation).queryByRole('link', { name: 'Thanh toán' })).not.toBeInTheDocument()
+    expect(within(navigation).queryByRole('link', { name: 'Yêu cầu' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: /Yêu cầu hủy/ }))
+    expect(currentSearch()).toBe('?section=orders&view=cancellations')
+    expect(await screen.findByLabelText('Tìm yêu cầu hủy')).toBeInTheDocument()
+  })
+
+  it('opens legacy request deep links inside order management', async () => {
+    renderAt('/admin?section=requests', adminDatabase())
+    expect(await screen.findByRole('button', { name: /Yêu cầu hủy/ })).toHaveAttribute('aria-pressed', 'true')
+    const navigation = await screen.findByRole('navigation', { name: 'Khu vực quản trị' })
+    expect(within(navigation).getByRole('link', { name: 'Đơn hàng' })).toHaveAttribute('aria-current', 'page')
+  })
+
   it('renders the admin dashboard for an authenticated admin', async () => {
     renderAt('/admin', adminDatabase())
 
@@ -507,6 +527,7 @@ describe('AdminPage', () => {
   it('filters orders and advances an order status', async () => {
     const user = setupUser()
     const database = adminDatabase()
+    database.cancellationRequests = []
     database.orders = database.orders.map(order =>
       order.id === 'ORD-ADM-1001' ? { ...order, status: 'pending' } : order,
     )
@@ -567,7 +588,7 @@ describe('AdminPage', () => {
     )
     renderAt('/admin?section=requests', database)
 
-    await user.click(await screen.findByRole('button', { name: 'Trả hàng / Hoàn tiền' }))
+    await user.click(await screen.findByRole('button', { name: /Trả hàng \/ Hoàn tiền/ }))
     const row = screen.getByRole('row', { name: /return-1002/ })
     await user.click(within(row).getByRole('button', { name: 'Hoàn tiền' }))
 
@@ -626,4 +647,13 @@ describe('AdminPage', () => {
     expect(getDatabase().fashionMetadata).toEqual(database.fashionMetadata)
     expect(getDatabase().compatibilityRules).toEqual(database.compatibilityRules)
   })
+})
+
+it.each(['/admin?section=payments', '/admin?section=orders&view=payments'])('routes removed reconciliation view %s to the order list', async path => {
+  mockCommerceReads()
+  renderAt(path, adminDatabase())
+  expect(await screen.findByRole('heading', { name: 'Quản lý đơn hàng' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Đối soát thanh toán' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Đối soát thanh toán' })).not.toBeInTheDocument()
+  expect(screen.getAllByRole('heading', { name: 'Quản lý đơn hàng' })).toHaveLength(1)
 })

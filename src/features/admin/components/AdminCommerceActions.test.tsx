@@ -32,9 +32,11 @@ it('sends a new category to Commerce and only stores the returned category', asy
 
 it('does not update local order state when Commerce rejects an update', async () => {
   const user = userEvent.setup()
+  const database = createDemoSeed()
+  database.cancellationRequests = []
   const dispatch = vi.fn()
   vi.mocked(commerceApi.orders.updateStatus).mockRejectedValue(new Error('Không thể cập nhật đơn'))
-  render(<MemoryRouter><ToastProvider><AdminOrdersPanel database={createDemoSeed()} dispatch={dispatch} /></ToastProvider></MemoryRouter>)
+  render(<MemoryRouter><ToastProvider><AdminOrdersPanel database={database} dispatch={dispatch} /></ToastProvider></MemoryRouter>)
   const row = screen.getByText('ORD-ADM-1001').closest('tr')
   if (!row) throw new Error('Không tìm thấy dòng đơn hàng')
   await user.click(within(row).getByRole('button', { name: 'Chi tiết đơn ORD-ADM-1001' }))

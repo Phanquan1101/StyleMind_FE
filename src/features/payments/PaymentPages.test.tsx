@@ -28,11 +28,7 @@ function customer(path = '/payments/' + id) {
 function admin() {
   return render(<MemoryRouter><AdminPaymentsPage /></MemoryRouter>)
 }
-function fillCollection() {
-  fireEvent.change(screen.getByLabelText('Mã khoản thanh toán COD'), { target: { value: attempt.id } })
-  fireEvent.change(screen.getByLabelText('Số tiền đã thu (VND)'), { target: { value: '125000' } })
-  fireEvent.click(screen.getByRole('checkbox'))
-}
+
 
 beforeEach(() => {
   localStorage.clear()
@@ -191,29 +187,13 @@ describe('Live customer Payment page', () => {
 })
 
 describe('Admin Payment page', () => {
-  it('requires actual receipt attestation, collects once and prevents repeating the same attempt', async () => {
+  it('shows reconciliation without a manual COD collection form', async () => {
     admin()
     await screen.findByText('Không có lỗi thanh toán.')
-    expect(screen.getByRole('button', { name: 'Ghi nhận thu COD' })).toBeDisabled()
-    fillCollection()
-    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận thu COD' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã ghi nhận thu COD')
-    expect(api.confirmCodCollection).toHaveBeenCalledWith({ payment_attempt_id: attempt.id, collected_amount_vnd: 125000 })
-    expect(screen.getByRole('button', { name: 'Ghi nhận thu COD' })).toBeDisabled()
-    fireEvent.change(screen.getByLabelText('Mã khoản thanh toán COD'), { target: { value: '' } })
-    fireEvent.change(screen.getByLabelText('Mã khoản thanh toán COD'), { target: { value: attempt.id } })
-    expect(screen.getByRole('button', { name: 'Ghi nhận thu COD' })).toBeDisabled()
-    expect(api.confirmCodCollection).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not blindly retry after an uncertain collection result', async () => {
-    api.confirmCodCollection.mockRejectedValue(new TypeError('Network failure'))
-    admin()
-    fillCollection()
-    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận thu COD' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('cần đối soát')
-    expect(screen.getByRole('button', { name: 'Ghi nhận thu COD' })).toBeDisabled()
-    expect(api.confirmCodCollection).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { name: 'Đối soát thanh toán' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Mã khoản thanh toán COD')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ghi nhận thu COD' })).not.toBeInTheDocument()
+    expect(api.confirmCodCollection).not.toHaveBeenCalled()
   })
 
   it('shows denied exception access and never exposes a resolve/refund action', async () => {
@@ -268,10 +248,10 @@ describe('Payment status check feedback', () => {
     expect(screen.getByRole('button', { name: 'Kiểm tra trạng thái đơn' })).toBeEnabled()
   })
 
-  it('explains that a COD order waits for the cash to be collected', async () => {
+  it('explains that a placed COD order awaits shop confirmation', async () => {
     api.getOrder.mockResolvedValue({ ...order, payment_method: 'COD', order_status: 'PLACED' })
     api.getOrderPaymentAttempt.mockResolvedValue({ ...attempt, method: 'COD', qrPayload: null, expiresAt: null })
     customer()
-    expect(await screen.findByText(/Đơn đang chờ thu tiền khi giao hàng/)).toBeInTheDocument()
+    expect(await screen.findByText(/Cửa hàng sẽ xác nhận đơn hàng trước khi chuẩn bị/)).toBeInTheDocument()
   })
 })

@@ -146,7 +146,7 @@ export interface Order {
   subtotal: number
   shipping: number
   total: number
-  paymentMethod: 'SePay' | 'COD' | 'Card'
+  paymentMethod: 'SePay' | 'COD' | 'Card' | 'VNPAY'
   address: string
   tracking?: string
   timeline: OrderTimelineStep[]

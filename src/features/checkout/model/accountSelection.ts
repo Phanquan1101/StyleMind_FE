@@ -4,7 +4,7 @@ export type AccountSelection = { kind: 'selected'; cart_item_ids: string[] } | {
 
 export function beginAccountSelection(owner: string, selection: AccountSelection): boolean {
   const existing = loadAccountDraft(owner)
-  if (existing.submitted && !existing.orderId) return false
+  if (existing.submitted && !existing.orderId && !existing.qrCheckoutId) return false
   saveAccountDraft(owner, { checkoutKey: crypto.randomUUID(), addressId: existing.addressId, method: existing.method, selection })
   return true
 }

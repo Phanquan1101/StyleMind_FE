@@ -18,6 +18,7 @@ export interface PaymentAttempt {
 export interface QrCheckout {
   checkoutId: string
   customerId: string
+  paymentMethod?: 'SEPAY_VIETQR' | 'VNPAY'
   totalVnd: number
   status: 'PREPARING' | 'AWAITING_PAYMENT' | 'CANCELLED' | 'EXPIRED' | 'ORDER_CREATED' | 'RECONCILIATION_REQUIRED'
   expiresAt: string
@@ -27,6 +28,7 @@ export interface QrCheckout {
 export interface QrCheckoutSummary {
   checkoutId: string
   status: QrCheckout['status']
+  paymentMethod?: 'SEPAY_VIETQR' | 'VNPAY'
   totalVnd: number
   createdAt: string
   expiresAt: string
@@ -46,7 +48,7 @@ export interface OrderResponse {
   order_number: string
   customer_id: string | null
   checkout_key: string
-  confirmation_state?: 'UNCONFIRMED' | 'CONFIRMED' | 'LEGACY_UNKNOWN'
+  confirmation_state?: 'UNCONFIRMED' | 'CONFIRMED' | 'AUTO_CONFIRMED' | 'LEGACY_UNKNOWN'
   order_status: string
   payment_method: PaymentMethod
   accepted_total_vnd: number

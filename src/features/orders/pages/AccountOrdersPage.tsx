@@ -5,17 +5,19 @@ import { ROUTES } from '@/app/router/routes'
 import { paymentApi, paymentErrorMessage } from '@/features/payments/api/paymentClient'
 import type { OrderResponse, QrCheckoutSummary } from '@/features/payments/api/types'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
-import { orderStatusLabel, orderStatusLabels } from '../model/orderStatus'
+import { customerOrderStatusLabel as orderStatusLabel, customerOrderStatusLabels as orderStatusLabels } from '../model/orderStatus'
 
 const UNPAID_BADGE: Record<string, { label: string; className: string }> = {
   open: { label: 'Chờ thanh toán', className: 'bg-[#FFF4D6] text-[#7A5A1E]' },
   expired: { label: 'Đã hết hạn', className: 'bg-[#EFEDED] text-[#5E5F5D]' },
+  cancelled: { label: 'Đã hủy phiên thanh toán', className: 'bg-[#EFEDED] text-[#5E5F5D]' },
   review: { label: 'Đang kiểm tra thanh toán', className: 'bg-[#E6EEF8] text-[#2D4A73]' },
 }
 
-function unpaidState(item: QrCheckoutSummary, now: number): 'open' | 'expired' | 'review' {
+function unpaidState(item: QrCheckoutSummary, now: number): 'open' | 'expired' | 'cancelled' | 'review' {
   if (item.status === 'RECONCILIATION_REQUIRED') return 'review'
-  if (item.status === 'EXPIRED' || item.status === 'CANCELLED' || Date.parse(item.expiresAt) <= now) return 'expired'
+  if (item.status === 'CANCELLED') return 'cancelled'
+  if (item.status === 'EXPIRED' || Date.parse(item.expiresAt) <= now) return 'expired'
   return 'open'
 }
 
@@ -34,9 +36,9 @@ function UnpaidCheckouts({ items }: { items: QrCheckoutSummary[] }) {
       const state = unpaidState(item, now)
       const badge = UNPAID_BADGE[state]
       return <div key={item.checkoutId} className="grid gap-2 rounded-xl border border-dashed border-[#C4A862] bg-[#FFFBF0] p-5 sm:grid-cols-2">
-        <span className="font-semibold">Thanh toán QR #{item.checkoutId.slice(0, 8).toUpperCase()}</span>
+        <span className="font-semibold">Thanh toán {item.paymentMethod === 'VNPAY' ? 'VNPAY' : 'VietQR'} #{item.checkoutId.slice(0, 8).toUpperCase()}</span>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold sm:justify-self-end ${badge.className}`}>{badge.label}</span>
-        <span className="text-sm text-secondary">{state === 'open' ? `Còn ${remaining(item.expiresAt, now)} để thanh toán` : state === 'review' ? 'Chúng tôi đang đối soát khoản thanh toán của bạn.' : 'Phiên thanh toán đã hết hạn, hàng đã được trả về kho. Hãy đặt lại từ giỏ hàng.'}</span>
+        <span className="text-sm text-secondary">{state === 'open' ? `Còn ${remaining(item.expiresAt, now)} để thanh toán` : state === 'review' ? 'Chúng tôi đang đối soát khoản thanh toán của bạn.' : state === 'cancelled' ? 'Phiên thanh toán đã hủy. Bạn có thể bắt đầu thanh toán mới từ giỏ hàng.' : 'Phiên thanh toán đã hết hạn. Bạn có thể bắt đầu thanh toán mới từ giỏ hàng.'}</span>
         <span className="font-semibold sm:text-right">{formatCurrency(item.totalVnd)}</span>
         {state === 'open' && <Link to={`${ROUTES.checkoutQr}/${encodeURIComponent(item.checkoutId)}`} className="inline-flex min-h-11 w-fit items-center rounded-lg bg-[#1C1B1B] px-4 text-sm font-semibold text-white sm:col-span-2">Tiếp tục thanh toán</Link>}
       </div>

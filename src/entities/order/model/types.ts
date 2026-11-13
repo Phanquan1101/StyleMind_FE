@@ -37,7 +37,7 @@ export interface Order {
   orderNumber?: string
   userId: string
   status: OrderStatus
-  confirmationState?: 'UNCONFIRMED' | 'CONFIRMED' | 'LEGACY_UNKNOWN'
+  confirmationState?: 'UNCONFIRMED' | 'CONFIRMED' | 'AUTO_CONFIRMED' | 'LEGACY_UNKNOWN'
   backendStatus?: string
   paymentMethod: PaymentMethod
   paymentStatus: PaymentStatus

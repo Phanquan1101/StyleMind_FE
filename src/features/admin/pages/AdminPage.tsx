@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { commerceApi } from '@/api/commerce'
@@ -6,7 +6,6 @@ import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 import { apiMode } from '@/shared/api/http'
 import { Button } from '@/shared/ui'
-import { AdminPaymentsPage } from '@/features/payments'
 import { AdminOverviewLive } from '@/features/admin/components/AdminOverviewLive'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
 import { AdminBrandsPanel } from '@/features/admin/components/AdminBrandsPanel'
@@ -23,12 +22,23 @@ import {
   commerceOrderToEntity,
 } from '@/features/commerce/data/commerceEntityAdapters'
 import { loadAdminOrders } from '@/features/commerce/data/loadAdminOrders'
+import { returnsApi, type ReturnRequest } from '@/features/returns/returnsApi'
 
 // Notifications, settings and AI management have no backend yet, so they are not offered or reachable (hand-typed URLs show the overview).
 const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'payments', 'requests', 'customers'])
 
 function resolveSection(value: string | null): AdminSection {
+  if (value === 'payments' || value === 'requests') return 'orders'
   return value && sections.has(value as AdminSection) ? (value as AdminSection) : 'overview'
+}
+
+type OrderView = 'list' | 'cancellations' | 'returns'
+
+function resolveOrderView(section: string | null, view: string | null): OrderView {
+  if (section === 'payments') return 'list'
+  if (section === 'requests') return view === 'returns' ? 'returns' : 'cancellations'
+  if (view === 'cancellations' || view === 'returns') return view
+  return 'list'
 }
 
 function sectionPlaceholder(section: AdminSection) {
@@ -66,7 +76,54 @@ export function AdminPage() {
   const [commerceError, setCommerceError] = useState<string | null>(null)
   const [commerceLoading, setCommerceLoading] = useState(true)
   const [reloadVersion, setReloadVersion] = useState(0)
+  const ordersLoaded = useRef(false)
+  const [liveReturns, setLiveReturns] = useState<ReturnRequest[]>([])
+  const [returnsError, setReturnsError] = useState(false)
   const activeSection = resolveSection(searchParams.get('section'))
+  const orderView = resolveOrderView(searchParams.get('section'), searchParams.get('view'))
+  const cancellationWork = new Set(state.cancellationRequests
+    .filter(request => request.status === 'submitted' || state.orders.some(order => order.id === request.orderId && order.refundStatus === 'PENDING_REFUND'))
+    .map(request => request.orderId))
+  const orderViews: { id: OrderView; label: string; count?: number }[] = [
+    { id: 'list', label: 'Danh sách đơn' },
+    { id: 'cancellations', label: 'Yêu cầu hủy', count: cancellationWork.size },
+    { id: 'returns', label: 'Yêu cầu trả hàng', count: apiMode() ? (returnsError ? undefined : liveReturns.length) : state.returnRequests.length },
+  ]
+
+  useEffect(() => {
+    if (!apiMode() || activeSection !== 'orders') return
+    const controller = new AbortController()
+    async function loadReturns() {
+      try {
+        const first = await returnsApi.adminList(0, controller.signal)
+        const items = [...first.items]
+        for (let page = 1; page < first.total_pages; page += 1) {
+          const next = await returnsApi.adminList(page, controller.signal)
+          items.push(...next.items)
+        }
+        if (!controller.signal.aborted) { setLiveReturns(items); setReturnsError(false) }
+      } catch {
+        if (!controller.signal.aborted) setReturnsError(true)
+      }
+    }
+    void loadReturns()
+    return () => controller.abort()
+  }, [activeSection, orderView, reloadVersion])
+
+  const returnStatuses = useMemo(() => {
+    const oldestFirst = [...liveReturns].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at))
+    return new Map(oldestFirst.map(request => [request.order_id, request.status]))
+  }, [liveReturns])
+
+  useEffect(() => {
+    if (!apiMode() || activeSection !== 'orders' || orderView !== 'list' || searchParams.has('orderId')) return
+    const refresh = () => {
+      if (document.visibilityState === 'visible') setReloadVersion(value => value + 1)
+    }
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh) }
+  }, [activeSection, orderView, searchParams])
 
   useEffect(() => {
     if (!apiMode()) {
@@ -78,7 +135,7 @@ export function AdminPage() {
     // Each section loads only what it shows. Products page through /admin/products themselves, the overview and the
     // account list ask the server for counts/pages, so nothing downloads the whole catalogue or every order any more.
     const needsCategories = activeSection === 'products' || activeSection === 'categories'
-    const needsOrders = activeSection === 'orders' || activeSection === 'requests'
+    const needsOrders = activeSection === 'orders'
     if (!needsCategories && !needsOrders) {
       setCommerceLoading(false)
       setCommerceError(null)
@@ -86,7 +143,7 @@ export function AdminPage() {
     }
 
     let active = true
-    setCommerceLoading(true)
+    if (!needsOrders || !ordersLoaded.current) setCommerceLoading(true)
     Promise.all([
       needsCategories ? commerceApi.categories.listAdmin() : Promise.resolve(null),
       needsOrders ? loadAdminOrders() : Promise.resolve(null),
@@ -99,6 +156,7 @@ export function AdminPage() {
         })
       }
       if (orders) {
+        ordersLoaded.current = true
         dispatch({
           type: 'commerce/adminOrdersSynced',
           payload: {
@@ -125,18 +183,35 @@ export function AdminPage() {
     return () => {
       active = false
     }
-  }, [dispatch, activeSection, reloadVersion])
+  }, [dispatch, activeSection, orderView, reloadVersion])
 
   const content = useMemo(() => {
     if (activeSection === 'overview') return apiMode() ? <AdminOverviewLive /> : <AdminOverviewPanel database={state} />
-    if (activeSection === 'payments') return <AdminPaymentsPage embedded />
     if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
     if (activeSection === 'categories') return <><AdminCategoriesPanel database={state} dispatch={dispatch} /><AdminBrandsPanel /></>
-    if (activeSection === 'orders') return <AdminOrdersPanel database={state} dispatch={dispatch} onReload={() => setReloadVersion(value => value + 1)} />
-    if (activeSection === 'requests') return <AdminRequestsPanel database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} onReload={() => setReloadVersion(value => value + 1)} />
+    if (activeSection === 'orders') return <>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-semibold">Quản lý đơn hàng</h1>
+          <p className="mt-2 text-sm text-secondary">Theo dõi giao hàng và xử lý yêu cầu của khách.</p>
+        </div>
+        <Button variant="secondary" disabled={commerceLoading} onClick={() => setReloadVersion(value => value + 1)}>Tải lại</Button>
+      </header>
+      <nav aria-label="Công việc đơn hàng" className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-divider bg-white p-1">
+        {orderViews.map(item => <button key={item.id} type="button" aria-pressed={orderView === item.id}
+          className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-accent ${orderView === item.id ? 'bg-charcoal text-white' : 'text-secondary hover:bg-ivory hover:text-charcoal'}`}
+          onClick={() => navigate(`/admin?section=orders${item.id === 'list' ? '' : `&view=${item.id}`}`)}>
+          {item.label}{item.count !== undefined && <span className="rounded-md bg-sand px-1.5 py-0.5 text-xs text-charcoal tabular-nums">{item.count}</span>}
+        </button>)}
+      </nav>
+      {returnsError && <p role="status" className="mb-4 text-sm text-warning-ink">Chưa tải được trạng thái trả hàng. Bấm Tải lại để kiểm tra.</p>}
+      {orderView === 'list' && <AdminOrdersPanel embedded database={state} dispatch={dispatch} returnStatuses={returnStatuses} onReload={() => setReloadVersion(value => value + 1)} />}
+      {(orderView === 'cancellations' || orderView === 'returns') && <AdminRequestsPanel key={orderView} database={state} dispatch={dispatch} reviewerId={currentUser?.id ?? ''} onReload={() => setReloadVersion(value => value + 1)} embeddedView={orderView}
+        onReturnUpdated={request => setLiveReturns(current => [...current.filter(item => item.return_id !== request.return_id), request])} />}
+    </>
     if (activeSection === 'customers') return <AdminCustomersPanel />
     return sectionPlaceholder(activeSection)
-  }, [activeSection, currentUser?.id, dispatch, state])
+  }, [activeSection, orderView, currentUser?.id, dispatch, state, navigate, liveReturns, returnsError, returnStatuses])
 
   if (!currentUser) return null
 
@@ -152,7 +227,7 @@ export function AdminPage() {
     >
       {commerceLoading && <p role="status" className="mb-4 rounded-lg bg-white p-4 text-sm text-[#5E5F5D]">Đang tải dữ liệu Commerce…</p>}
       {commerceError && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E7BBBB] bg-[#FCEAEA] p-4"><p role="alert" className="text-sm font-semibold text-[#A94B4B]">{commerceError}</p><Button type="button" variant="secondary" disabled={commerceLoading} onClick={() => { setCommerceError(null); setReloadVersion(value => value + 1) }}>Thử tải lại</Button></div>}
-      {(!['products', 'categories', 'orders', 'requests'].includes(activeSection) || (!commerceLoading && !commerceError)) && content}
+      {(!['products', 'categories', 'orders'].includes(activeSection) || (!commerceLoading && !commerceError)) && content}
     </AdminShell>
   )
 }

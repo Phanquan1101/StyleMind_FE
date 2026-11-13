@@ -216,7 +216,7 @@ export interface OrderResponse {
   customer_id: UUID
   checkout_key: string
   order_status: string
-  confirmation_state?: 'UNCONFIRMED' | 'CONFIRMED' | 'LEGACY_UNKNOWN'
+  confirmation_state?: 'UNCONFIRMED' | 'CONFIRMED' | 'AUTO_CONFIRMED' | 'LEGACY_UNKNOWN'
   payment_status?: 'PENDING' | 'PAID' | string
   refunded_amount_vnd?: number
   refund_status?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null

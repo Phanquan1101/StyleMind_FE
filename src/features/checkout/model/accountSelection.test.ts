@@ -20,3 +20,14 @@ it('does not replace a checkout with an unknown prior outcome', () => {
   expect(beginAccountSelection('user', { kind: 'buy-now', variant_id: 'variant', quantity: 1 })).toBe(false)
   expect(loadAccountDraft('user').checkoutKey).toBe('old')
 })
+
+it('starts an independent selection when an existing QR checkout is known', () => {
+  localStorage.setItem(accountDraftKey('user'), JSON.stringify({ checkoutKey: 'old', method: 'SEPAY_VIETQR', qrCheckoutId: 'pending-qr', submitted: { checkout_key: 'old' } }))
+  const selection = { kind: 'buy-now' as const, variant_id: 'variant', quantity: 1 }
+  expect(beginAccountSelection('user', selection)).toBe(true)
+  const draft = loadAccountDraft('user')
+  expect(draft.checkoutKey).not.toBe('old')
+  expect(draft.selection).toEqual(selection)
+  expect(draft.qrCheckoutId).toBeUndefined()
+  expect(draft.submitted).toBeUndefined()
+})

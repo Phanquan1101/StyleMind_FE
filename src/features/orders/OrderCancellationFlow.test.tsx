@@ -32,3 +32,13 @@ it('không gửi thêm khi đã có yêu cầu chờ duyệt', () => {
   expect(screen.queryByRole('button', { name: /yêu cầu hủy đơn/i })).not.toBeInTheDocument()
 })
 
+it('hủy trực tiếp đơn VNPAY chưa thanh toán kể cả khi có yêu cầu đang chờ', async () => {
+  api.cancelOrder.mockResolvedValue({ order_status: 'CANCELLED' })
+  render(<OrderDetailSections order={order({ payment_method: 'VNPAY', order_status: 'PENDING_PAYMENT', cancellation_request: { request_status: 'PENDING', reason: 'Không còn nhu cầu' } })} onRefresh={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Hủy đơn hàng' }))
+  fireEvent.change(screen.getByLabelText('Lý do hủy đơn'), { target: { value: 'Không còn nhu cầu' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hủy đơn' }))
+  await waitFor(() => expect(api.cancelOrder).toHaveBeenCalledWith('order', 'Không còn nhu cầu'))
+  expect(api.requestCancellation).not.toHaveBeenCalled()
+})
+

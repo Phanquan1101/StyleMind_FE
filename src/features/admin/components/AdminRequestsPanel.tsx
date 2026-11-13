@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom"
 import { Eye, RefreshCw, Search } from "lucide-react"
 import RefundPanel from "@/features/returns/RefundPanel"
 import AdminReturnsPanel from "./AdminReturnsPanel"
+import type { ReturnRequest as ApiReturnRequest } from "@/features/returns/returnsApi"
 import { commerceApi } from "@/api/commerce"
 import type { DemoAction, DemoDatabase } from "@/app/store/types"
 import type {
@@ -23,6 +24,8 @@ interface AdminRequestsPanelProps {
   dispatch: React.Dispatch<DemoAction>
   reviewerId: string
   onReload?: () => void
+  embeddedView?: "cancellations" | "returns"
+  onReturnUpdated?: (request: ApiReturnRequest) => void
 }
 
 type RequestTab = "cancellations" | "returns"
@@ -54,9 +57,12 @@ export function AdminRequestsPanel({
   dispatch,
   reviewerId,
   onReload,
+  embeddedView,
+  onReturnUpdated,
 }: AdminRequestsPanelProps) {
   const toast = useToast()
-  const [activeTab, setActiveTab] = useState<RequestTab>("cancellations")
+  const [selectedTab, setActiveTab] = useState<RequestTab>("cancellations")
+  const activeTab = embeddedView ?? selectedTab
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState("")
   const [reviewing, setReviewing] = useState(false)
@@ -177,7 +183,7 @@ export function AdminRequestsPanel({
   }
   return (
     <section className="min-w-0 space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      {!embeddedView && <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold">
             Quản lý yêu cầu
@@ -192,8 +198,9 @@ export function AdminRequestsPanel({
             Tải lại
           </Button>
         )}
-      </header>
-      <div
+      </header>}
+      {embeddedView === "cancellations" && <div className="flex justify-end"><Button variant="secondary" icon={<RefreshCw size={15} />} onClick={onReload}>Tải lại yêu cầu</Button></div>}
+      {!embeddedView && <div
         className="flex gap-1 overflow-x-auto border-b border-divider"
         role="group"
         aria-label="Loại yêu cầu"
@@ -229,9 +236,9 @@ export function AdminRequestsPanel({
         >
           Trả hàng / Hoàn tiền
         </button>
-      </div>
+      </div>}
       {activeTab === "returns" && apiMode() ? (
-        <AdminReturnsPanel />
+        <AdminReturnsPanel onChanged={onReturnUpdated} />
       ) : activeTab === "cancellations" ? (
         <>
           <div className="grid items-end gap-3 rounded-2xl border border-divider bg-white p-4 md:grid-cols-[minmax(0,1fr)_220px_auto] [&>label]:min-w-0">

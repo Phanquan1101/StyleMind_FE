@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-interface ReturnOrder { orderId: string; owner: 'guest' | 'account' }
+interface ReturnOrder { orderId?: string; checkoutId?: string; owner: 'guest' | 'account' }
 
 export default function VnpayReturnPage() {
   const navigate = useNavigate()
@@ -9,8 +9,10 @@ export default function VnpayReturnPage() {
   useEffect(() => {
     try {
       const value = JSON.parse(localStorage.getItem('stylemind.vnpay.return-order') ?? 'null') as ReturnOrder | null
-      if (!value?.orderId || !['guest', 'account'].includes(value.owner)) { setMissing(true); return }
-      const destination = value.owner === 'guest' ? `/guest/orders/${encodeURIComponent(value.orderId)}` : `/payments/${encodeURIComponent(value.orderId)}`
+      if ((!value?.orderId && !value?.checkoutId) || !['guest', 'account'].includes(value.owner)) { setMissing(true); return }
+      const destination = value.checkoutId
+        ? value.owner === 'guest' ? `/guest/checkout/qr/${encodeURIComponent(value.checkoutId)}` : `/checkout/qr/${encodeURIComponent(value.checkoutId)}`
+        : value.owner === 'guest' ? `/guest/orders/${encodeURIComponent(value.orderId!)}` : `/payments/${encodeURIComponent(value.orderId!)}`
       navigate(destination, { replace: true })
     } catch { setMissing(true) }
   }, [navigate])

@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui'
 import RefundReceipt from './RefundReceipt'
 import { ApiError } from '@/shared/api/http'
 import { formatCurrency } from '@/shared/lib/formatCurrency'
-import { flowErrorMessage, normalizeReason, refundsApi, refundStatusLabel, type Refund, type RefundDestination, type RefundSource } from './returnsApi'
+import { flowErrorMessage, refundsApi, refundStatusLabel, type Refund, type RefundDestination, type RefundSource } from './returnsApi'
 
 const blankDestination: RefundDestination = { bank_name: '', account_number: '', account_holder: '' }
 const inputClass = 'mt-1 w-full rounded-lg border border-sand-dark bg-white px-3 py-2.5 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
@@ -18,9 +18,10 @@ interface RefundPanelProps {
   source: RefundSource
   sourceId: string
   admin?: boolean
+  onCompleted?: () => void
 }
 
-export default function RefundPanel({ source, sourceId, admin = false }: RefundPanelProps) {
+export default function RefundPanel({ source, sourceId, admin = false, onCompleted }: RefundPanelProps) {
   const [refund, setRefund] = useState<Refund | null>(null)
   const [missing, setMissing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -30,10 +31,8 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
   const [bankForm, setBankForm] = useState(blankDestination)
   const [editBank, setEditBank] = useState(false)
   const [destination, setDestination] = useState<RefundDestination | null>(null)
-  const [transfer, setTransfer] = useState('')
-  const [proof, setProof] = useState('')
-  const [showFailureForm, setShowFailureForm] = useState(false)
-  const [failureReason, setFailureReason] = useState('')
+  const [receipt, setReceipt] = useState<File | null>(null)
+  const [transferConfirmed, setTransferConfirmed] = useState(false)
   const busyRef = useRef(false)
 
   useEffect(() => {
@@ -44,12 +43,13 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
     setDestination(null)
     setBankForm(blankDestination)
     setEditBank(false)
-    setTransfer('')
-    setProof('')
-    setShowFailureForm(false)
-    setFailureReason('')
+    setReceipt(null)
+    setTransferConfirmed(false)
     refundsApi.read(source, sourceId, controller.signal).then(result => {
-      if (!controller.signal.aborted) setRefund(result)
+      if (!controller.signal.aborted) {
+        setRefund(result)
+        if (admin && result.status === 'REFUNDED') onCompleted?.()
+      }
     }).catch(failure => {
       if (controller.signal.aborted) return
       setRefund(null)
@@ -82,10 +82,8 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
     setDestination(null)
     setBankForm(blankDestination)
     setEditBank(false)
-    setTransfer('')
-    setProof('')
-    setShowFailureForm(false)
-    setFailureReason('')
+    setReceipt(null)
+    setTransferConfirmed(false)
   }
 
   function saveBank(event: FormEvent<HTMLFormElement>) {
@@ -114,16 +112,11 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
 
   function markComplete(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!destination || !transfer.trim() || !proof.trim()) return
-    void run(() => refundsApi.complete(source, sourceId, {
-      transfer_reference: transfer.trim(), proof_reference: proof.trim(),
-    }), updateRefund)
-  }
-
-  function markFailed(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!destination || !normalizeReason(failureReason)) return
-    void run(() => refundsApi.fail(source, sourceId, normalizeReason(failureReason)), updateRefund)
+    if (!destination || !refund || !receipt || !transferConfirmed) return
+    void run(() => refundsApi.completeWithReceipt(source, sourceId, refund.refund_id, receipt), result => {
+      updateRefund(result)
+      onCompleted?.()
+    })
   }
 
   const status = refund?.status
@@ -161,7 +154,7 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
           {refund.refunded_at && <div><dt className="text-xs text-secondary">Thời gian hoàn tiền</dt><dd className="mt-1 font-medium"><time dateTime={refund.refunded_at}>{new Date(refund.refunded_at).toLocaleString('vi-VN')}</time></dd></div>}
         </dl>}
         {refund.failure_reason && <p className="whitespace-pre-wrap break-words rounded-lg bg-error-bg p-3 text-red-800">{refund.failure_reason}</p>}
-        <RefundReceipt key={source + sourceId} source={source} sourceId={sourceId} refund={refund} admin={admin} onSaved={setRefund} />
+        {(status === 'REFUNDED' || refund.has_receipt) && <RefundReceipt key={source + sourceId} source={source} sourceId={sourceId} refund={refund} admin={admin} onSaved={setRefund} />}
         {admin && status === 'PENDING' && <p className="text-secondary">Khách đã gửi tài khoản nhận tiền. Bấm Bắt đầu hoàn tiền, sau đó Xem tài khoản nhận tiền để đọc thông tin chuyển khoản.</p>}
 
         {!admin && status === 'PENDING' && !editBank && <Button type="button" size="sm" variant="secondary" onClick={() => setEditBank(true)}>Cập nhật tài khoản nhận tiền</Button>}
@@ -208,38 +201,37 @@ export default function RefundPanel({ source, sourceId, admin = false }: RefundP
             ))}
           </dl>
           <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => {
-            setDestination(null); setTransfer(''); setProof(''); setShowFailureForm(false); setFailureReason('')
+            setDestination(null); setReceipt(null); setTransferConfirmed(false)
           }}>Ẩn tài khoản nhận tiền</Button>
           </div>
-          {showFailureForm ? (
-            <form className="grid min-w-0 content-start gap-3 rounded-xl border border-divider bg-white p-4" onSubmit={markFailed}>
-              <label className="font-semibold">Lý do chuyển khoản thất bại
-                <textarea className={inputClass} maxLength={500} required disabled={busy} value={failureReason}
-                  onChange={event => setFailureReason(event.target.value)} />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <Button type="submit" size="sm" variant="danger-soft" disabled={busy || !normalizeReason(failureReason)}>Xác nhận chuyển khoản thất bại</Button>
-                <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setShowFailureForm(false)}>Đóng</Button>
-              </div>
-            </form>
-          ) : (
             <form className="grid min-w-0 content-start gap-3 rounded-xl border border-divider bg-white p-4" onSubmit={markComplete}>
               <h5 className="font-semibold">Ghi nhận kết quả chuyển khoản</h5>
-              <p className="text-secondary">Sau khi chuyển khoản tại ngân hàng, nhập mã giao dịch và mã chứng từ để ghi nhận kết quả.</p>
-              <label className="font-semibold">Mã giao dịch chuyển khoản
-                <input className={inputClass} maxLength={160} required disabled={busy} value={transfer} onChange={event => setTransfer(event.target.value)} />
+              <p className="text-secondary">Chuyển khoản cho khách, sau đó đính kèm ảnh biên nhận để xác nhận hoàn tiền.</p>
+              <label className="font-semibold">Ảnh biên nhận chuyển khoản
+                <input className={inputClass} type="file" accept="image/jpeg,image/png" required disabled={busy} onChange={event => {
+                  const image = event.target.files?.[0]
+                  setReceipt(null)
+                  if (!image) return
+                  if (!['image/jpeg', 'image/png'].includes(image.type) || image.size === 0 || image.size > 5242880) {
+                    setError('Chọn ảnh JPG hoặc PNG, tối đa 5 MB.')
+                    event.target.value = ''
+                    return
+                  }
+                  setError('')
+                  setReceipt(image)
+                }} />
               </label>
-              <label className="font-semibold">Mã chứng từ
-                <input className={inputClass} maxLength={160} required disabled={busy} value={proof} onChange={event => setProof(event.target.value)} />
+              {receipt && <p className="break-all text-secondary">{receipt.name}</p>}
+              <label className="flex items-start gap-2">
+                <input type="checkbox" checked={transferConfirmed} disabled={busy} onChange={event => setTransferConfirmed(event.target.checked)} />
+                Tôi đã chuyển đủ tiền cho khách và đính kèm đúng biên nhận.
               </label>
               <div className="flex flex-wrap gap-2">
-                <Button type="submit" size="sm" disabled={busy || !transfer.trim() || !proof.trim()}>
+                <Button type="submit" size="sm" disabled={busy || !receipt || !transferConfirmed}>
                   {busy ? 'Đang ghi nhận…' : 'Xác nhận đã chuyển khoản'}
                 </Button>
-                <Button type="button" size="sm" variant="danger-soft" disabled={busy} onClick={() => setShowFailureForm(true)}>Ghi nhận chuyển khoản thất bại</Button>
               </div>
             </form>
-          )}
         </div>}
       </>}
       {canReload && (

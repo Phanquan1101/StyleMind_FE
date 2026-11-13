@@ -65,9 +65,11 @@ function availableActions(status: ReturnRequest["status"]): ReturnAction[] {
 function ReturnReview({
   request,
   onUpdated,
+  onRefundCompleted,
 }: {
   request: ReturnRequest
   onUpdated: (request: ReturnRequest) => void
+  onRefundCompleted?: () => void
 }) {
   const [decision, setDecision] = useState<ReturnAction | null>(null)
   const [reason, setReason] = useState("")
@@ -221,13 +223,13 @@ function ReturnReview({
         </form>
       )}
       {showRefund && (
-        <RefundPanel source="RETURN" sourceId={request.return_id} admin />
+        <RefundPanel source="RETURN" sourceId={request.return_id} admin onCompleted={onRefundCompleted} />
       )}
     </article>
   )
 }
 
-export default function AdminReturnsPanel() {
+export default function AdminReturnsPanel({ onChanged }: { onChanged?: (request: ReturnRequest) => void }) {
   const [data, setData] = useState<ReturnPage | null>(null)
   const [page, setPage] = useState(0)
   const [reload, setReload] = useState(0)
@@ -267,6 +269,7 @@ export default function AdminReturnsPanel() {
     return () => controller.abort()
   }, [reload])
   function updateRequest(request: ReturnRequest) {
+    onChanged?.(request)
     setData((current) =>
       current
         ? {
@@ -549,6 +552,7 @@ export default function AdminReturnsPanel() {
             key={selected.return_id}
             request={selected}
             onUpdated={updateRequest}
+            onRefundCompleted={() => updateRequest({ ...selected, status: "REFUNDED" })}
           />
         )}
       </Modal>
