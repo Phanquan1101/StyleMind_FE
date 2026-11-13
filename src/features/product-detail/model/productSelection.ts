@@ -48,11 +48,12 @@ function uniqueColorOptions(variants: ProductVariant[]): ProductColorOption[] {
   const options = new Map<string, ProductColorOption>()
 
   variants.forEach(variant => {
+    if (!variant.color) return
     const current = options.get(variant.color)
     options.set(variant.color, {
       color: variant.color,
       colorHex: variant.colorHex,
-      available: Boolean(current?.available || variant.active),
+      available: Boolean(current?.available || (variant.active && variant.stock > 0)),
     })
   })
 
@@ -70,6 +71,7 @@ function sizeOptions(variants: ProductVariant[]): ProductSizeOption[] {
   const options = new Map<ProductSize, ProductSizeOption>()
 
   variants.forEach(variant => {
+    if (!variant.size) return
     const current = options.get(variant.size)
     options.set(variant.size, {
       size: variant.size,
@@ -89,11 +91,17 @@ export function getProductSelection(product: Product, selection: ProductSelectio
   const variants = activeVariants(product)
   const fallbackVariant = variants[0] ?? null
   const selectedColor = selection.color ?? fallbackVariant?.color ?? ''
-  const variantsByColor = variants.filter(variant => variant.color === selectedColor)
+  const variantsByColor = selectedColor
+    ? variants.filter(variant => variant.color === selectedColor)
+    : variants.filter(variant => !variant.color)
+  const hasSizes = variantsByColor.some(variant => Boolean(variant.size))
   const requestedVariant = selection.size
     ? variantsByColor.find(variant => variant.size === selection.size) ?? null
     : null
-  const displayVariant = requestedVariant ?? variantsByColor[0] ?? fallbackVariant
+  const defaultVariant = hasSizes
+    ? variantsByColor[0]
+    : variantsByColor.find(variant => variant.stock > 0) ?? variantsByColor[0]
+  const displayVariant = requestedVariant ?? defaultVariant ?? fallbackVariant
   const images = colorImages(variantsByColor.length ? variantsByColor : variants)
   const canPurchase = Boolean(requestedVariant?.active)
 

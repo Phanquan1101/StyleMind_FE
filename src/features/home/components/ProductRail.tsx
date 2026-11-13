@@ -32,7 +32,7 @@ export function ProductRail({ title, products }: ProductRailProps) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {products.slice(0, 4).map(product => {
             const primaryImage = getPrimaryImage(product)
-            const colors = Array.from(new Set(product.variants.filter(variant => variant.active).map(variant => variant.color)))
+            const colors = Array.from(new Set(product.variants.filter(variant => variant.active && variant.color).map(variant => variant.color)))
             return (
               <article key={product.id} className="overflow-hidden rounded-[24px] bg-[#FFFFFF] shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
                 <Link to={productPath(product.id)} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]">

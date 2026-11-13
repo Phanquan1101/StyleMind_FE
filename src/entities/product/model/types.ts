@@ -1,4 +1,5 @@
-export type ProductSize = 'XS' | 'S' | 'M' | 'L' | 'XL'
+/** Product variant size is an API-provided label (letters, numbers, or store-specific values). */
+export type ProductSize = string
 
 export interface ProductImage {
   id: string
@@ -10,11 +11,13 @@ export interface ProductImage {
 
 export interface ProductVariant {
   id: string
+  /** Real SKU and material fields returned with the Commerce variant. */
+  sku?: string
+  material?: string
   color: string
   colorHex: string
   size: ProductSize
   stock: number
-  sku?: string
   priceOverride?: number
   images: ProductImage[]
   active: boolean

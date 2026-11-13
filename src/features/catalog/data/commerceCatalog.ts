@@ -12,8 +12,9 @@ export interface CatalogProductResponse {
   product_status: string
   variants: Array<{
     variant_id: string
-    size: string
-    color: string
+    sku?: string
+    size: string | null
+    color: string | null
     material: string | null
     unit_price_vnd: number
     variant_status: string
@@ -23,13 +24,15 @@ export interface CatalogProductResponse {
 }
 
 export function catalogProduct(raw: CatalogProductResponse): Product {
+  const variantPrices = raw.variants.map(variant => variant.unit_price_vnd)
   return {
-    id: raw.product_id, categoryId: raw.category_id, name: raw.name, brand: raw.brand_name ?? '',
-    description: raw.description ?? '', basePrice: Math.min(...raw.variants.map(variant => variant.unit_price_vnd), Number.MAX_SAFE_INTEGER),
-    material: raw.variants[0]?.material ?? '', fit: '', pattern: '', styleIds: [], occasionIds: [], tags: [],
+    id: raw.product_id, categoryId: raw.category_id, categoryName: raw.category_name, name: raw.name, brand: raw.brand_name ?? '',
+    description: raw.description ?? '', basePrice: variantPrices.length ? Math.min(...variantPrices) : 0,
+    material: raw.variants.find(variant => variant.material)?.material ?? '', fit: '', pattern: '', styleIds: [], occasionIds: [], tags: [],
     active: raw.product_status === 'ACTIVE', featured: false, createdAt: '',
     variants: raw.variants.map(variant => ({
-      id: variant.variant_id, color: variant.color, colorHex: colorSwatchHex(variant.color), size: variant.size as ProductSize,
+      id: variant.variant_id, sku: variant.sku, material: variant.material ?? undefined,
+      color: variant.color ?? '', colorHex: colorSwatchHex(variant.color ?? ''), size: (variant.size ?? '') as ProductSize,
       stock: variant.available_quantity, priceOverride: variant.unit_price_vnd, active: variant.variant_status === 'ACTIVE',
       images: variant.images.map(image => ({
         id: image.image_id, url: image.image_url.startsWith('/api/') ? `${COMMERCE_GATEWAY}/commerce${image.image_url}` : image.image_url,
@@ -39,6 +42,11 @@ export function catalogProduct(raw: CatalogProductResponse): Product {
   }
 }
 
+export async function loadCommerceProduct(productId: string, signal?: AbortSignal): Promise<Product> {
+  const raw = await commerceRequest<CatalogProductResponse>(`/products/${encodeURIComponent(productId)}`, { signal })
+  return catalogProduct(raw)
+}
+
 export async function loadCommerceCatalog(signal?: AbortSignal): Promise<{ products: Product[]; categories: ProductCategory[] }> {
   const products: Product[] = []
   const categories = new Map<string, ProductCategory>()
@@ -46,7 +54,7 @@ export async function loadCommerceCatalog(signal?: AbortSignal): Promise<{ produ
   let totalPages = 1
   do {
     const response = await commerceRequest<{ items: CatalogProductResponse[]; total_pages: number }>(`/products?page=${page}&size=100`, { signal })
-    for (const raw of response.items) {
+    for (const raw of response.items.filter(item => item.variants.length > 0)) {
       products.push(catalogProduct(raw))
       categories.set(raw.category_id, { id: raw.category_id, label: raw.category_name, description: '', active: true, order: categories.size })
     }

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowUpRight, MapPin, Package, Ruler, Save, Shirt, UserRound, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { ROUTES } from '@/app/router/routes'
 import { useDemoStore } from '@/app/store/DemoStoreProvider'
+import { useAuth } from '@/features/auth'
 import { identityApi, identityErrorMessage, type StyleProfilePayload } from '@/shared/api/identityApi'
 import { apiMode } from '@/shared/api/http'
 import { fieldErrorsFromProblem, focusFirstInvalid, mapFieldErrors, problemOf } from '@/shared/lib/apiFieldErrors'
 import { Button } from '@/shared/ui'
-import { useAuth } from '@/features/auth'
 
 import { BodyInfoForm } from '../components/BodyInfoForm'
 import { ProfileForm } from '../components/ProfileForm'
@@ -186,68 +187,158 @@ export function AccountPage() {
   }
 
   return (
-    <section className="mx-auto grid max-w-5xl gap-8 px-5 py-10 md:px-8 md:py-12">
-      <div className="flex flex-col gap-4 border-b border-[#E3E2E2] pb-7 md:flex-row md:items-end md:justify-between">
+    <section className="mx-auto max-w-7xl space-y-7 px-4 py-8 sm:px-6 md:space-y-8 md:py-10">
+      <header className="flex flex-col gap-5 border-b border-[#E3E2E2] pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-[#5E5F5D]">Tài khoản của tôi</p>
-          <h1 className="mt-2 font-display text-4xl font-semibold leading-tight text-[#222222]">Tài khoản</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5E5F5D]">
-            Quản lý thông tin hồ sơ, số đo, lựa chọn phong cách và địa chỉ giao hàng.
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#5E5F5D]">Cài đặt tài khoản</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-[#222222] sm:text-4xl">Hồ sơ cá nhân</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5E5F5D]">
+            Quản lý thông tin hồ sơ, số đo và lựa chọn phong cách của bạn.
           </p>
-          <p className="mt-2 text-sm text-[#5E5F5D]">{currentUser.email}</p>
         </div>
         <Link
           to={ROUTES.addresses}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#1C1B1B] px-4 text-sm font-semibold text-white transition hover:bg-[#444746] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"
+          className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-lg bg-[#1C1B1B] px-4 text-sm font-semibold text-white transition hover:bg-[#444746] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] focus-visible:ring-offset-2 sm:self-auto"
         >
-          Quản lý địa chỉ
+          <MapPin size={16} aria-hidden="true" />
+          Quản lý địa chỉ{!loading && !loadError ? ` (${addressCount})` : ''}
         </Link>
-      </div>
+      </header>
 
-      {loading && <p className="text-sm text-[#5E5F5D]" role="status">Đang tải thông tin tài khoản…</p>}
-      {loadError && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#FCEAEA] px-4 py-3"><p role="alert" className="text-sm font-semibold text-[#A94B4B]">{loadError}</p><Button type="button" variant="secondary" onClick={() => setLoadVersion(value => value + 1)}>Thử tải lại</Button></div>}
-
-      {!loading && !loadError && <>
-      <section ref={profileSection} className="grid gap-4 rounded-lg border border-[#E3E2E2] bg-white p-5 sm:p-7">
-        <ProfileForm value={profileDraft} errors={profileErrors} onChange={setProfileDraft} />
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" loading={savingProfile} disabled={loading} onClick={handleProfileSave}>Lưu hồ sơ</Button>
-          {profileMessage && <p className="text-sm font-semibold text-[#3A3632]" role="status">{profileMessage}</p>}
+      {loading && (
+        <div className="rounded-xl border border-[#E3E2E2] bg-white px-5 py-6 text-sm text-[#5E5F5D]" role="status" aria-live="polite">
+          Đang tải thông tin tài khoản…
         </div>
-      </section>
+      )}
 
-      <section ref={styleSection} className="grid gap-4 rounded-lg border border-[#E3E2E2] bg-white p-5 sm:p-7">
-        <div>
-          <h2 className="font-display text-2xl font-semibold text-[#222222]">Thông tin vóc dáng và phong cách</h2>
-          <p className="mt-2 text-sm leading-6 text-[#5E5F5D]">
-            Cập nhật số đo và kích cỡ thường dùng của bạn.
-          </p>
+      {loadError && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#E7BABA] bg-[#FCEAEA] px-5 py-4">
+          <p role="alert" className="text-sm font-semibold text-[#8E3535]">{loadError}</p>
+          <Button type="button" variant="secondary" onClick={() => setLoadVersion(value => value + 1)}>Thử tải lại</Button>
         </div>
-        <BodyInfoForm value={styleDraft} errors={styleErrors} onChange={setStyleDraft} />
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" loading={savingStyle} disabled={loading} onClick={handleStyleSave}>Lưu thông tin phong cách</Button>
-          {styleMessage && <p className="text-sm font-semibold text-[#3A3632]" role="status">{styleMessage}</p>}
-        </div>
-      </section>
-      </>}
+      )}
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Shortcut label="Địa chỉ" value={loading || loadError ? 'Xem địa chỉ' : `${addressCount} địa chỉ`} to={ROUTES.addresses} />
-        <Shortcut label="Đơn hàng" value={apiMode() ? 'Xem đơn hàng' : `${orders.length} đơn`} to={ROUTES.orders} />
-        <Shortcut label="Tủ đồ" value={apiMode() ? 'Xem tủ đồ' : `${outfits.length} outfit`} to={ROUTES.wardrobes} />
-      </section>
+      {!loading && !loadError && (
+        <>
+          <div className="grid gap-5 lg:grid-cols-[minmax(18rem,0.82fr)_minmax(0,1.5fr)] lg:gap-6">
+            <div className="space-y-5">
+              <section className="rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-6" aria-label="Tóm tắt tài khoản">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#EFEDED] font-display text-2xl font-semibold text-[#222222]" aria-hidden="true">
+                    {currentUser.avatarInitials || 'SM'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5E5F5D]">
+                      {currentUser.role === 'admin' ? 'Tài khoản quản trị' : 'Thành viên StyleMind'}
+                    </p>
+                    <h2 className="mt-1 truncate text-lg font-semibold text-[#222222]">{profileDraft.displayName || currentUser.fullName}</h2>
+                    <p className="mt-1 truncate text-sm text-[#5E5F5D]">{currentUser.email}</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex items-start gap-3 rounded-lg bg-[#F5F3F3] px-4 py-3">
+                  <UserRound size={17} className="mt-0.5 shrink-0 text-[#3A3632]" aria-hidden="true" />
+                  <p className="text-sm leading-6 text-[#3A3632]">
+                    Tên hiển thị và email được lấy từ hồ sơ tài khoản của bạn.
+                  </p>
+                </div>
+              </section>
+
+              <section ref={profileSection} className="rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-6" aria-labelledby="account-profile-heading">
+                <ProfileForm
+                  value={profileDraft}
+                  email={currentUser.email}
+                  errors={profileErrors}
+                  onChange={setProfileDraft}
+                />
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <Button type="button" loading={savingProfile} disabled={loading} icon={<Save size={16} />} onClick={handleProfileSave}>
+                    Lưu hồ sơ
+                  </Button>
+                  {profileMessage && <p className="text-sm font-semibold text-[#3A3632]" role="status">{profileMessage}</p>}
+                </div>
+              </section>
+            </div>
+
+            <section ref={styleSection} className="rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-6 lg:p-7" aria-labelledby="style-profile-heading">
+              <div className="mb-6 flex items-start gap-3 border-b border-[#E3E2E2] pb-5">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EFEDED] text-[#222222]">
+                  <Ruler size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <h2 id="style-profile-heading" className="font-display text-2xl font-semibold leading-tight text-[#222222]">Vóc dáng &amp; phong cách</h2>
+                  <p className="mt-1 text-sm leading-6 text-[#5E5F5D]">
+                    Số đo và kích cỡ giúp hoàn thiện hồ sơ gợi ý trang phục. Các mục đều có thể để trống.
+                  </p>
+                </div>
+              </div>
+              <BodyInfoForm value={styleDraft} errors={styleErrors} onChange={setStyleDraft} />
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#E3E2E2] pt-5">
+                <Button type="button" loading={savingStyle} disabled={loading} icon={<Save size={16} />} onClick={handleStyleSave}>
+                  Lưu thông tin vóc dáng
+                </Button>
+                {styleMessage && <p className="text-sm font-semibold text-[#3A3632]" role="status">{styleMessage}</p>}
+              </div>
+            </section>
+          </div>
+
+          <section aria-labelledby="quick-access-heading">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="quick-access-heading" className="font-display text-2xl font-semibold text-[#222222]">Truy cập nhanh</h2>
+              <p className="text-sm text-[#5E5F5D]">Các mục thường dùng trong tài khoản</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Shortcut
+                label="Địa chỉ giao hàng"
+                value={`${addressCount} địa chỉ`}
+                description="Quản lý nơi nhận đơn hàng"
+                to={ROUTES.addresses}
+                Icon={MapPin}
+              />
+              <Shortcut
+                label="Đơn hàng"
+                value={apiMode() ? 'Theo dõi đơn' : `${orders.length} đơn`}
+                description="Xem trạng thái và lịch sử mua hàng"
+                to={ROUTES.orders}
+                Icon={Package}
+              />
+              <Shortcut
+                label="Tủ đồ cá nhân"
+                value={apiMode() ? 'Mở tủ đồ' : `${outfits.length} outfit`}
+                description="Quản lý outfit đã lưu"
+                to={ROUTES.wardrobes}
+                Icon={Shirt}
+              />
+            </div>
+          </section>
+        </>
+      )}
     </section>
   )
 }
 
-function Shortcut({ label, value, to }: { label: string; value: string; to: string }) {
+function Shortcut({ label, value, description, to, Icon }: {
+  label: string
+  value: string
+  description: string
+  to: string
+  Icon: LucideIcon
+}) {
   return (
     <Link
       to={to}
-      className="rounded-lg border border-[#E3E2E2] bg-white p-5 transition hover:border-[#777] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]"
+      className="group flex min-h-32 items-start gap-4 rounded-xl border border-[#E3E2E2] bg-white p-5 transition-colors hover:border-[#777777] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] focus-visible:ring-offset-2"
     >
-      <p className="text-sm font-semibold text-[#1C1B1B]">{label}</p>
-      <p className="mt-2 text-sm text-[#5E5F5D]">{value}</p>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#F5F3F3] text-[#222222]" aria-hidden="true">
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-semibold text-[#222222]">{label}</span>
+          <span className="rounded bg-[#F5F3F3] px-2 py-0.5 text-xs font-medium text-[#3A3632]">{value}</span>
+        </span>
+        <span className="mt-2 block text-sm leading-5 text-[#5E5F5D]">{description}</span>
+      </span>
+      <ArrowUpRight size={17} className="mt-1 shrink-0 text-[#5E5F5D] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
     </Link>
   )
 }

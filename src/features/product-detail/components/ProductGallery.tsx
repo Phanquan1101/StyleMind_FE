@@ -25,11 +25,11 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
 
   return (
     <section aria-label={`Hình ảnh ${productName}`} className="grid gap-3">
-      <div className="overflow-hidden rounded-lg bg-[#EFEDED]">
-        <img src={selectedImage.url} alt={selectedImage.alt} className="aspect-[3/4] w-full object-cover" />
+      <div className="overflow-hidden rounded-lg bg-[#F0EEEB]">
+        <img src={selectedImage.url} alt={selectedImage.alt} className="aspect-[4/5] w-full object-cover" />
       </div>
       {images.length > 1 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
           {images.map((image, index) => (
             <button
               key={image.id}
@@ -37,8 +37,8 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
               aria-label={`Xem ảnh ${index + 1} của ${productName}`}
               aria-pressed={index === selectedIndex}
               onClick={() => setSelectedIndex(index)}
-              className={`overflow-hidden rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] ${
-                index === selectedIndex ? 'border-[#1C1B1B]' : 'border-[#C4C7C7] hover:border-[#8B6475]'
+              className={`overflow-hidden rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] ${
+                index === selectedIndex ? 'border-[#1C1B1B] ring-1 ring-[#1C1B1B]' : 'border-[#D8D4D0] hover:border-[#8B8178]'
               }`}
             >
               <img src={image.url} alt={image.alt} className="aspect-square w-full object-cover" />
