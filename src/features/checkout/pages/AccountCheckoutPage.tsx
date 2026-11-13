@@ -83,6 +83,14 @@ export default function AccountCheckoutPage() {
         : await paymentApi.checkout(body)
       if (!order.order_id) throw new Error('Không nhận được mã đơn hàng; kết quả chưa xác định.')
       rememberOrder({ orderId: order.order_id, owner: 'account', accountId: owner })
+      if (body.payment_method === 'VNPAY') {
+        const attempt = await paymentApi.getOrderPaymentAttempt(order.order_id)
+        if (!attempt.paymentUrl) throw new Error('Chưa nhận được liên kết thanh toán VNPAY.')
+        saveAccountDraft(owner, { ...submitted, orderId: order.order_id })
+        window.localStorage.setItem('stylemind.vnpay.return-order', JSON.stringify({ orderId: order.order_id, owner: 'account' }))
+        window.location.assign(attempt.paymentUrl)
+        return
+      }
       saveAccountDraft(owner, { ...submitted, orderId: order.order_id })
       if (controller.signal.aborted) return
       setDraft({ ...submitted, orderId: order.order_id })
@@ -159,7 +167,7 @@ export default function AccountCheckoutPage() {
       </> : <p>Vui lòng thêm địa chỉ giao hàng trước khi đặt đơn.</p>}
       {addressesReady && !addingAddress && <Button type="button" variant="secondary" onClick={openAddressForm}>Thêm địa chỉ mới</Button>}
       {addingAddress && <div className="grid gap-3">{addressError && <p role="alert" className="rounded-lg bg-error-bg p-3 text-sm text-error">{addressError}</p>}<AddressForm provinces={provinces} wards={wards} wardLoading={wardLoading} saving={addressSaving} onProvinceChange={changeProvince} onCancel={() => { wardRequest.current++; setAddingAddress(false); setAddressError('') }} onSubmit={createAddress} /></div>}
-      <PaymentMethodSection value={draft.method === 'COD' ? 'cod' : 'vietqr'} onChange={method => update({ ...draft, method: method === 'cod' ? 'COD' : 'SEPAY_VIETQR' })} />
+      <PaymentMethodSection value={draft.method === 'COD' ? 'cod' : draft.method === 'VNPAY' ? 'vnpay' : 'vietqr'} onChange={method => update({ ...draft, method: method === 'cod' ? 'COD' : method === 'vnpay' ? 'VNPAY' : 'SEPAY_VIETQR' })} />
     </fieldset>
     <section className="grid min-w-0 gap-4 rounded-xl border border-[#E3E2E2] bg-white p-5 sm:p-7 lg:sticky lg:top-28" aria-label="Giá hiện tại">
       <h2 className="font-display text-2xl font-semibold">Giá hiện tại</h2>

@@ -220,7 +220,7 @@ export interface OrderResponse {
   payment_status?: 'PENDING' | 'PAID' | string
   refunded_amount_vnd?: number
   refund_status?: 'PENDING_REFUND' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | null
-  payment_method: 'COD' | 'SEPAY_VIETQR'
+  payment_method: 'COD' | 'SEPAY_VIETQR' | 'VNPAY'
   accepted_total_vnd: number
   placed_at: string | null
   completed_at: string | null
@@ -247,7 +247,7 @@ export interface OrderListQuery {
 export interface CheckoutInput {
   checkout_key: string
   shipping_address_id: UUID
-  payment_method: 'COD' | 'SEPAY_VIETQR'
+  payment_method: 'COD' | 'SEPAY_VIETQR' | 'VNPAY'
 }
 
 export interface PaymentAttempt {
@@ -260,6 +260,7 @@ export interface PaymentAttempt {
   expiresAt: string | null
   transferContent: string | null
   qrPayload: string | null
+  paymentUrl?: string | null
 }
 
 

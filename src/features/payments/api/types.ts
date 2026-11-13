@@ -1,4 +1,4 @@
-export type PaymentMethod = 'COD' | 'SEPAY_VIETQR'
+export type PaymentMethod = 'COD' | 'SEPAY_VIETQR' | 'VNPAY'
 export type PaymentAttemptStatus = 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'EXCEPTION'
 
 export interface PaymentAttempt {
@@ -12,6 +12,7 @@ export interface PaymentAttempt {
   transferContent: string | null
   /** URL of the bank QR image; display directly, do not encode it into another QR. */
   qrPayload: string | null
+  paymentUrl?: string | null
 }
 
 export interface QrCheckout {

@@ -46,6 +46,7 @@ export default function GuestPaymentView({
   const [copied, setCopied] = useState('')
   const [copyError, setCopyError] = useState('')
   const online = order?.payment_method === 'SEPAY_VIETQR'
+  const vnpay = order?.payment_method === 'VNPAY'
   const paid = order?.order_status === 'PAID'
   const qrExpired = pending && online && expired
   const blocked = attempt?.status === 'CANCELLED' || attempt?.status === 'EXCEPTION'
@@ -96,6 +97,7 @@ export default function GuestPaymentView({
         <p className="mt-3 max-w-xl text-sm leading-6 text-secondary">
           {blocked ? 'Khoản thanh toán cần được kiểm tra. Hãy xem trạng thái đơn hoặc liên hệ hỗ trợ.' : paid ? 'Cảm ơn bạn đã lựa chọn StyleMind. Đơn hàng của bạn đang được tiếp nhận.'
             : pending && online ? 'Chỉ còn một bước nữa để hoàn tất thanh toán cho đơn hàng của bạn.'
+            : pending && vnpay ? 'Đang xác nhận thanh toán với VNPAY. Trạng thái sẽ cập nhật từ hệ thống.'
             : order?.payment_method === 'COD' ? 'Thông tin đơn hàng đã được lưu. Bạn có thể theo dõi cập nhật ngay tại đây.'
             : 'Xem thông tin và theo dõi trạng thái đơn hàng của bạn.'}
         </p>
@@ -118,8 +120,8 @@ export default function GuestPaymentView({
       <div className="overflow-hidden rounded-3xl border border-sand bg-white shadow-[0_12px_40px_-24px_rgba(58,54,50,0.2)]">
         <div className="border-b border-sand/70 bg-[#faf9f7] px-6 py-5 sm:px-8">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-ink">{online ? 'Thanh toán chuyển khoản' : 'Thanh toán khi nhận hàng'}</h2>
-            <span className="rounded-md bg-ivory px-2.5 py-1 text-[10px] font-bold tracking-wider text-accent">{online ? 'VIETQR · SEPAY' : 'COD'}</span>
+            <h2 className="text-base font-semibold text-ink">{online ? 'Thanh toán chuyển khoản' : vnpay ? 'Thanh toán VNPAY' : 'Thanh toán khi nhận hàng'}</h2>
+            <span className="rounded-md bg-ivory px-2.5 py-1 text-[10px] font-bold tracking-wider text-accent">{online ? 'VIETQR · SEPAY' : vnpay ? 'VNPAY' : 'COD'}</span>
           </div>
         </div>
 
@@ -162,7 +164,8 @@ export default function GuestPaymentView({
 
           <div className="mt-7 grid gap-2 border-t border-sand/70 pt-6 sm:grid-cols-2">
             <Button className={`rounded-xl ${pending ? '' : 'sm:col-span-2'}`} loading={busy} onClick={onRefresh} icon={<RefreshCw size={15} aria-hidden="true" />}>Kiểm tra trạng thái đơn</Button>
-            {pending && !blocked && !expired && <Button variant="ghost" className="rounded-xl text-xs" disabled={busy} onClick={onRecover}>Tải lại thông tin thanh toán</Button>}
+            {pending && !blocked && !expired && vnpay && attempt?.paymentUrl && <Button variant="ghost" className="rounded-xl text-xs" onClick={() => window.location.assign(attempt.paymentUrl!)}>Tiếp tục thanh toán VNPAY</Button>}
+            {pending && !blocked && !expired && !vnpay && <Button variant="ghost" className="rounded-xl text-xs" disabled={busy} onClick={onRecover}>Tải lại thông tin thanh toán</Button>}
           </div>
           <div className="mt-3"><CheckFeedback lastCheck={lastCheck} busy={busy} /></div>
           {pending && !blocked && !expired && <p className="mt-3 text-xs text-secondary">Tải lại thông tin của đơn này khi mã thanh toán chưa hiển thị. Thao tác không tạo đơn mới.</p>}
@@ -185,7 +188,7 @@ export default function GuestPaymentView({
           <h2 className="flex items-center gap-2 text-base font-semibold text-ink"><PackageCheck size={18} className="text-accent-mid" aria-hidden="true" />Thông tin đơn hàng</h2>
           <div className="mt-5 grid gap-4 text-sm">
             <div><p className="text-xs text-secondary">Mã đơn hàng</p><p className="mt-1.5 break-all font-mono text-xs font-medium leading-5 text-ink">{order.order_number || orderId}</p></div>
-            <div className="flex justify-between gap-3 border-t border-sand/70 pt-4"><span className="text-secondary">Phương thức</span><span className="font-medium text-ink">{online ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}</span></div>
+            <div className="flex justify-between gap-3 border-t border-sand/70 pt-4"><span className="text-secondary">Phương thức</span><span className="font-medium text-ink">{online ? 'Chuyển khoản VietQR' : vnpay ? 'VNPAY' : 'Thanh toán COD'}</span></div>
             <div className="flex justify-between gap-3"><span className="text-secondary">Tổng tiền</span><strong className="font-semibold text-accent">{formatCurrency(order.accepted_total_vnd)}</strong></div>
           </div>
           {Boolean(order.items?.length) && <ul className="mt-5 grid max-h-64 gap-3 overflow-y-auto border-t border-sand/70 pt-4">{order.items.map(item => <li key={item.order_item_id} className="flex items-start justify-between gap-3 text-xs leading-5"><span className="text-ink">{item.product_name_snapshot}<span className="block text-muted">{[item.color_snapshot, item.size_snapshot].filter(Boolean).join(' / ')}</span></span><span className="shrink-0 text-secondary">× {item.quantity}</span></li>)}</ul>}

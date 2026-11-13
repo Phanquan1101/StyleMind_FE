@@ -107,7 +107,7 @@ export default function GuestCheckoutPage() {
       const body = draft.submitted ?? {
         checkout_key: draft.checkoutKey,
         payment_method:
-          draft.method === "cod" ? "COD" as const : "SEPAY_VIETQR" as const,
+          draft.method === "cod" ? "COD" as const : draft.method === "vnpay" ? "VNPAY" as const : "SEPAY_VIETQR" as const,
         shipping_address: address,
       }
       const selection = draft.selection ?? (prices ? { kind: 'selected' as const, cart_item_ids: prices.items.map(item => item.cart_item_id) } : undefined)
@@ -126,6 +126,17 @@ export default function GuestCheckoutPage() {
         : draft.selection?.kind === 'buy-now' ? await guestCheckoutApi.checkoutBuyNow(key, { ...body, variant_id: draft.selection.variant_id, quantity: draft.selection.quantity })
         : await guestCheckoutApi.createOrder(key, body)
       if (!order.order_id) throw new Error("Missing order id")
+      if (body.payment_method === 'VNPAY') {
+        const attempt = await guestCheckoutApi.paymentAttempt(key, order.order_id)
+        if (!attempt.paymentUrl) throw new Error('Chưa nhận được liên kết thanh toán VNPAY.')
+        window.localStorage.setItem('stylemind.vnpay.return-order', JSON.stringify({ orderId: order.order_id, owner: 'guest' }))
+        window.localStorage.setItem(GUEST_LATEST_ORDER, order.order_id)
+        rememberOrder({ orderId: order.order_id, owner: 'guest' })
+        update({ ...pending, orderId: order.order_id })
+        void guest.refreshCart().catch(() => undefined)
+        window.location.assign(attempt.paymentUrl)
+        return
+      }
       // Persist before clearing the cart or navigating, so refresh cannot submit a new order.
       window.localStorage.setItem(GUEST_LATEST_ORDER, order.order_id)
       rememberOrder({ orderId: order.order_id, owner: 'guest' })

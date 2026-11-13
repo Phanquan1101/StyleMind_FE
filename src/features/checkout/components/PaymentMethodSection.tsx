@@ -25,6 +25,10 @@ export function PaymentMethodSection({ value, onChange }: PaymentMethodSectionPr
           </span>
         </label>
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#C4C7C7] bg-white p-4 text-sm font-semibold text-[#3A3632] transition hover:border-[#8B6475]">
+          <input type="radio" name="payment-method" aria-label="VNPAY" checked={value === 'vnpay'} onChange={() => onChange('vnpay')} className="mt-1 h-4 w-4 accent-[#1C1B1B]" />
+          <span><span className="block text-[#222222]">VNPAY</span><span className="mt-1 block text-xs text-[#5E5F5D]">Thanh toán an toàn qua cổng VNPAY.</span></span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#C4C7C7] bg-white p-4 text-sm font-semibold text-[#3A3632] transition hover:border-[#8B6475]">
           <input
             type="radio"
             name="payment-method"
