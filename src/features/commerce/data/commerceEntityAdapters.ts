@@ -58,6 +58,7 @@ export function commerceProductToEntity(product: CommerceProduct): Product {
       active: variant.variant_status === 'ACTIVE',
     })),
     active: product.product_status === 'ACTIVE',
+    deleted: product.product_status === 'DELETED',
     featured: false,
     createdAt: new Date(0).toISOString(),
   }

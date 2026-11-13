@@ -37,6 +37,7 @@ export interface AdminProductRow {
   categoryLabel: string
   basePrice: number
   active: boolean
+  deleted: boolean
   imageUrl: string | null
   variantCount: number
   colors: { color: string; colorHex: string }[]

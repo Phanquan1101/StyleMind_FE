@@ -50,6 +50,8 @@ export interface Product {
   tags: string[]
   variants: ProductVariant[]
   active: boolean
+  /** Admin catalog rows retain deleted products for audit, but they can no longer be edited or restored. */
+  deleted?: boolean
   featured: boolean
   createdAt: string
 }
