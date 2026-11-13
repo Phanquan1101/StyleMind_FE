@@ -1,6 +1,6 @@
 import type { AddressSnapshot } from '@/entities/address/model/types'
 
-export type PaymentMethod = 'cod' | 'vietqr'
+export type PaymentMethod = 'cod' | 'vietqr' | 'vnpay'
 export type PaymentStatus = 'pending' | 'paid' | 'expired' | 'failed' | 'unknown'
 export type OrderStatus =
   | 'pending'

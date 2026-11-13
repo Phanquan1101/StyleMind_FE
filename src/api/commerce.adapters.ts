@@ -118,7 +118,7 @@ export function orderResponseToUi(order: OrderResponse): Order {
     subtotal: order.accepted_total_vnd,
     shipping: 0,
     total: order.accepted_total_vnd,
-    paymentMethod: order.payment_method === 'COD' ? 'COD' : 'SePay',
+    paymentMethod: order.payment_method === 'COD' ? 'COD' : order.payment_method === 'VNPAY' ? 'VNPAY' : 'SePay',
     address: order.address.address_line,
     timeline: timeline.length
       ? timeline

@@ -9,7 +9,7 @@ export const GUEST_LATEST_ORDER = "stylemind.checkout.guest-latest-order"
 export interface GuestDraft {
   checkoutKey: string
   address: GuestShippingAddress
-  method: "cod" | "vietqr"
+  method: "cod" | "vietqr" | "vnpay"
   // Freeze the submitted body for safe retries after an unknown result.
   submitted?: GuestCheckoutRequest
   orderId?: string
@@ -29,7 +29,7 @@ export function loadGuestDraft(): GuestDraft {
       if (
         draft.checkoutKey &&
         draft.address &&
-        ["cod", "vietqr"].includes(draft.method)
+        ["cod", "vietqr", "vnpay"].includes(draft.method)
       ) {
         saveGuestDraft(draft)
         return draft
@@ -41,7 +41,7 @@ export function loadGuestDraft(): GuestDraft {
   let meta: Partial<GuestDraft> = {}
   try {
     const value = JSON.parse(window.localStorage.getItem(GUEST_CHECKOUT_DRAFT + '.meta') ?? '{}')
-    if (value && typeof value.checkoutKey === 'string' && ['cod', 'vietqr'].includes(value.method)) meta = value
+    if (value && typeof value.checkoutKey === 'string' && ['cod', 'vietqr', 'vnpay'].includes(value.method)) meta = value
   } catch { /* Invalid metadata. */ }
   const draft: GuestDraft = {
     checkoutKey: meta.checkoutKey ?? crypto.randomUUID(),

@@ -15,6 +15,7 @@ export const orderStatusLabel: Record<OrderStatus, string> = {
 export const paymentMethodLabel: Record<PaymentMethod, string> = {
   cod: 'Thanh toán khi nhận hàng',
   vietqr: 'VietQR',
+  vnpay: 'VNPAY',
 }
 
 export const paymentStatusLabel: Record<PaymentStatus, string> = {

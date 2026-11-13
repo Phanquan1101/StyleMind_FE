@@ -19,6 +19,7 @@ import { ShopPage } from '@/features/catalog'
 import { CheckoutPage, OrderSuccessPage, QrPaymentPage } from '@/features/checkout'
 import GuestOrderPage from '@/features/checkout/pages/GuestOrderPage'
 import QrCheckoutPage from '@/features/checkout/pages/QrCheckoutPage'
+import VnpayReturnPage from '@/features/checkout/pages/VnpayReturnPage'
 import { HomePage } from '@/features/home'
 import { MessagesPage } from '@/features/messages'
 import FriendsPage from '@/features/friends/pages/FriendsPage'
@@ -43,6 +44,8 @@ function CommunityScreen({ demo, live }: { demo: React.ReactNode; live: React.Re
 function ApiWardrobeAccessPage() { return <main className="mx-auto max-w-3xl px-5 py-12"><h1 className="font-display text-4xl">Quyền truy cập</h1><p className="mt-4">Quyền xem được quản lý theo từng Outfit và danh sách bạn bè.</p><div className="mt-5 flex gap-4"><Link className="underline" to="/wardrobes">Quản lý Outfit</Link><Link className="underline" to="/friends">Xem bạn bè</Link></div></main> }
 
 export const appRoutes: RouteObject[] = [
+  { path: '/vnpay-return', element: <VnpayReturnPage /> },
+  { path: '/payment/vnpay/return', element: <VnpayReturnPage /> },
   { path: '/friend-invitations/accept', element: <InvitationPage /> },
   { path: ROUTES.login, element: <GuestGuard><LoginPage /></GuestGuard> },
   { path: ROUTES.register, element: <GuestGuard><RegisterPage /></GuestGuard> },
