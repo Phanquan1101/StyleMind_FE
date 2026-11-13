@@ -2,7 +2,7 @@ import type { PaymentMethod, PaymentStatus, OrderStatus } from '@/entities/order
 import type { ProductSize } from '@/entities/product/model/types'
 import type { UserRole, UserStatus } from '@/entities/user/model/types'
 
-export type AdminSection = 'overview' | 'products' | 'categories' | 'orders' | 'requests' | 'customers' | 'payments' | 'notifications' | 'settings' | 'ai'
+export type AdminSection = 'overview' | 'revenue' | 'products' | 'categories' | 'orders' | 'requests' | 'customers' | 'payments' | 'notifications' | 'settings' | 'ai'
 
 export interface AdminDashboardSummary {
   totalUsers: number
@@ -37,6 +37,7 @@ export interface AdminProductRow {
   categoryLabel: string
   basePrice: number
   active: boolean
+  deleted: boolean
   imageUrl: string | null
   variantCount: number
   colors: { color: string; colorHex: string }[]

@@ -223,6 +223,10 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
   const [variantEditLoadingId, setVariantEditLoadingId] = useState<string | null>(null)
   const [variantEditSaving, setVariantEditSaving] = useState(false)
   const [variantEditError, setVariantEditError] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletedProductIds, setDeletedProductIds] = useState<Set<string>>(() => new Set())
   const [saving, setSaving] = useState(false)
   const [loadingEdit, setLoadingEdit] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -283,9 +287,11 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
 
   const rows = useMemo(() => {
     if (!serverMode) return selectAdminProducts(database, filters)
+      .map(product => deletedProductIds.has(product.id) ? { ...product, active: false, deleted: true } : product)
     // Server rows are already filtered/paged; reuse the selector only to build the row shape.
     return selectAdminProducts({ ...database, products: (pageData?.items ?? []).map(commerceProductToEntity) }, {})
-  }, [database, filters, serverMode, pageData])
+      .map(product => deletedProductIds.has(product.id) ? { ...product, active: false, deleted: true } : product)
+  }, [database, filters, serverMode, pageData, deletedProductIds])
 
   /** Keeps the customer on the same page: swap the changed product in place instead of reloading from page 1. */
   const applyProduct = (product: CommerceProduct) => {
@@ -422,6 +428,26 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
       setVariantEditError(describeError(error))
     } finally {
       setVariantEditSaving(false)
+    }
+  }
+
+  const deleteProduct = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await commerceApi.products.remove(deleteTarget.id)
+      dispatch({ type: 'admin/productStatusChanged', payload: { productId: deleteTarget.id, active: false } })
+      setDeletedProductIds(current => new Set(current).add(deleteTarget.id))
+      setPageData(current => current && { ...current, items: current.items.map(item => item.product_id === deleteTarget.id ? { ...item, product_status: 'DELETED' } : item) })
+      setExpandedProductId(current => current === deleteTarget.id ? null : current)
+      setDeleteTarget(null)
+      setReloadVersion(value => value + 1)
+      toast.success('Đã xóa sản phẩm khỏi cửa hàng.')
+    } catch (error) {
+      setDeleteError(describeError(error))
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -717,38 +743,35 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                         </button>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <ToggleSwitch
-                          checked={row.active}
-                          label={`Sản phẩm ${row.name}`}
-                          onCheckedChange={active => {
-                            void commerceApi.products.getAdmin(row.id).then(product =>
-                              commerceApi.products.replace(row.id, {
-                                category_id: product.category_id,
-                                brand_id: product.brand_id,
-                                name: product.name,
-                                description: product.description,
-                                demographic_segment: product.demographic_segment,
-                                product_status: active ? 'ACTIVE' : 'INACTIVE',
-                              }),
-                            ).then(product => {
-                              applyProduct(product)
-                              toast.info(active ? 'Đã bật sản phẩm.' : 'Đã tắt sản phẩm.')
-                            }).catch(error => toast.error(error instanceof Error ? error.message : 'Không thể cập nhật sản phẩm'))
-                          }}
-                        />
+                        {row.deleted ? (
+                          <span className="inline-flex rounded-full bg-[#FCEAEA] px-2.5 py-1 text-xs font-semibold text-[#A94B4B]">Đã xóa</span>
+                        ) : (
+                          <ToggleSwitch
+                            checked={row.active}
+                            label={`Sản phẩm ${row.name}`}
+                            onCheckedChange={active => {
+                              void commerceApi.products.getAdmin(row.id).then(product =>
+                                commerceApi.products.replace(row.id, {
+                                  category_id: product.category_id,
+                                  brand_id: product.brand_id,
+                                  name: product.name,
+                                  description: product.description,
+                                  demographic_segment: product.demographic_segment,
+                                  product_status: active ? 'ACTIVE' : 'INACTIVE',
+                                }),
+                              ).then(product => {
+                                applyProduct(product)
+                                toast.info(active ? 'Đã bật sản phẩm.' : 'Đã tắt sản phẩm.')
+                              }).catch(error => toast.error(error instanceof Error ? error.message : 'Không thể cập nhật sản phẩm'))
+                            }}
+                          />
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="border border-[#E5E0D8]"
-                          icon={<Pencil size={14} aria-hidden="true" />}
-                          aria-label={`Sửa ${row.name}`}
-                          onClick={() => void openEditModal(row.id)}
-                        >
-                          Sửa
-                        </Button>
+                        <div className="inline-flex items-center gap-2">
+                          <Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" disabled={row.deleted} icon={<Pencil size={14} aria-hidden="true" />} aria-label={`Sửa ${row.name}`} onClick={() => void openEditModal(row.id)}>Sửa</Button>
+                          <Button type="button" size="sm" variant="danger-soft" disabled={row.deleted} icon={<Trash2 size={14} aria-hidden="true" />} aria-label={`Xóa ${row.name}`} onClick={() => { setDeleteError(null); setDeleteTarget({ id: row.id, name: row.name }) }}>Xóa</Button>
+                        </div>
                       </td>
                     </tr>
                     {isExpanded && (
@@ -782,6 +805,7 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                       <span className="inline-flex justify-center">
                                         <ToggleSwitch
                                           checked={variant.active}
+                                          disabled={row.deleted}
                                           label={`Biến thể màu ${variant.color}, cỡ ${variant.size} của ${row.name}`}
                                           onCheckedChange={active => {
                                             void commerceApi.products.getAdmin(row.id).then(async product => {
@@ -805,8 +829,8 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
                                         />
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2.5 text-right"><Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" onClick={() => setImageVariant({ productId: row.id, variantId: variant.id, label: `${row.name} · ${variant.color} · ${variant.size}` })}>Quản lý ảnh</Button></td>
-                                     <td className="px-3 py-2.5 text-right"><Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" loading={variantEditLoadingId === variant.id} icon={<Pencil size={14} aria-hidden="true" />} aria-label={`Sửa biến thể ${variant.color} ${variant.size} của ${row.name}`} onClick={() => void openVariantEdit(row.id, row.name, variant.id)}>Sửa</Button></td>
+                                    <td className="px-3 py-2.5 text-right"><Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" disabled={row.deleted} onClick={() => setImageVariant({ productId: row.id, variantId: variant.id, label: `${row.name} · ${variant.color} · ${variant.size}` })}>Quản lý ảnh</Button></td>
+                                     <td className="px-3 py-2.5 text-right"><Button type="button" size="sm" variant="ghost" className="border border-[#E5E0D8]" disabled={row.deleted} loading={variantEditLoadingId === variant.id} icon={<Pencil size={14} aria-hidden="true" />} aria-label={`Sửa biến thể ${variant.color} ${variant.size} của ${row.name}`} onClick={() => void openVariantEdit(row.id, row.name, variant.id)}>Sửa</Button></td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -832,6 +856,17 @@ export function AdminProductsPanel({ database, dispatch }: AdminProductsPanelPro
           </nav>
         )}
       </div>
+
+      <Modal open={!!deleteTarget} title="Xóa sản phẩm" description={deleteTarget ? `Bạn có chắc muốn xóa “${deleteTarget.name}” khỏi cửa hàng?` : undefined} onClose={() => { if (!deleting) { setDeleteTarget(null); setDeleteError(null) } }}>
+        <div className="grid gap-4">
+          <p className="text-sm leading-6 text-[#5E5F5D]">Sản phẩm sẽ ngừng bán và không còn hiển thị với khách hàng. Dữ liệu sản phẩm vẫn được lưu trong hệ thống.</p>
+          {deleteError && <p role="alert" className="rounded-lg border border-[#E7BBBB] bg-[#FCEAEA] p-3 text-sm font-semibold text-[#A94B4B]">Không thể xóa sản phẩm: {deleteError}</p>}
+          <div className="flex justify-end gap-3 border-t border-[#E3E2E2] pt-4">
+            <Button type="button" variant="ghost" disabled={deleting} onClick={() => { setDeleteTarget(null); setDeleteError(null) }}>Hủy</Button>
+            <Button type="button" variant="danger" loading={deleting} onClick={() => void deleteProduct()}>Xác nhận xóa</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={!!variantEdit} title="Sửa biến thể" description={variantEdit ? `${variantEdit.productName} · SKU ${variantEdit.sku}` : undefined} onClose={() => { if (!variantEditSaving) setVariantEdit(null) }}>
         {variantEdit && (

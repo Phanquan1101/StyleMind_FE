@@ -179,3 +179,24 @@ it('pages through the server list and keeps page and keyword in the URL', async 
   expect(await screen.findByText('Áo trang 3')).toBeInTheDocument()
   expect(listAdmin).toHaveBeenLastCalledWith(expect.objectContaining({ keyword: 'ao', page: 2 }))
 })
+
+it('soft-deletes a product only after confirmation', async () => {
+  const product = savedProduct(100000)
+  vi.spyOn(commerceApi.products, 'listAdmin').mockResolvedValue({ items: [product] as never, page: 0, size: 20, total_elements: 1, total_pages: 1 })
+  const remove = vi.spyOn(commerceApi.products, 'remove').mockResolvedValue(undefined)
+  const dispatch = vi.fn()
+  const user = userEvent.setup()
+  render(<MemoryRouter><ToastProvider><AdminProductsPanel database={createDemoSeed()} dispatch={dispatch} /></ToastProvider></MemoryRouter>)
+
+  await user.click(await screen.findByRole('button', { name: 'Xóa Áo mới' }))
+  expect(remove).not.toHaveBeenCalled()
+  expect(screen.getByText(/Dữ liệu sản phẩm vẫn được lưu trong hệ thống/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Xác nhận xóa' }))
+
+  await vi.waitFor(() => expect(remove).toHaveBeenCalledWith('p-1'))
+  expect(dispatch).toHaveBeenCalledWith({ type: 'admin/productStatusChanged', payload: { productId: 'p-1', active: false } })
+  expect(await screen.findByText('Đã xóa sản phẩm khỏi cửa hàng.')).toBeInTheDocument()
+  expect(screen.getByText('Đã xóa')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Sửa Áo mới' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Xóa Áo mới' })).toBeDisabled()
+})

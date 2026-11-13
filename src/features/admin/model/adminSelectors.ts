@@ -90,7 +90,7 @@ export function selectAdminProducts(database: DemoDatabase, filters: AdminProduc
   return database.products
     .filter(product => includesText(`${product.id} ${product.name} ${product.brand} ${product.variants.map(variant => variant.sku ?? '').join(' ')}`, filters.query))
     .filter(product => !filters.categoryId || filters.categoryId === 'all' || product.categoryId === filters.categoryId)
-    .filter(product => filters.status === undefined || filters.status === 'all' || (filters.status === 'active' ? product.active : !product.active))
+    .filter(product => filters.status === undefined || filters.status === 'all' || (filters.status === 'active' ? product.active : !product.active && !product.deleted))
     .map(product => {
       const colors = Array.from(new Map(product.variants.map(variant => [variant.color, { color: variant.color, colorHex: variant.colorHex }])).values())
 
@@ -101,6 +101,7 @@ export function selectAdminProducts(database: DemoDatabase, filters: AdminProduc
         categoryLabel: categoryLabels.get(product.categoryId) ?? 'Chưa phân loại',
         basePrice: product.basePrice,
         active: product.active,
+        deleted: Boolean(product.deleted),
         imageUrl: primaryImageUrl(product),
         variantCount: product.variants.length,
         colors,

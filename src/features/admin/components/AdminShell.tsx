@@ -8,11 +8,13 @@ import {
   ShoppingBag,
   Store,
   Tags,
+  TrendingUp,
   LogOut,
   UsersRound,
 } from 'lucide-react'
 
 import { ROUTES } from '@/app/router/routes'
+import { useAdminNavBadges } from '@/features/admin/dashboard/useAdminDashboard'
 import type { AdminSection } from '@/features/admin/model/adminTypes'
 import { Button } from '@/shared/ui'
 
@@ -26,6 +28,7 @@ interface AdminShellProps {
 
 const navItems = [
   { id: 'overview', label: 'Tổng quan', Icon: LayoutDashboard },
+  { id: 'revenue', label: 'Doanh thu', Icon: TrendingUp },
   { id: 'products', label: 'Sản phẩm', Icon: Package },
   { id: 'categories', label: 'Danh mục', Icon: Tags },
   { id: 'orders', label: 'Đơn hàng', Icon: ShoppingBag },
@@ -34,6 +37,7 @@ const navItems = [
 
 export function AdminShell({ activeSection, adminName, adminEmail, onLogout, children }: AdminShellProps) {
   const navigate = useNavigate()
+  const badges = useAdminNavBadges()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
       return window.localStorage.getItem('stylemind-admin-sidebar-collapsed') === 'true'
@@ -106,20 +110,32 @@ export function AdminShell({ activeSection, adminName, adminEmail, onLogout, chi
             const active = item.id === activeSection
             const to = item.id === 'overview' ? '/admin' : `/admin?section=${item.id}`
             const Icon = item.Icon
+            const badge = item.id === 'orders' ? badges.orders : 0
 
             return (
               <Link
                 key={item.id}
                 to={to}
-                aria-label={item.label}
+                aria-label={badge > 0 ? `${item.label}, ${badge} cần xử lý` : item.label}
                 aria-current={active ? 'page' : undefined}
                 title={isSidebarCollapsed ? item.label : undefined}
-                className={`inline-flex min-h-11 shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-light ${
+                className={`relative inline-flex min-h-11 shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-light ${
                   active ? 'bg-[#EFEDED] text-black' : 'text-[#5E5F5D] hover:bg-[#F5F3F3] hover:text-black'
                 } ${isSidebarCollapsed ? 'lg:justify-center lg:px-0 lg:py-3' : ''}`}
               >
                 <Icon aria-hidden="true" size={18} className="shrink-0" />
                 <span className={isSidebarCollapsed ? 'lg:sr-only' : ''}>{item.label}</span>
+                {badge > 0 && (
+                  <span
+                    aria-hidden="true"
+                    data-testid={`nav-badge-${item.id}`}
+                    className={`inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#1C1B19] px-1.5 text-xs font-semibold text-white ${
+                      isSidebarCollapsed ? 'lg:absolute lg:right-0.5 lg:top-0.5 lg:h-[18px] lg:min-w-[18px] lg:px-1 lg:text-[10px]' : 'ml-auto'
+                    }`}
+                  >
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
               </Link>
             )
           })}

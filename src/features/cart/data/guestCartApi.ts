@@ -38,5 +38,6 @@ export function guestCartErrorMessage(error: unknown): string {
   if (error.status === 401) return 'Thiếu hoặc không xác thực được phiên giỏ hàng khách.'
   if (error.status === 404) return 'Không tìm thấy sản phẩm hoặc mục giỏ hàng trong phiên này.'
   if (error.code === 'VARIANT_NOT_ACTIVE') return 'Sản phẩm không còn khả dụng. Vui lòng chọn sản phẩm khác.'
+  if (error.code === 'INSUFFICIENT_STOCK') return 'Số lượng sản phẩm này trong giỏ đã đạt giới hạn tồn kho.'
   return 'Không cập nhật được giỏ hàng. ' + error.message
 }

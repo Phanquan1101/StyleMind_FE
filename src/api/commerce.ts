@@ -10,6 +10,10 @@ import type {
   CatalogReferenceList,
   CheckoutInput,
   CheckoutPriceResponse,
+  AdminDashboard,
+  AdminDashboardQuery,
+  AdminRevenueQuery,
+  AdminRevenueReport,
   AdminProductListQuery,
   CommerceProduct,
   ImageOrderInput,
@@ -37,6 +41,16 @@ function guestQuery(guestSessionKey?: string | null) {
 }
 
 export const commerceApi = {
+  dashboard: {
+    /** Admin overview aggregates; from/to are shop-local yyyy-MM-dd (omit for the last 30 days). */
+    get: (query: AdminDashboardQuery = {}) => get<AdminDashboard>(`/api/v1/admin/dashboard${queryString(query)}`),
+  },
+  revenue: {
+    get: (query: AdminRevenueQuery = {}) => get<AdminRevenueReport>(`/api/v1/admin/revenue${queryString(query)}`),
+    /** CSV (UTF-8 with BOM) of the period table; same numbers as get(). */
+    exportCsv: (query: AdminRevenueQuery = {}) =>
+      commerceRequest<Blob>(`/api/v1/admin/revenue/export${queryString(query)}`, { responseType: 'blob' }),
+  },
   categories: {
     list: () => publicGet<CatalogReferenceList>('/api/v1/categories'),
     get: (id: UUID) => publicGet<CatalogReference>(`/api/v1/categories/${id}`),

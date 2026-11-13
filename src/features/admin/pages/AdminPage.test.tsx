@@ -588,7 +588,7 @@ describe('AdminPage', () => {
     )
     renderAt('/admin?section=requests', database)
 
-    await user.click(await screen.findByRole('button', { name: /Trả hàng \/ Hoàn tiền/ }))
+    await user.click(await screen.findByRole('button', { name: /Yêu cầu trả hàng/ }))
     const row = screen.getByRole('row', { name: /return-1002/ })
     await user.click(within(row).getByRole('button', { name: 'Hoàn tiền' }))
 

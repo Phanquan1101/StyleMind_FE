@@ -6,7 +6,8 @@ import { useDemoStore } from '@/app/store/DemoStoreProvider'
 import { useAuth } from '@/features/auth'
 import { apiMode } from '@/shared/api/http'
 import { Button } from '@/shared/ui'
-import { AdminOverviewLive } from '@/features/admin/components/AdminOverviewLive'
+import { AdminDashboard } from '@/features/admin/dashboard/AdminDashboard'
+import { AdminRevenuePage } from '@/features/admin/revenue/AdminRevenuePage'
 import { AdminCategoriesPanel } from '@/features/admin/components/AdminCategoriesPanel'
 import { AdminBrandsPanel } from '@/features/admin/components/AdminBrandsPanel'
 import { AdminCustomersPanel } from '@/features/admin/components/AdminCustomersPanel'
@@ -25,7 +26,7 @@ import { loadAdminOrders } from '@/features/commerce/data/loadAdminOrders'
 import { returnsApi, type ReturnRequest } from '@/features/returns/returnsApi'
 
 // Notifications, settings and AI management have no backend yet, so they are not offered or reachable (hand-typed URLs show the overview).
-const sections = new Set<AdminSection>(['overview', 'products', 'categories', 'orders', 'payments', 'requests', 'customers'])
+const sections = new Set<AdminSection>(['overview', 'revenue', 'products', 'categories', 'orders', 'payments', 'requests', 'customers'])
 
 function resolveSection(value: string | null): AdminSection {
   if (value === 'payments' || value === 'requests') return 'orders'
@@ -44,6 +45,7 @@ function resolveOrderView(section: string | null, view: string | null): OrderVie
 function sectionPlaceholder(section: AdminSection) {
   const title: Record<AdminSection, string> = {
     overview: 'Tổng quan quản trị',
+    revenue: 'Báo cáo doanh thu',
     products: 'Quản lý sản phẩm',
     categories: 'Quản lý danh mục',
     orders: 'Quản lý đơn hàng',
@@ -186,7 +188,8 @@ export function AdminPage() {
   }, [dispatch, activeSection, orderView, reloadVersion])
 
   const content = useMemo(() => {
-    if (activeSection === 'overview') return apiMode() ? <AdminOverviewLive /> : <AdminOverviewPanel database={state} />
+    if (activeSection === 'overview') return apiMode() ? <AdminDashboard /> : <AdminOverviewPanel database={state} />
+    if (activeSection === 'revenue') return apiMode() ? <AdminRevenuePage /> : sectionPlaceholder('revenue')
     if (activeSection === 'products') return <AdminProductsPanel database={state} dispatch={dispatch} />
     if (activeSection === 'categories') return <><AdminCategoriesPanel database={state} dispatch={dispatch} /><AdminBrandsPanel /></>
     if (activeSection === 'orders') return <>
