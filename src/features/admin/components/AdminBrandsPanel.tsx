@@ -39,6 +39,7 @@ export function AdminBrandsPanel() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<CatalogReference | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const loadBrands = async () => {
     setLoading(true)
@@ -131,13 +132,14 @@ export function AdminBrandsPanel() {
   const confirmDelete = async () => {
     if (!deleting || deleteBusy) return
     setDeleteBusy(true)
+    setDeleteError(null)
     try {
-      await commerceApi.brands.remove(deleting.id)
-      setBrands(current => current.map(brand => brand.id === deleting.id ? { ...brand, is_active: false } : brand))
-      toast.success(`Đã ẩn thương hiệu ${deleting.name}.`)
+      await commerceApi.brands.removePermanently(deleting.id)
+      setBrands(current => current.filter(brand => brand.id !== deleting.id))
+      toast.success(`Đã xóa thương hiệu ${deleting.name}.`)
       setDeleting(null)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Không thể ẩn thương hiệu.')
+      setDeleteError(error instanceof Error ? error.message : 'Không thể xóa thương hiệu.')
     } finally {
       setDeleteBusy(false)
     }
@@ -162,9 +164,9 @@ export function AdminBrandsPanel() {
             <tbody className="divide-y divide-[#E5E0D8]">
               {loading ? <tr><td colSpan={3} className="px-4 py-8 text-center text-[#5E5F5D]">Đang tải thương hiệu…</td></tr> : sortedBrands.length === 0 ? <tr><td colSpan={3} className="px-4 py-8 text-center text-[#5E5F5D]">Chưa có thương hiệu.</td></tr> : sortedBrands.map(brand => (
                 <tr key={brand.id} className="hover:bg-[#FBF9F9]/70">
-                  <td className="px-4 py-3"><p className="font-semibold text-[#222222]">{brand.name}</p><p className="mt-0.5 text-xs text-[#5E5F5D]">/{brand.slug}</p></td>
+                  <td className="px-4 py-3"><p className="font-semibold text-[#222222]">{brand.name}</p></td>
                   <td className="px-4 py-3 text-center"><ToggleSwitch checked={brand.is_active} label={`Thương hiệu ${brand.name}`} onCheckedChange={active => void updateStatus(brand, active)} /></td>
-                  <td className="px-4 py-3"><div className="flex justify-end gap-2"><Button type="button" size="sm" variant="ghost" className="h-9 w-9 px-0" aria-label={`Sửa thương hiệu ${brand.name}`} icon={<Pencil size={16} aria-hidden="true" />} onClick={() => openEdit(brand)} /><Button type="button" size="sm" variant="ghost" className="h-9 w-9 px-0 text-[#A94B4B]" aria-label={`Xóa thương hiệu ${brand.name}`} icon={<Trash2 size={16} aria-hidden="true" />} onClick={() => setDeleting(brand)} /></div></td>
+                  <td className="px-4 py-3"><div className="flex justify-end gap-2"><Button type="button" size="sm" variant="ghost" className="h-9 w-9 px-0" aria-label={`Sửa thương hiệu ${brand.name}`} icon={<Pencil size={16} aria-hidden="true" />} onClick={() => openEdit(brand)} /><Button type="button" size="sm" variant="ghost" className="h-9 w-9 px-0 text-[#A94B4B]" aria-label={`Xóa thương hiệu ${brand.name}`} icon={<Trash2 size={16} aria-hidden="true" />} onClick={() => { setDeleteError(null); setDeleting(brand) }} /></div></td>
                 </tr>
               ))}
             </tbody>
@@ -181,8 +183,9 @@ export function AdminBrandsPanel() {
         </form>
       </Modal>
 
-      <Modal open={!!deleting} title="Ẩn thương hiệu?" description={deleting ? `Thương hiệu “${deleting.name}” sẽ ngừng xuất hiện trong danh sách chọn. Sản phẩm cũ vẫn giữ nguyên dữ liệu.` : undefined} onClose={() => { if (!deleteBusy) setDeleting(null) }}>
-        <div className="flex justify-end gap-3"><Button type="button" variant="ghost" disabled={deleteBusy} onClick={() => setDeleting(null)}>Giữ lại</Button><Button type="button" variant="danger" loading={deleteBusy} onClick={() => void confirmDelete()}>Ẩn thương hiệu</Button></div>
+      <Modal open={!!deleting} title="Xóa thương hiệu?" description={deleting ? `Thương hiệu “${deleting.name}” sẽ bị xóa khỏi quản lý và không thể bật lại. Dữ liệu sản phẩm cũ vẫn được bảo toàn. Không thể hoàn tác.` : undefined} onClose={() => { if (!deleteBusy) setDeleting(null) }}>
+        {deleteError && <p role="alert" className="mb-4 rounded-lg border border-[#E7BBBB] bg-[#FCEAEA] p-3 text-sm font-semibold text-[#A94B4B]">{deleteError}</p>}
+        <div className="flex justify-end gap-3"><Button type="button" variant="ghost" disabled={deleteBusy} onClick={() => setDeleting(null)}>Giữ lại</Button><Button type="button" variant="danger" loading={deleteBusy} onClick={() => void confirmDelete()}>Xóa thương hiệu</Button></div>
       </Modal>
     </section>
   )

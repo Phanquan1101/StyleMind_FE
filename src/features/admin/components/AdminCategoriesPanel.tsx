@@ -168,7 +168,6 @@ export function AdminCategoriesPanel({ database, dispatch }: AdminCategoriesPane
                   <tr key={category.id} className="align-middle hover:bg-[#FBF9F9]/70">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-[#222222]">{category.label}</p>
-                      <p className="mt-0.5 text-xs text-[#5E5F5D]">/{category.description}</p>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums text-[#3A3632]">{count}</td>
                     <td className="px-4 py-3 text-center">
