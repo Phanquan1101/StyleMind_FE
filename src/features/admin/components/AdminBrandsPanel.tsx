@@ -76,9 +76,9 @@ export function AdminBrandsPanel() {
     else if ([...trimmedName].length < 2) errors.name = 'Tên thương hiệu phải có ít nhất 2 ký tự.'
     else if ([...trimmedName].length > 100) errors.name = 'Tên thương hiệu tối đa 100 ký tự.'
     else if (brands.some(brand => brand.id !== editing?.id && brand.name.trim().toLocaleLowerCase('vi') === trimmedName.toLocaleLowerCase('vi'))) errors.name = 'Đã có thương hiệu cùng tên.'
-    if (!trimmedSlug) errors.slug = 'Vui lòng nhập slug thương hiệu.'
-    else if (!SLUG_PATTERN.test(trimmedSlug)) errors.slug = 'Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang.'
-    else if (brands.some(brand => brand.id !== editing?.id && brand.slug === trimmedSlug)) errors.slug = 'Slug này đã được dùng.'
+    if (!trimmedSlug) errors[editing ? 'slug' : 'name'] = editing ? 'Vui lòng nhập mã định danh.' : 'Tên này không thể tạo mã định danh. Vui lòng nhập tên khác.'
+    else if (!SLUG_PATTERN.test(trimmedSlug)) errors[editing ? 'slug' : 'name'] = editing ? 'Mã định danh chỉ gồm chữ thường không dấu, số và dấu gạch ngang.' : 'Tên này không thể tạo mã định danh hợp lệ.'
+    else if (brands.some(brand => brand.id !== editing?.id && brand.slug === trimmedSlug)) errors[editing ? 'slug' : 'name'] = editing ? 'Mã định danh này đã được dùng.' : 'Tên này tạo ra mã định danh đã tồn tại. Vui lòng chọn tên khác.'
     return errors
   }
 
@@ -106,6 +106,10 @@ export function AdminBrandsPanel() {
       const problem = error instanceof CommerceApiError ? error.problem : undefined
       const { fields, unmapped } = mapFieldErrors<FieldKey>(fieldErrorsFromProblem(problem), { name: 'name', slug: 'slug' })
       if (error instanceof CommerceApiError && error.code === 'DUPLICATE_SLUG') fields.slug = 'Slug này đã được dùng.'
+      if (!editing && fields.slug) {
+        fields.name = 'Tên này tạo ra mã định danh đã tồn tại. Vui lòng chọn tên khác.'
+        delete fields.slug
+      }
       setFieldErrors(fields)
       setFormError(Object.keys(fields).length > 0 ? 'Vui lòng sửa các ô được đánh dấu đỏ.' : unmapped[0]?.message ?? (error instanceof Error ? error.message : 'Không thể lưu thương hiệu.'))
       if (Object.keys(fields).length > 0) setTimeout(() => focusFirstInvalid(formRef.current), 0)
@@ -172,7 +176,7 @@ export function AdminBrandsPanel() {
         <form ref={formRef} className="grid gap-4" onSubmit={handleSubmit} noValidate>
           {formError && <p role="alert" className="rounded-lg border border-[#E7BBBB] bg-[#FCEAEA] p-3 text-sm font-semibold text-[#A94B4B]">{formError}</p>}
           <TextField label="Tên thương hiệu" value={name} error={fieldErrors.name} onChange={event => { const value = event.target.value; setName(value); if (!slugTouched) setSlug(toSlug(value)); setFieldErrors(current => ({ ...current, name: undefined })) }} />
-          <TextField label="Slug thương hiệu" value={slug} error={fieldErrors.slug} placeholder="local-brand" onChange={event => { setSlug(event.target.value); setSlugTouched(true); setFieldErrors(current => ({ ...current, slug: undefined })) }} />
+          {editing && <details className="rounded-lg border border-[#E3E2E2] bg-[#FBF9F9] px-4 py-3"><summary className="cursor-pointer text-sm font-semibold text-[#3A3632]">Nâng cao</summary><div className="mt-4 grid gap-3"><TextField label="Mã định danh (slug)" value={slug} error={fieldErrors.slug} placeholder="local-brand" onChange={event => { setSlug(event.target.value); setSlugTouched(true); setFieldErrors(current => ({ ...current, slug: undefined })) }} /><p className="text-xs leading-5 text-[#5E5F5D]">Chỉ thay đổi khi thật sự cần thiết. Việc đổi mã có thể ảnh hưởng đến liên kết và các tích hợp đang sử dụng thương hiệu này.</p></div></details>}
           <div className="flex justify-end gap-3 border-t border-[#E3E2E2] pt-4"><Button type="button" variant="ghost" disabled={saving} onClick={() => setModalOpen(false)}>Hủy</Button><Button loading={saving} type="submit">Lưu thương hiệu</Button></div>
         </form>
       </Modal>

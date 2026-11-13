@@ -66,9 +66,9 @@ export function AdminCategoriesPanel({ database, dispatch }: AdminCategoriesPane
     else if ([...trimmed].length > 100) errors.name = 'Tên danh mục tối đa 100 ký tự.'
     else if (database.categories.some(category => category.id !== editing?.id && category.label.trim().toLocaleLowerCase('vi') === trimmed.toLocaleLowerCase('vi'))) errors.name = 'Đã có danh mục cùng tên.'
     const slugValue = slug.trim()
-    if (!slugValue) errors.slug = 'Vui lòng nhập slug (đường dẫn ngắn, ví dụ ao-dai).'
-    else if (!SLUG_PATTERN.test(slugValue)) errors.slug = 'Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang (ví dụ: ao-dai).'
-    else if (database.categories.some(category => category.id !== editing?.id && category.description === slugValue)) errors.slug = 'Slug này đã được dùng.'
+    if (!slugValue) errors[editing ? 'slug' : 'name'] = editing ? 'Vui lòng nhập mã định danh.' : 'Tên này không thể tạo mã định danh. Vui lòng nhập tên khác.'
+    else if (!SLUG_PATTERN.test(slugValue)) errors[editing ? 'slug' : 'name'] = editing ? 'Mã định danh chỉ gồm chữ thường không dấu, số và dấu gạch ngang.' : 'Tên này không thể tạo mã định danh hợp lệ.'
+    else if (database.categories.some(category => category.id !== editing?.id && category.description === slugValue)) errors[editing ? 'slug' : 'name'] = editing ? 'Mã định danh này đã được dùng.' : 'Tên này tạo ra mã định danh đã tồn tại. Vui lòng chọn tên khác.'
     return errors
   }
 
@@ -96,6 +96,10 @@ export function AdminCategoriesPanel({ database, dispatch }: AdminCategoriesPane
       const problem = error instanceof CommerceApiError ? error.problem : undefined
       const { fields, unmapped } = mapFieldErrors<FieldKey>(fieldErrorsFromProblem(problem), { name: 'name', slug: 'slug' })
       if (error instanceof CommerceApiError && error.code === 'DUPLICATE_SLUG') fields.slug = 'Slug này đã được dùng.'
+      if (!editing && fields.slug) {
+        fields.name = 'Tên này tạo ra mã định danh đã tồn tại. Vui lòng chọn tên khác.'
+        delete fields.slug
+      }
       if (Object.keys(fields).length > 0) {
         setFieldErrors(fields)
         setFormError('Vui lòng sửa các ô được đánh dấu đỏ.')
@@ -238,14 +242,21 @@ export function AdminCategoriesPanel({ database, dispatch }: AdminCategoriesPane
               setFieldErrors(current => ({ ...current, name: undefined }))
             }}
           />
-          <TextField
-            label="Slug danh mục"
-            value={slug}
-            error={fieldErrors.slug}
-            placeholder="ao-dai"
-            onChange={event => { setSlug(event.target.value); setSlugTouched(true); setFieldErrors(current => ({ ...current, slug: undefined })) }}
-          />
-          <p className="-mt-2 text-xs text-[#5E5F5D]">Slug tự tạo từ tên; có thể sửa. Chỉ gồm chữ thường không dấu, số và dấu gạch ngang.</p>
+          {editing && (
+            <details className="rounded-lg border border-[#E3E2E2] bg-[#FBF9F9] px-4 py-3">
+              <summary className="cursor-pointer text-sm font-semibold text-[#3A3632]">Nâng cao</summary>
+              <div className="mt-4 grid gap-3">
+                <TextField
+                  label="Mã định danh (slug)"
+                  value={slug}
+                  error={fieldErrors.slug}
+                  placeholder="ao-dai"
+                  onChange={event => { setSlug(event.target.value); setSlugTouched(true); setFieldErrors(current => ({ ...current, slug: undefined })) }}
+                />
+                <p className="text-xs leading-5 text-[#5E5F5D]">Chỉ thay đổi khi thật sự cần thiết. Việc đổi mã có thể ảnh hưởng đến liên kết và các tích hợp đang sử dụng danh mục này.</p>
+              </div>
+            </details>
+          )}
           <div className="flex flex-wrap justify-end gap-3 border-t border-[#E3E2E2] pt-4">
             <Button type="button" variant="ghost" disabled={saving} onClick={() => setModalOpen(false)}>
               Hủy

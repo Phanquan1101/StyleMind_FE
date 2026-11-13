@@ -19,15 +19,17 @@ it('lists, creates, edits and soft-deletes brands with the Commerce APIs', async
   expect(await screen.findByText('Local Brand')).toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: 'Thêm thương hiệu' }))
+  expect(screen.queryByLabelText('Mã định danh (slug)')).not.toBeInTheDocument()
   await user.type(screen.getByLabelText('Tên thương hiệu'), 'Nhãn mới')
   await user.click(screen.getByRole('button', { name: 'Lưu thương hiệu' }))
   await waitFor(() => expect(create).toHaveBeenCalledWith({ name: 'Nhãn mới', slug: 'nhan-moi', is_active: true }))
 
   await user.click(screen.getByRole('button', { name: 'Sửa thương hiệu Local Brand' }))
+  await user.click(screen.getByText('Nâng cao'))
   await user.clear(screen.getByLabelText('Tên thương hiệu'))
   await user.type(screen.getByLabelText('Tên thương hiệu'), 'Local Brand mới')
-  await user.clear(screen.getByLabelText('Slug thương hiệu'))
-  await user.type(screen.getByLabelText('Slug thương hiệu'), 'local-brand-moi')
+  await user.clear(screen.getByLabelText('Mã định danh (slug)'))
+  await user.type(screen.getByLabelText('Mã định danh (slug)'), 'local-brand-moi')
   await user.click(screen.getByRole('button', { name: 'Lưu thương hiệu' }))
   await waitFor(() => expect(replace).toHaveBeenCalledWith('b-1', { name: 'Local Brand mới', slug: 'local-brand-moi', is_active: true }))
 

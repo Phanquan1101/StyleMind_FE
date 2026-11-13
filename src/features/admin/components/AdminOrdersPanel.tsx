@@ -19,6 +19,7 @@ import {
 import { orderRefundLabel } from "@/features/orders/model/orderRefundStatus"
 import type { DemoAction, DemoDatabase } from "@/app/store/types"
 import type { Order, OrderStatus } from "@/entities/order/model/types"
+import type { ProductVariant } from "@/api/commerce.types"
 import {
   orderStatusLabel,
   paymentMethodLabel,
@@ -27,6 +28,7 @@ import {
 import { selectAdminOrders } from "@/features/admin/model/adminSelectors"
 import type { AdminOrderFilters } from "@/features/admin/model/adminTypes"
 import { identityApi } from "@/shared/api/identityApi"
+import { apiMode } from "@/shared/api/http"
 import { formatCurrency } from "@/shared/lib/formatCurrency"
 import { formatDate } from "@/shared/lib/formatDate"
 import { Button, SelectField, TextField, useToast } from "@/shared/ui"
@@ -129,6 +131,15 @@ function OrderItemImage({ src, name }: {
       className="h-20 w-20 shrink-0 rounded-lg bg-[#EFEDED] object-cover"
     />
   )
+}
+
+export function primaryVariantImage(variant: ProductVariant) {
+  return [...variant.images]
+    .sort(
+      (left, right) =>
+        Number(right.is_primary) - Number(left.is_primary) ||
+        left.display_order - right.display_order,
+    )[0]?.image_url ?? ""
 }
 
 export function AdminOrdersPanel({
@@ -242,6 +253,47 @@ export function AdminOrdersPanel({
   const selectedOrder = selectedOrderId
     ? (database.orders.find((order) => order.id === selectedOrderId) ?? null)
     : null
+  const [variantImages, setVariantImages] = useState<Map<string, string>>(
+    new Map(),
+  )
+
+  useEffect(() => {
+    setVariantImages(new Map())
+    if (!selectedOrder || !apiMode()) return
+
+    const variantIds = [
+      ...new Set(
+        selectedOrder.items
+          .filter((item) => !item.imageUrl)
+          .map((item) => item.variantId),
+      ),
+    ]
+    if (variantIds.length === 0) return
+
+    let active = true
+    void commerceApi.products
+      .lookupVariants(variantIds)
+      .then(({ items }) => {
+        if (!active) return
+        setVariantImages(
+          new Map(
+            items
+              .map((variant) => [
+                variant.variant_id,
+                primaryVariantImage(variant),
+              ] as const)
+              .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+          ),
+        )
+      })
+      .catch(() => {
+        // The order detail remains usable when a product or its image no longer exists.
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedOrder])
   // The orders API only returns customer_id, so resolve account emails through the admin users API (best effort).
   useEffect(() => {
     if (import.meta.env.MODE === "test") return
@@ -524,8 +576,8 @@ export function AdminOrdersPanel({
                       className="flex flex-wrap items-start gap-4 py-4 first:pt-0 last:pb-0"
                     >
                       <OrderItemImage
-                        key={item.imageUrl}
-                        src={item.imageUrl}
+                        key={item.imageUrl || variantImages.get(item.variantId)}
+                        src={item.imageUrl || variantImages.get(item.variantId) || ""}
                         name={item.name}
                       />
                       <div className="min-w-0 flex-1">

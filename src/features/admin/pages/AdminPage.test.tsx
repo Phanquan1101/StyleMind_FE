@@ -468,7 +468,7 @@ describe('AdminPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Thêm danh mục' }))
     await user.type(screen.getByLabelText('Tên danh mục'), 'Áo dài')
-    expect(screen.getByLabelText('Slug danh mục')).toHaveValue('ao-dai')
+    expect(screen.queryByLabelText('Mã định danh (slug)')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Lưu danh mục' }))
 
     const row = screen.getByRole('row', { name: /Áo dài/ })
@@ -493,8 +493,9 @@ describe('AdminPage', () => {
     renderAt('/admin?section=categories', adminDatabase())
 
     await user.click(await screen.findByRole('button', { name: 'Sửa danh mục Áo' }))
+    await user.click(screen.getByText('Nâng cao'))
     fireEvent.change(screen.getByLabelText('Tên danh mục'), { target: { value: 'Áo nữ' } })
-    fireEvent.change(screen.getByLabelText('Slug danh mục'), { target: { value: 'ao-nu' } })
+    fireEvent.change(screen.getByLabelText('Mã định danh (slug)'), { target: { value: 'ao-nu' } })
     await user.click(screen.getByRole('button', { name: 'Lưu danh mục' }))
 
     await waitFor(() => {

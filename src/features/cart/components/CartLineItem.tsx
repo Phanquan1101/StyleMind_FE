@@ -37,8 +37,8 @@ export function CartLineItem({ detail, onQuantityChange, onVariantChange, onRemo
 
   return (
     <article className="grid gap-4 rounded-lg bg-[#FFFFFF] p-4 shadow-[0_14px_30px_rgba(58,54,50,0.08)] sm:grid-cols-[108px_minmax(0,1fr)]">
-      <Link to={productPath(detail.product.id)} className="overflow-hidden rounded-lg bg-[#EFEDED] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B]">
-        {detail.image && <img src={detail.image.url} alt={detail.image.alt} className="aspect-square w-full object-cover" />}
+      <Link to={productPath(detail.product.id)} className="aspect-[4/5] overflow-hidden rounded-lg bg-[#EFEDED] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1C1B1B] sm:aspect-auto sm:h-full">
+        {detail.image && <img src={detail.image.url} alt={detail.image.alt} className="h-full w-full object-cover" />}
       </Link>
       <div className="grid gap-4">
         <div className="flex items-start justify-between gap-4">
