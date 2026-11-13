@@ -335,7 +335,7 @@ export function ProductDetailPage() {
       return
     }
     if (selectedVariant.stock <= 0) {
-      setValidationError('Phiên bản này hiện đã hết hàng')
+      setValidationError('Hết hàng')
       return
     }
 
@@ -365,10 +365,10 @@ export function ProductDetailPage() {
   }
 
   const stockMessage = needsSize && !selectedSize
-    ? selection.sizeOptions.some(option => option.stock > 0) ? 'Chọn kích thước để xem tồn kho' : 'Các kích thước hiện đã hết hàng'
+    ? selection.sizeOptions.some(option => option.stock > 0) ? 'Chọn kích thước để xem tồn kho' : 'Hết hàng'
     : selectedVariant?.stock
       ? `Còn ${selectedVariant.stock} sản phẩm`
-      : 'Phiên bản này hiện đã hết hàng'
+      : 'Hết hàng'
 
   return (
     <main className="bg-[#FAF9F7] pb-12">
