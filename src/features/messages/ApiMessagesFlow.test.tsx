@@ -95,13 +95,10 @@ it('keeps the conversation and composer mounted while a sent message refreshes',
   expect(screen.getByText('Tin trước đó')).toBeInTheDocument()
   expect(screen.getByRole('textbox', { name: 'Tin nhắn' })).toBe(input)
 })
-it('previews and sends a selected image as multipart data', async () => {
+it('only offers text messages even when the server supports images', async () => {
   const actor = '10000000-0000-0000-0000-000000000001', chat = '20000000-0000-0000-0000-000000000002'
   connectSocket()
   saveApiSession(`e30.${btoa(JSON.stringify({ sub: actor, roles: ['CUSTOMER'] }))}.sig`, Date.now() + 60000)
-  vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 100, close() {} })))
-  class TestURL extends URL { static createObjectURL = vi.fn(() => 'blob:test'); static revokeObjectURL = vi.fn() }
-  vi.stubGlobal('URL', TestURL)
   const fetcher = vi.fn(async (path: string, options: RequestInit = {}) => {
     const body = path === '/api/v1/me' ? { account_id: actor, email: 'real@example.test', profile: null }
       : path.includes('/me/chats/capabilities') ? { images_enabled: true }
@@ -113,14 +110,14 @@ it('previews and sends a selected image as multipart data', async () => {
   vi.stubGlobal('fetch', fetcher)
   render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/messages'] })} /></AppProviders>)
   const user = userEvent.setup()
-  const file = new File(['image'], 'anh.png', { type: 'image/png' })
-  await user.upload(await screen.findByLabelText('Chọn ảnh'), file)
-  expect(await screen.findByAltText('Ảnh chờ gửi anh.png')).toBeInTheDocument()
+  const input = await screen.findByRole('textbox', { name: 'Tin nhắn' })
+  expect(screen.queryByLabelText('Chọn ảnh')).not.toBeInTheDocument()
+  await user.type(input, 'Xin chào')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Gửi' })).toBeEnabled())
   await user.click(screen.getByRole('button', { name: 'Gửi' }))
-  await waitFor(() => expect(fetcher.mock.calls.some(([path, options]) => path.includes('/messages') && options?.method === 'POST' && options?.body instanceof FormData)).toBe(true))
+  await waitFor(() => expect(fetcher.mock.calls.some(([path, options]) => path.includes('/messages') && options?.method === 'POST')).toBe(true))
   const post = fetcher.mock.calls.find(([path, options]) => path.includes('/messages') && options?.method === 'POST')
-  expect((post?.[1]?.body as FormData).getAll('images')).toHaveLength(1)
+  expect(post?.[1]?.body).not.toBeInstanceOf(FormData)
 })
 it('hides the image picker when the server has no image storage', async () => {
   const actor = '10000000-0000-0000-0000-000000000001', chat = '20000000-0000-0000-0000-000000000002'
@@ -131,7 +128,6 @@ it('hides the image picker when the server has no image storage', async () => {
     : { items: [], has_more: false, next_before_sequence: null }), { status: 200 })))
   render(<AppProviders><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/messages'] })} /></AppProviders>)
   expect(await screen.findByLabelText('Tin nhắn')).toBeInTheDocument()
-  await screen.findByText('Tính năng gửi ảnh chưa được bật trên hệ thống này.')
   expect(screen.queryByLabelText('Chọn ảnh')).not.toBeInTheDocument()
 })
 it('hides the composer when chat history is no longer accessible', async () => {

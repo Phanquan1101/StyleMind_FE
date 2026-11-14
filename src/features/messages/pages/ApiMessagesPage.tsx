@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ImagePlus } from 'lucide-react'
 import ChatPeerLabel from './ChatPeerLabel'
 import { useAuth } from '@/features/auth'
 import { useApiQuery } from '@/shared/api/useApiQuery'
@@ -10,20 +9,15 @@ import { accessToken } from '@/shared/api/http'
 import { communityApi } from '@/shared/api/communityApi'
 import { chatApi, mergeHistory, type ChatMessageDto } from '../model/chatApi'
 import { useChatRealtime } from '../model/useChatRealtime'
-import { ChatImage, DraftImage, validateImages } from './ChatImage'
+import { ChatImage } from './ChatImage'
 
 export default function ApiMessagesPage() {
   const { currentUser } = useAuth()
   const [params, setParams] = useSearchParams()
   const [page, setPage] = useState(0), [drafts, setDrafts] = useState<Record<string, string>>({}), [error, setError] = useState(''), [busy, setBusy] = useState(false)
-  const pending = useRef<Record<string, { key: string; content: string; files: File[] }>>({})
-  const [imageDrafts, setImageDrafts] = useState<Record<string, File[]>>({})
-  const [validatingImages, setValidatingImages] = useState(false)
+  const pending = useRef<Record<string, { key: string; content: string }>>({})
   const friendNames = useApiQuery('chat-friends', signal => communityApi.friends(0, signal))
   const chats = useApiQuery(`chats:${page}`, signal => chatApi.list(page, signal), false, true)
-  const capabilities = useApiQuery('chat-capabilities', signal => chatApi.capabilities(signal))
-  // Hide the image picker when the server has no image storage; if the capability call itself fails, keep the old behaviour (show it).
-  const imagesEnabled = capabilities.data ? capabilities.data.images_enabled : !!capabilities.error
   const [fallbackChat, setFallbackChat] = useState('')
   const id = params.get('conversation') || fallbackChat
   useEffect(() => { if (!params.get('conversation') && !fallbackChat && chats.data?.items[0]) setFallbackChat(chats.data.items[0].chat_session_id) }, [params, fallbackChat, chats.data])
@@ -87,16 +81,15 @@ export default function ApiMessagesPage() {
     else if (nearBottom.current) element.scrollTop = element.scrollHeight
   }, [id, history.data, combined.length, latestSequence])
   const draft = drafts[id] || ''
-  const images = imageDrafts[id] || []
   const send = async () => {
-    if (!id || !connected || (!draft.trim() && !images.length) || busy || validatingImages) return
+    if (!id || !connected || !draft.trim() || busy) return
     if ([...draft].length > 4000) { setError('Tin nhắn tối đa 4.000 ký tự.'); return }
     if (draft.includes('\u0000') || /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(draft)) { setError('Tin nhắn chứa ký tự không hợp lệ.'); return }
     setBusy(true); setError('')
-    const attempt = pending.current[id]?.content === draft && pending.current[id]?.files.length === images.length && pending.current[id]?.files.every((file, index) => file === images[index]) ? pending.current[id] : { key: crypto.randomUUID(), content: draft, files: images }
+    const attempt = pending.current[id]?.content === draft ? pending.current[id] : { key: crypto.randomUUID(), content: draft }
     pending.current[id] = attempt
     const sessionToken = accessToken()
-    try { await (images.length ? chatApi.sendImages(id, attempt.key, draft, images) : chatApi.sendText(id, attempt.key, draft)); if (!sessionToken || accessToken() !== sessionToken) return; delete pending.current[id]; setDrafts(old => ({ ...old, [id]: '' })); setImageDrafts(old => ({ ...old, [id]: [] })); history.refresh(); chats.refresh() }
+    try { await chatApi.sendText(id, attempt.key, draft); if (!sessionToken || accessToken() !== sessionToken) return; delete pending.current[id]; setDrafts(old => ({ ...old, [id]: '' })); history.refresh(); chats.refresh() }
     catch (e) { if (!sessionToken || accessToken() !== sessionToken) return; setError(e instanceof Error ? e.message : 'Không gửi được tin nhắn.') }
     finally { setBusy(false) }
   }
@@ -126,9 +119,7 @@ export default function ApiMessagesPage() {
           </div>}
           {error && <p role="alert" className="mx-4 mt-2 text-sm text-[#A94B4B] sm:mx-6">{error}</p>}
           {showComposer && <div className="shrink-0 border-t border-[#E3E2E2] bg-[#FBF9F9] px-4 py-4 sm:px-6">
-            {images.length > 0 && <div className="mb-3 flex max-h-24 flex-wrap gap-2 overflow-y-auto p-1">{images.map((file, index) => <DraftImage key={`${file.name}-${index}`} file={file} remove={() => setImageDrafts(old => ({ ...old, [id]: images.filter((_, i) => i !== index) }))} />)}</div>}
-            <form className="flex items-center gap-2 sm:gap-3" onSubmit={event => { event.preventDefault(); void send() }}>{imagesEnabled && <label className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[#D9D7D5] bg-white text-[#5E5F5D] transition hover:bg-[#EFEDED] focus-within:ring-2 focus-within:ring-[#1C1B1B]" title="Chọn ảnh"><ImagePlus size={20} aria-hidden="true" /><span className="sr-only">Chọn ảnh</span><input type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || validatingImages} onChange={async event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (!files.length) return; const selected = [...images, ...files]; const selectedChat = id; setValidatingImages(true); setError(''); try { const invalid = await validateImages(selected); if (currentChat.current !== selectedChat) return; if (invalid) { setError(invalid); return } setImageDrafts(old => ({ ...old, [selectedChat]: selected })) } finally { setValidatingImages(false) } }} /></label>}<label className="sr-only" htmlFor="api-message">Tin nhắn</label><input id="api-message" disabled={busy} placeholder="Nhập tin nhắn..." className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#C4C7C7] bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#1C1B1B]/20" value={draft} onChange={event => { const value = event.target.value; setDrafts(old => ({ ...old, [id]: value })) }} /><Button type="submit" loading={busy} disabled={validatingImages || !connected || (!draft.trim() && !images.length)}>Gửi</Button></form>
-            <p className="mt-2 text-xs text-[#5E5F5D]" role={validatingImages ? 'status' : undefined}>{validatingImages ? 'Đang kiểm tra ảnh…' : imagesEnabled ? 'Ảnh JPG, PNG hoặc WebP · tối đa 5 ảnh, 10 MB mỗi ảnh' : 'Tính năng gửi ảnh chưa được bật trên hệ thống này.'}</p>
+            <form className="flex items-center gap-2 sm:gap-3" onSubmit={event => { event.preventDefault(); void send() }}><label className="sr-only" htmlFor="api-message">Tin nhắn</label><input id="api-message" disabled={busy} placeholder="Nhập tin nhắn..." className="min-h-11 min-w-0 flex-1 rounded-xl border border-[#C4C7C7] bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#1C1B1B]/20" value={draft} onChange={event => { const value = event.target.value; setDrafts(old => ({ ...old, [id]: value })) }} /><Button type="submit" loading={busy} disabled={!connected || !draft.trim()}>Gửi</Button></form>
           </div>}
         </div> : <div className="grid min-h-0 place-items-center p-6 text-center text-sm text-[#5E5F5D]">Chọn một cuộc trò chuyện để bắt đầu.</div>}
       </div>
